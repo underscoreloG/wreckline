@@ -28,6 +28,7 @@ export interface Debug2dOptions {
 const MAX_STEPS_PER_FRAME = 5;
 const MAX_FRAME_DT = 0.25;
 const RECENT_EVENTS = 8;
+const TRACER_TICKS = 6;
 const PICKUP_COLORS: Record<PickupKind, string> = { cash: '#6FCF5B', repair: '#FF4F5E', mines: '#FF9A3D', turbo: '#45E0FF' };
 
 /** 2D top-down debug view of any Sim (real or fake), stepped at a fixed 60 Hz like the game loop. */
@@ -116,13 +117,19 @@ export function mountDebug2d(root: HTMLElement, sim: Sim, input?: InputSource, o
   let scripted = false;
   const inputs = new Map<number, InputFrame>();
   const recent: string[] = [];
+  // CCR-1: gunShot events of the last TRACER_TICKS ticks, drawn as tracer lines.
+  const tracers: { shot: Extract<SimEvent, { type: 'gunShot' }>; tick: number }[] = [];
+  let stepped = 0;
   const stepOnce = (): SimEvent[] => {
     inputs.set(0, override ?? input?.poll() ?? NEUTRAL_INPUT);
     const events = sim.step(inputs);
+    stepped++;
     for (const e of events) {
       recent.push('car' in e ? `${e.type} #${e.car}` : e.type);
       if (recent.length > RECENT_EVENTS) recent.shift();
+      if (e.type === 'gunShot') tracers.push({ shot: e, tick: stepped });
     }
+    while (tracers.length > 0 && stepped - tracers[0].tick >= TRACER_TICKS) tracers.shift();
     return events;
   };
 
@@ -207,6 +214,10 @@ export function mountDebug2d(root: HTMLElement, sim: Sim, input?: InputSource, o
 
     for (const p of snap.pickups) circle(p.pos, 1.4, p.active ? PICKUP_COLORS[p.kind] : '#2A3038');
     for (const m of snap.mines) circle(m.pos, 0.8, m.armed ? '#FF3355' : '#FF9A3D');
+    for (const { shot } of tracers) {
+      ctx.strokeStyle = shot.hitCar !== null ? '#FF3355' : shot.hitWall ? '#8A96A3' : 'rgba(242, 242, 255, 0.35)';
+      poly([shot.from, shot.to], false);
+    }
 
     for (const c of snap.cars) {
       const e = sim.setup.entrants[c.id];
