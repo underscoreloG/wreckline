@@ -131,7 +131,7 @@ Pickup radius 2.2 m + half car width. Respawn after 12 s. A full car (at cap) do
 | checkpoints | every ~`checkpointSpacing` m (40 for all tracks); passed by segment intersection of prevPos->pos with the gate, in order only |
 | lap | completed when crossing checkpoint 0 after all others in order |
 | wrong way | progress decreasing for > 1.2 s while speed > 3 m/s |
-| live position | finished cars by finishTime, then by `progress` desc, wrecked last (later wreck ranks higher) |
+| live position | finished cars by finishTime (a car that finished keeps that rank even if it is wrecked afterwards), then by `progress` desc, wrecked last (later wreck ranks higher) |
 | race end | all non-wrecked cars finished, OR 15 s after the player finished, OR 2 s after the player wrecked. Unfinished cars are ranked by progress, `finished: false` |
 
 ## 8. AI profiles (`src/content/ai.ts`)

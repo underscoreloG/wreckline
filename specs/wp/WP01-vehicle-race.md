@@ -48,7 +48,7 @@ Collisions are resolved by Rapier inside `physics.step`. Their effect on velocit
 
 ### `updateCountdown: SimSystem`
 - `phase === 'countdown'`: `countdown -= SIM_DT`. Emit `{type: 'countdown', value}` when crossing 3 (at tick 0), 2 and 1 (integer boundaries of the remaining time, from `setup.countdownSeconds`). At `countdown <= 0`: `phase = 'racing'`, `countdown = 0`, `time = 0`, every `currentLapStart = 0`, emit `raceStart`.
-- `phase === 'racing'`: evaluate the end rules from content.md section 7 (all non-wrecked finished; 15 s after `playerFinishedAt`; 2 s after `playerWreckedAt`). When met: `phase = 'finished'`, `world.result = buildResult(world)` (exported by WP00 from `src/sim/index.ts`, the same builder `debugFinishRace` uses), emit `raceFinished`.
+- `phase === 'racing'`: evaluate the end rules from content.md section 7 (all non-wrecked finished; 15 s after `playerFinishedAt`; 2 s after `playerWreckedAt`). When met: `phase = 'finished'`, `world.result = buildResult(world)` (WP00's builder in `src/sim/world.ts`, also used by `debugFinishRace`; import it from `./world`, never from `./index`, which imports `race.ts` and would make a cycle; `compareRank` there gives the position order), emit `raceFinished`.
 
 ### `updateProgress: SimSystem` (after physics and combat)
 Per car, using `track.projectInto` with `hintS = car.trackS`:
