@@ -1,0 +1,122 @@
+import { getCar } from '../content/cars';
+import { buildQuickRaceSetup } from '../content/quickRace';
+import type { HudState, RaceResult, Screen, UiState, Vec2 } from '../shared/contracts';
+import { buildTrackGeometry } from '../shared/trackGeometry';
+
+// Harness fixtures built from the real M1 content (Scrapyard, the quick race entrants).
+
+export type HudFixture = 'countdown' | 'mid' | 'critical';
+
+const setup = buildQuickRaceSetup({ seed: 1 });
+const geo = buildTrackGeometry(setup.track);
+const step = Math.max(1, Math.round(8 / (geo.length / geo.samples.length)));
+const minimapPath: Vec2[] = geo.samples.filter((_, i) => i % step === 0).map((s) => ({ ...s.pos }));
+const entrants = setup.entrants.map((e) => ({ id: e.id, name: e.name, color: e.color, carName: getCar(e.carDefId).name }));
+const at = (s: number): Vec2 => ({ ...geo.sampleAt(s).pos });
+
+const minimap = (pos: Vec2[], wrecked: number[] = []): HudState['minimap'] => ({
+  cars: entrants.map((e, i) => ({ id: e.id, pos: pos[i] ?? at(0), color: e.color, wrecked: wrecked.includes(e.id) })),
+});
+
+const HUD_BASE: HudState = {
+  position: 4,
+  carCount: entrants.length,
+  lap: 1,
+  laps: setup.laps,
+  raceTime: 0,
+  lapTime: 0,
+  bestLap: null,
+  speedKmh: 0,
+  hp: 100,
+  maxHp: 100,
+  turbo: 4,
+  turboActive: false,
+  mines: 3,
+  gunHeat: 0,
+  gunOverheated: false,
+  countdown: 0,
+  banner: null,
+  wrongWay: false,
+  minimap: minimap(geo.grid.map((g) => ({ ...g.pos }))),
+  killFeed: [],
+  hitFlash: 0,
+};
+
+export function fixtureHud(kind: HudFixture): HudState {
+  const L = geo.length;
+  switch (kind) {
+    case 'countdown':
+      return { ...HUD_BASE, countdown: 2.4 };
+    case 'mid':
+      return {
+        ...HUD_BASE,
+        position: 2,
+        lap: 2,
+        raceTime: 78.3,
+        lapTime: 31.12,
+        bestLap: 46.87,
+        speedKmh: 118.4,
+        hp: 72,
+        turbo: 2.5,
+        turboActive: true,
+        mines: 2,
+        gunHeat: 0.45,
+        banner: 'LAP 2',
+        // player, VEX, RAZOR (wrecked), MOTH
+        minimap: minimap([at(L * 0.42), at(L * 0.31), at(L * 0.47), at(L * 0.55)], [2]),
+        killFeed: [
+          { id: 1, text: 'YOU wrecked RAZOR', time: 75.1 },
+          { id: 2, text: 'MOTH hit a mine', time: 77.8 },
+        ],
+      };
+    case 'critical':
+      return {
+        ...HUD_BASE,
+        position: 4,
+        lap: 3,
+        raceTime: 121.6,
+        lapTime: 18.4,
+        bestLap: 45.9,
+        speedKmh: 34.2,
+        hp: 18,
+        turbo: 0,
+        mines: 0,
+        gunHeat: 1,
+        gunOverheated: true,
+        wrongWay: true,
+        hitFlash: 0.8,
+        minimap: minimap([at(L * 0.12), at(L * 0.4), at(L * 0.33), at(L * 0.28)]),
+        killFeed: [{ id: 3, text: 'VEX shot YOU', time: 120.9 }],
+      };
+  }
+}
+
+const RESULTS: RaceResult = {
+  trackId: setup.track.id,
+  laps: setup.laps,
+  rows: [
+    { car: 3, driverId: 'r09', name: 'MOTH', position: 1, finished: true, wrecked: false, totalTime: 141.3, bestLap: 46.12, wrecksCaused: 1, cashPicked: 150, hpLeft: 44, minesLeft: 0, turboLeft: 0 },
+    { car: 0, driverId: 'player', name: 'YOU', position: 2, finished: true, wrecked: false, totalTime: 143.85, bestLap: 45.9, wrecksCaused: 1, cashPicked: 300, hpLeft: 61, minesLeft: 1, turboLeft: 0.5 },
+    { car: 1, driverId: 'r06', name: 'VEX', position: 3, finished: true, wrecked: false, totalTime: 151.02, bestLap: 48.77, wrecksCaused: 0, cashPicked: 0, hpLeft: 30, minesLeft: 2, turboLeft: 1 },
+    { car: 2, driverId: 'r10', name: 'RAZOR', position: 4, finished: false, wrecked: true, totalTime: null, bestLap: 49.8, wrecksCaused: 0, cashPicked: 50, hpLeft: 0, minesLeft: 0, turboLeft: 0 },
+  ],
+};
+
+/** A full UiState for any M1 screen; race, hud and results are always filled so the fake store can move between screens. */
+export function fixtureState(screen: Screen, hud: HudFixture = 'mid'): UiState {
+  return {
+    screen,
+    previousScreen: screen === 'settings' || screen === 'controls' ? 'title' : null,
+    settings: { version: 1, masterVolume: 0.8, sfxVolume: 0.9, quality: 'high', cameraShake: true, showFps: false },
+    usingGamepad: false,
+    version: __APP_VERSION__,
+    race: { trackId: setup.track.id, trackName: setup.track.name, laps: setup.laps, entrants, minimapPath },
+    hud: fixtureHud(hud),
+    results: RESULTS,
+    save: null,
+    offers: null,
+    selectedOffer: null,
+    lastPayout: null,
+    toast: null,
+  };
+}
