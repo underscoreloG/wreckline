@@ -53,7 +53,7 @@ Collisions are resolved by Rapier inside `physics.step`. Their effect on velocit
 ### `updateProgress: SimSystem` (after physics and combat)
 Per car, using `track.projectInto` with `hintS = car.trackS`:
 1. Store `trackS`, `lateral` (one preallocated `TrackProjection` per car, from `createTrackProjection()`). If the player is `wrecked` and `world.playerWreckedAt === null`, set it to `time`; do the same for every car's `wreckedAt` if WP02 left it null (tests may set `wrecked` directly).
-2. Checkpoints. Spawn state (set by WP00): grid is behind the line, `lap = 0`, `nextCheckpoint = 0`, `crossedStart = false`. Only the gate `nextCheckpoint` can be passed (segment `prevPos -> pos` intersects it, via `segmentIntersect`). On passing gate `i`:
+2. Checkpoints. Spawn state (set by WP00): grid is behind the line, `lap = 0`, `nextCheckpoint = 0`, `crossedStart = false`. Only the gate `nextCheckpoint` can be passed (segment `prevPos -> pos` intersects it, via `segmentIntersect`), and only going forward (positive dot product with the gate normal), so reversing over the line never counts. On passing gate `i`:
    - `i === 0 && !crossedStart`: `crossedStart = true`, `currentLapStart = time`. Not a lap.
    - `i === 0 && crossedStart`: lap completed (all other gates were passed in order, since only the next gate can be passed). `lap++`, `lastLapTime = time - currentLapStart`, update `bestLapTime`, `currentLapStart = time`, emit `lapCompleted`. Emit `finalLap` when `lap === laps - 1`. When `lap === laps`: `finished = true`, `finishTime = time`, emit `carFinished` with the position at that moment; set `playerFinishedAt` when it's the player.
    - Then `nextCheckpoint = (i + 1) % count`.
@@ -73,7 +73,7 @@ Use real Rapier (`await initPhysics()` in `beforeAll`), `createSimWithWorld`, an
 |---|---|---|
 | 1 | Top speed | full throttle on the straight for 8 s: speed within maxSpeed * [0.97, 1.0] |
 | 2 | 0-100 km/h | raven reaches 27.8 m/s in 2.0-3.2 s (the content values give ~2.17 s at 60 Hz) |
-| 3 | Braking | from maxSpeed, full brake stops within `v^2/(2*brake) * [1.0, 1.25]` |
+| 3 | Braking | from maxSpeed, full brake stops within `v^2/(2*brake) * [0.98, 1.25]` (60 Hz semi-implicit Euler stops ~1.2% short of the ideal) |
 | 4 | Reverse | holding brake from rest reaches -REVERSE_MAX * maxSpeed +- 5%, never more |
 | 5 | Turning | at 15 m/s with full steer on open ground, the car turns right (heading increases) and completes a circle with radius 6-14 m; steer -1 turns left |
 | 6 | Lap counting | a scripted path-following controller (test-only: steer toward centerline 12 m ahead, throttle 0.7) completes 3 laps of the oval; exactly 3 `lapCompleted` events, `carFinished` once, lap times within 10% of each other |

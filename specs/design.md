@@ -33,7 +33,7 @@ Water: `ThemeDef.water` is `{ color: string; point: Vec2; normal: Vec2 } | null`
 
 Look target: `specs/art/cars-concept-v1.webp` (8 cars: RAVEN, BLAZE, TITAN, VIPER, OUTLAW, SCORCH, ICEBERG, WRAITH). Grungy low-poly bodies with rust, chipped paint, bull bars, spikes and pixel-crisp decals. M1 races with the procedural placeholders of WP03; WP13 and WP14 bring the real models after a "yes" at the fun gate.
 
-Readability rules (the race camera is 52-64 m up, a car is ~40 px long):
+Readability rules (the race camera is 52-64 m up with FOV 34, so a car is ~135 px long at 1080p, measured by WP03; the earlier ~40 px estimate was wrong):
 - Each car is told apart by **silhouette** from above (buggy cage, wagon roof rack, truck bed and turret, wedge wing, boss spikes) and by its **roof plate** in the driver's livery color with one bold decal (content.md section 9).
 - Grunge, small decals and skulls are for the garage, shop and results screens, where cars are seen up close. Nothing gameplay-relevant depends on them.
 - Body paint stays as in the concept; it must still contrast with the dark world palette (no car body darker than `#2A2622` over more than half its top area without a lighter trim line: RAVEN and WRAITH get a light edge trim on the roof plate).
