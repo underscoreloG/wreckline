@@ -62,6 +62,11 @@ export interface CarStats {
   mass: number; // kg
   maxHp: number;
   gunDps: number; // hp per second while the gun hits
+  // Rocket fuel and bumper spikes (CCR-5, 2026-10-25; base values in content.md section 1, upgrades in section 2)
+  turboSpeedMult: number; // maxSpeed multiplier while rocket fuel burns (base 1.30)
+  turboAccelMult: number; // accel multiplier while rocket fuel burns (base 1.60)
+  ramDealtMult: number; // multiplier on collision damage this car deals with its front (base 1)
+  ramTakenMult: number; // multiplier on collision damage this car takes when hitting with its front (base 1)
 }
 
 export type CarMeshStyle = 'compact' | 'muscle' | 'wedge' | 'boss' | 'buggy' | 'wagon' | 'truck'; // procedural silhouettes; 'compact' is used by the wreck prop
@@ -76,6 +81,7 @@ export interface CarMeshSpec {
   cabinOffset: number; // fraction of length, + toward the front
   spoiler: boolean;
   wheelRadius: number; // m
+  spikes: number; // 0..3 bumper spike level, visual only (CCR-5)
   /** glTF path relative to the site root (e.g. 'models/cars/raven.glb'), null = procedural mesh from the fields above. Set by WP14 after the fun gate. The fields above still give the collider and the model's target size. */
   model: string | null;
 }
@@ -90,8 +96,8 @@ export interface CarDef {
   mesh: CarMeshSpec;
 }
 
-export type UpgradeKind = 'engine' | 'tires' | 'armor' | 'gun';
-export type UpgradeLevels = Record<UpgradeKind, number>; // each 0..5
+export type UpgradeKind = 'engine' | 'tires' | 'armor' | 'gun' | 'fuel' | 'spikes';
+export type UpgradeLevels = Record<UpgradeKind, number>; // 0..5 each, except spikes 0..3 (MAX_LEVEL per kind in content)
 
 export type PickupKind = 'cash' | 'repair' | 'mines' | 'turbo';
 
@@ -445,7 +451,7 @@ export interface RivalState {
 }
 
 export interface SaveGame {
-  version: 1;
+  version: 2; // v1 saves migrate on load: new upgrade kinds 0, wrecks 0, cashEarned 0, sabotage null (CCR-5)
   cash: number;
   carDefId: string;
   upgrades: UpgradeLevels;
@@ -457,6 +463,10 @@ export interface SaveGame {
   wins: number;
   rivals: RivalState[]; // 19 rivals, the boss is not in this list
   championWon: boolean;
+  wrecks: number; // career total of wrecks caused by the player (CCR-1)
+  cashEarned: number; // career total of payouts (CCR-1)
+  /** Sabotage bought for the current round's offer, applied when that offer's race starts, cleared after it (CCR-5). */
+  sabotage: { offerId: string; driverId: string; name: string; pct: number } | null;
   rngState: number; // meta RNG state so offers are reproducible
 }
 
@@ -467,6 +477,7 @@ export interface RaceOffer {
   laps: number;
   rivals: string[]; // driverIds, 3 rivals
   prizes: number[]; // cash by finishing position, index 0 = 1st
+  sabotagePrice: number; // round(0.3 * prizes[0]) (CCR-5)
   points: number[]; // championship points by position
 }
 
@@ -578,7 +589,8 @@ export type GameCommand =
   | { type: 'buyCar'; carDefId: string }
   | { type: 'repair'; amount: 'full' | number }
   | { type: 'buyMines'; count: number }
-  | { type: 'buyTurbo'; seconds: number };
+  | { type: 'buyTurbo'; seconds: number }
+  | { type: 'buySabotage' }; // for state.selectedOffer, on the preRace screen (CCR-5)
 
 export interface GameStore {
   getState(): UiState;

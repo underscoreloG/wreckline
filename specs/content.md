@@ -36,6 +36,10 @@ Every `mesh.model` is `null` (procedural) until WP14 sets `models/cars/<id>.glb`
 
 M1 uses `raven` for all 4 cars.
 
+Every car's `base` also carries (same for all 8 cars, CCR-5): `turboSpeedMult` 1.30, `turboAccelMult` 1.60, `ramDealtMult` 1, `ramTakenMult` 1. Every `mesh.spikes` is 0 in the table; race setups set it from the spikes upgrade level.
+
+**Naming (user decision 2026-10-25):** the boost is called **ROCKET FUEL** in every UI text (shop line and supplies, HUD label `FUEL`, controls screen, pickups). Code identifiers (`turbo`, `PickupKind 'turbo'`, `turboActive`) stay as they are.
+
 ## 2. Upgrades (`src/content/economy.ts`)
 
 Levels 0..5 per line. Effect per level is multiplicative on the car's base stats:
@@ -46,8 +50,10 @@ Levels 0..5 per line. Effect per level is multiplicative on the car's base stats
 | tires | grip x1.04, turnRate x1.04 | grip <= 0.97 |
 | armor | maxHp x1.15 (rounded) | - |
 | gun | gunDps x1.12 | - |
+| fuel (ROCKET FUEL) | turboSpeedMult +0.04, turboAccelMult +0.08 (additive: L5 = 1.50 / 2.00) | 5 levels |
+| spikes (BUMPER SPIKES) | ramDealtMult +0.5, ramTakenMult -0.15 (additive: L3 = 2.5 / 0.55) | 3 levels |
 
-Cost to buy level L (1..5): `[300, 700, 1500, 3000, 6000][L-1] * tierMult`, `tierMult = {1: 1, 2: 1.6, 3: 2.4}`, rounded to the nearest 10.
+Cost to buy level L (1..5): `[300, 700, 1500, 3000, 6000][L-1] * tierMult`, `tierMult = {1: 1, 2: 1.6, 3: 2.4}`, rounded to the nearest 10. Fuel uses the same table. Spikes (L 1..3): `[500, 1200, 2500][L-1] * tierMult`, rounded to the nearest 10. `MAX_LEVEL`: 5 for every line except spikes 3. Buying another car resets every line to 0, spikes and fuel included.
 
 `computeStats(car: CarDef, up: UpgradeLevels): CarStats` lives in `src/content/economy.ts` (WP00). It applies the table above, then the caps.
 
@@ -59,7 +65,10 @@ Cost to buy level L (1..5): `[300, 700, 1500, 3000, 6000][L-1] * tierMult`, `tie
 | partial repair | same price per HP; the garage offers +25% of maxHp and "all you can afford" next to FULL | to maxHp |
 | free tow (user decision 2026-10-25) | when the car has 0 hp and the player cannot afford a repair to 30% of maxHp, it is repaired to `ceil(0.3 * maxHp)` for free, with the message "Towed: free repair to 30%". Checked after every race result, every shop action and on career load, so a career can never get stuck | - |
 | mine | 60 each | 8 carried |
-| turbo | 40 per second | 10 s carried |
+| rocket fuel (turbo) | 40 per second | 10 s carried |
+| sabotage | `round(0.3 * offer.prizes[0])`: easy 180, medium 360, hard 750, boss 3000 | once per race |
+
+**Sabotage (user decision 2026-10-25):** bought on the pre-race screen for the selected offer, at most once per race. Target: the rival in that race with the most championship points (ties: higher skill); in the boss race, THE WARDEN. The damage is a whole percentage drawn at purchase from the meta RNG, uniform in 25..49, and the target starts that race at `round(maxHp * (1 - pct/100))` hp. The player sees "Sabotaged: <NAME> -<pct>%". Rivals never sabotage the player. Quick race has no sabotage.
 | car | table price, `forSale` cars only; trade-in gives 50% of the current car's price; upgrades are lost; new car starts at full hp | - |
 
 Starting career: cash 600, car `raven`, upgrades all 0, hp 100, mines 2, turbo 3 s.
@@ -69,7 +78,7 @@ M1 quick race: player and AI start with full hp, 3 mines, 4 s turbo.
 
 | state | maxSpeed | accel | grip | extra |
 |---|---|---|---|---|
-| turbo active | x1.30 | x1.60 | - | drains 1 turbo-second per second |
+| turbo active | x eff.turboSpeedMult (base 1.30) | x eff.turboAccelMult (base 1.60) | - | drains 1 turbo-second per second |
 | offroad (|lateral| > width/2) | x0.70 | x0.80 | x0.60 | extra drag 4 m/s^2 opposing velocity |
 | handbrake | - | 0 (no drive) | x0.35 | turnRate x1.4 |
 | wrecked | - | 0 | - | linear damping 2.5, angular damping 3, inputs ignored |
@@ -101,7 +110,7 @@ Mines:
 Collisions (impact speed = |velocity after the physics step - velocity before it| for that car):
 | case | damage to self |
 |---|---|
-| car vs car | max(0, impact - 6) * 1.6 * sqrt(otherMass / selfMass); `by` = other car |
+| car vs car | max(0, impact - 6) * 1.6 * sqrt(otherMass / selfMass); `by` = other car. Front hits (CCR-5): car A's hit is a front hit when `dot(fwd(A.heading), norm(B.pos - A.pos)) >= cos(40 deg)`. Then the damage B takes is multiplied by `A.eff.ramDealtMult`, and the damage A takes by `A.eff.ramTakenMult`. Both cars can have a front hit in a head-on crash; each multiplier applies to its own side. |
 | car vs wall/prop | max(0, impact - 9) * 1.0; `by` = null |
 | same pair repeat | ignored for 0.25 s after a damaging hit (scraping) |
 | `impact` event | emitted when impact >= 4 m/s |
@@ -192,7 +201,7 @@ Livery use: with procedural placeholder cars (M1) the whole body takes the liver
 | r19 | BANSHEE | #FF3355 | viper | 0.96 |
 | boss | THE WARDEN | #1A1A1A with #FF3355 trim | wraith | 1.10 |
 
-Rivals' upgrade levels: `floor(skill * 5)` on every line, capped at 5.
+Rivals' upgrade levels: `floor(skill * 5)` on every line, capped at 5, except spikes `floor(skill * 3)`, capped at 3. The boss: fuel 5, spikes 3.
 
 ## 11. Career economy (M2, used by WP09)
 

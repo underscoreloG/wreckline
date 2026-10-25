@@ -24,5 +24,7 @@ Inputs: `art-incoming/` is gitignored, so the brain copies `art-incoming/cars/` 
 
 Note: WP10's garage `CarPreview` (built in parallel) calls `buildCarMesh`, which falls back to the procedural car until models are preloaded. After both merge, the brain adds the one-line `await preloadCarModels([spec])` wiring in `CarPreview` (SPEC.md section 5 wiring rule) and re-runs the critic's garage close-ups.
 
+Bumper spikes (CCR-5): keep WP21's procedural spike meshes on imported models, placed on the front bumper from the model's bounding box.
+
 ## Out of scope
 New cars, wheel rigs for imported models, damage deformation, world props.

@@ -1,7 +1,7 @@
 # Wreckline - status
 Phase: 4 for M2 (wave C1 merged; waiting on the user's art and sound steps)   Size: L   Milestone: M1   Updated: 2026-10-25
 Integration pattern: merges of a running wave go into `integ/<wave>` so main stays put while workers run; main fast-forwards after the last merge.
-Next action: v0.3.0 (career) released. Waiting on the user: RAVEN sheet (WP13U), TITAN turret answer, sound downloads (WP15U). Then WP14/WP16, then WP12 balance (careers too long; CCR-1 save fields with it).
+Next action: fresh-context review of CCR-5 + WP20/WP21 specs, fix, then dispatch WP20 (core) and after it WP21 (UI). User steps still open: RAVEN sheet (WP13U), TITAN turret answer, sound downloads (WP15U). WP14/WP16 after the files land; WP12 balance last.
 Remote: origin = git@github.com:underscoreloG/wreckline.git (public since 2026-10-25; Pages source = GitHub Actions, set by the user; site will be https://underscorelog.github.io/wreckline/ - not yet deployed).
 Ledger edits stay uncommitted on main while a worker runs (workers check that main did not move).
 
@@ -47,7 +47,9 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | WP16 | Sound import and mix | C2 | subagent | opus high | todo | - | | copy art-incoming/sfx; listening session with user after merge |
 | WP17 | M1 tuning pass 1 (faster, more pickups) | 5 | subagent | opus high | merged | agent afc590ff684ca968e | wp/17-tuning-1 (8033df0) | lap 30.95->27.70 s; walls 1.75->2.94/race; wrecks 0.75->0.25; pickups 8.7->21.9/race; gap 1.25->0.88; released v0.2.1 |
 | WP18 | Career soft-lock fix (free tow, partial repair) | C2 | subagent | opus high | merged | agent a8c4fe9a0ce5d36d4 | wp/18-soft-lock (ac38f68) | tow + partial repairs; CCR-4 toast wiring applied by brain; released in v0.3.0 |
-| WP19 | Instant results after the player finishes | C2 | subagent | opus high | todo | - | wp/19-instant-results | patch v0.3.1 |
+| WP19 | Instant results after the player finishes | C2 | subagent | opus high | merged | agent a12b5e40d94dfc639 | wp/19-instant-results (764c1da) | results 90 ticks after finish/wreck, deep-equal to waiting; fast-forward <= 810 ticks on 16 seeds; v0.3.1 |
+| WP20 | Rocket fuel, spikes, sabotage: contract, sim, content, career logic | C2 | subagent | opus high | todo | - | | after WP19; applies CCR-5 |
+| WP21 | Rocket fuel, spikes, sabotage: screens, HUD, visuals | C2 | subagent | opus high | todo | - | | after WP20; before WP14 |
 | WP12 | Balance and polish | C3 | session | opus high | todo | - | | |
 
 ## Helper agents (not WPs)
@@ -90,6 +92,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 - Minor review items still open (`specs/REVIEW-2026-10-23.md`): 23 (finished cars coast and stay hittable), 24 (aim target and impact speed wording), 25 (names/colors past 3 AIs, TRACKS shape), 27 (sound check, fps checks need a visible pane), 28 (handbrake flag, audio car stats, layout map), 30 (easy-rival fallback wording), 31 (doc drift: GC seeds, placeProps args, WP12 probe runner).
 - Before WP14: pin a glTF optimizer version on npm into SPEC.md section 2.
 - From WP08: App is mounted by src/game/index.ts (rule 5: main.tsx may not create input/audio), accepted. Any keydown/pointerdown unlocks audio. Results delay counts 150 sim ticks. Title backdrop restarts its fake race every ~7 min (wrecked-car reset visuals unchecked). Pages workflow runs on push to main.
+- 2026-10-25 New features (user request + grill): Bumper Spikes = upgrade line 0-3 (front ram damage +50%/level dealt, -15%/level taken); Sabotage = 30% of 1st prize, once per race, target the rival with most points (boss in boss race), random 25-49% damage at the start, any race incl. boss, rivals never sabotage; Rocket Fuel = the boost renamed in UI, upgrade line 0-5 (+4% speed, +8% accel per level); rivals get spikes floor(skill*3), fuel floor(skill*5). CCR-5 contract change (+ CCR-1 save fields) -> WP20 core, WP21 UI.
 - 2026-10-25 User on v0.3.0, verbatim: "waiting for the ai to finish the race to go to the main menu is kinda annoying". Fix: results 1.5 s after the player finishes or wrecks, the rest of the race fast-forwarded headlessly so results stay identical (WP19).
 - 2026-10-25 Soft-lock rule: free tow to ceil(30% maxHp) when hp 0 and the player cannot afford 30%; garage adds +25% and MAX partial repairs (WP18). Release v0.3.0 (career) after WP18.
 - 2026-10-25 Fun gate: yes on v0.2.1. M2 starts with wave C1 (WP09, WP11, WP13, WP15). New tracks get 10-14 pickups (every kind >= 2) to match the approved density.
