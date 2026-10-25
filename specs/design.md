@@ -32,7 +32,7 @@ Water: `ThemeDef.water` is `{ color: string; point: Vec2; normal: Vec2 } | null`
 ### New themes (CCR-6, WP22 sets exact tokens like WP11 did)
 
 - **snow**: night, cold blue key light (around `#A8C4FF`, 0.9), snow ground near `#D8E2EA` with blue-grey noise, dark asphalt kept readable, denser fog near `#1A2230`. Props: `pine` (cone stack, dark green), `snowbank` (low white mound along walls), light poles with warm sodium pools for contrast.
-- **city**: rainy night, dark wet asphalt (road roughness ~0.3 so lamps leave streaks of light), purple-black fog near `#120A1E`, `building` blocks as walls of the street, `billboard` props with emissive magenta / cyan panels that bloom. Cars must stay the most saturated things on screen: billboards sit outside the walls, never over the road.
+- **city**: rainy night look without particles: darker, slightly blue asphalt and kerb tokens and more lamp pools give the wet feel (no material or roughness change), purple-black fog near `#120A1E`, `building` blocks as walls of the street, `billboard` props with emissive magenta / cyan panels that bloom. Cars must stay the most saturated things on screen: billboards sit outside the walls, never over the road.
 - **quarry**: hot late afternoon, high contrast, warm key light, light dusty fog near `#B89A7A`, ochre and red rock ground, `rock` clusters and a `crane` (static gantry crane, tall) as landmarks.
 
 Readability rule for all: the road edge, cars, pickups and mines must stay as legible as on Scrapyard (same 0.5 s glance test).

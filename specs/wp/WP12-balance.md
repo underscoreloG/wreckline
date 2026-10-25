@@ -12,7 +12,7 @@ Dispatch: **session** (feel tuning needs the user's live steering).
 |---|---|---|
 | Career length to champion, `greedy` policy | 18-35 races, champion in >= 14 of 16 seeds | `scripts/balance/career.ts` (vitest probe in the scratchpad pattern: plain `.mjs` config with `root` = project) |
 | Career length, `safe` policy | champion in 25-50 races or not at all within 60 | same |
-| Wrecks per AI race | 0.4-1.5 | `scripts/balance/races.ts`, 16 seeds x 3 tracks |
+| Wrecks per AI race | 0.2-2.0 (WP07 gate; 0.4-1.5 preferred) | `scripts/balance/races.ts`, 16 seeds x all 10 tracks |
 | Gun damage share of all damage | 45-65% | same |
 | Mine hits per race | 0.8-3 | same |
 | AI finish spread | 0.75 skill car beats 0.35 by >= 0.8 avg places on every track | same |

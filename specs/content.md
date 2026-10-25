@@ -68,11 +68,12 @@ Cost to buy level L (1..5): `[300, 700, 1500, 3000, 6000][L-1] * tierMult`, `tie
 | rocket fuel (turbo) | 40 per second | 10 s carried |
 | sabotage | `round(0.3 * offer.prizes[0])`: easy 180, medium 360, hard 750, boss 3000 | once per race |
 
-**Sabotage (user decision 2026-10-25):** bought on the pre-race screen for the selected offer, at most once per race. Target: the rival in that race with the most championship points (ties: higher skill); in the boss race, THE WARDEN. The damage is a whole percentage drawn at purchase from the meta RNG, uniform in 25..49, and the target starts that race at `round(maxHp * (1 - pct/100))` hp. The player sees "Sabotaged: <NAME> -<pct>%". Rivals never sabotage the player. Quick race has no sabotage.
 | car | table price, `forSale` cars only; trade-in gives 50% of the current car's price; upgrades are lost; new car starts at full hp | - |
 
 Starting career: cash 600, car `raven`, upgrades all 0, hp 100, mines 2, turbo 3 s.
 M1 quick race: player and AI start with full hp, 3 mines, 4 s turbo.
+
+**Sabotage (user decision 2026-10-25):** bought on the pre-race screen for the selected offer. Target: the rival in that race with the most championship points (ties: higher skill; rival skills are all distinct, so no tie survives); in the boss race, THE WARDEN. `sabotageTarget(save, offer)` (WP20) gives the name to show before buying. The damage is a whole percentage drawn at purchase from the meta RNG, uniform in 25..49, stored with the price; the target starts that race at `round(maxHp * (1 - pct/100))` hp. The player sees "Sabotaged: <NAME> -<pct>%". Lifecycle: one pending sabotage at a time (buying for another offer is refused with "Sabotage already bought for another race"); the target is re-picked from the offer's rivals when the race setup is built (offers are rebuilt after a reload, so the stored offer id is matched, not the rival); if the player races a different offer, the price is refunded; it is cleared after the race it applies to. Rivals never sabotage the player. Quick race has no sabotage. Numbers live as named constants in `src/content/economy.ts` so WP12 can tune them: `SABOTAGE_PRICE_FRACTION` 0.3, `SABOTAGE_PCT_MIN` 25, `SABOTAGE_PCT_MAX` 49, `TRACKS_AT_START` 3, `RANKS_PER_UNLOCK` 2.
 
 ## 4. Vehicle modifiers (used by WP01)
 
@@ -265,15 +266,15 @@ Plus 6 `wreck` and 10 `crate` props scattered on the infield: accepted only if t
 | 2 | dustBowl | Dust Bowl | desert | long sweepers, 218 m straight, hairpin | WP11 |
 | 3 | dockside | Dockside | docks | 90-degree corners, chicane, water straight | WP11 |
 | 4 | frostbite | Frostbite Pass | snow | narrow switchbacks between snowbanks and pines | WP22 |
-| 5 | neonMile | Neon Mile | city | city block grid: four long straights, tight right-angle corners, billboards | WP22 |
-| 6 | redrock | Redrock Quarry | quarry | descending spiral feel: wide fast curves with a pinch point at the crusher | WP22 |
+| 5 | neonMile | Neon Mile | city | city block grid: four long straights, tight right-angle corners, billboards; its hairpin is a U-turn round the last block | WP22 |
+| 6 | redrock | Redrock Quarry | quarry | wide fast curves with a pinch point under the crane; the hairpin is that pinch point | WP22 |
 | 7 | junkyardSprint | Junkyard Sprint | scrapyard | short and violent: under 1000 m, hairpin at each end, made for ramming | WP23a |
-| 8 | pineHollow | Pine Hollow | snow | fast forest sweepers with one blind kink | WP23a |
-| 9 | rainDistrict | Rain District | city | chicane chain through narrow streets, one 200 m boulevard | WP23b |
-| 10 | blastPit | Blast Pit | quarry | figure-of-eight-like double loop (no crossing) around two pits, longest track | WP23b |
+| 8 | pineHollow | Pine Hollow | snow | fast forest sweepers with one blind kink; hairpin at the far end of the forest | WP23a |
+| 9 | rainDistrict | Rain District | city | chicane chain through narrow streets, one 200 m boulevard; hairpin turnaround at the end of the boulevard | WP23b |
+| 10 | blastPit | Blast Pit | quarry | double loop (no crossing) around two pits, longest track; hairpin between the pits | WP23b |
 
-Themes are visual only: no surface or grip rules (user decision). Every track follows the constraints below, the pickup density of tuning pass 1, and the AI health targets (all 16 soak races finish, wall impacts per race about 2.5-3.7, wrecks 0.2-2.0).
+Themes are visual only: no surface or grip rules (user decision). Every track follows the constraints below (each has one hairpin: a turn of at least 150 deg with radius under 25 m, placed as listed), the pickup density of tuning pass 1 (about one per 90 m: 10-14 pickups, up to 18 above 1400 m), and the AI health gates of WP07 (all 16 soak races finish or end by rule, no car stuck more than twice, wrecks 0.2-2.0 per race). Wall impacts per race are report-only (Scrapyard 2.9, Dust Bowl 2.8, Dockside 3.6); flag anything above 4.5.
 
 ### Dust Bowl and Dockside (M2)
 
-Designed by WP11 (and the WP22/WP23 tracks) under these constraints: length 1100-1500 m (Junkyard Sprint 800-1000 m, Blast Pit up to 1700 m), width 13-16, min radius >= width, min clearance >= width + 2*shoulder + 8, at least one straight >= 150 m, at least one hairpin (radius < 25 m), 10-14 pickups with every kind at least twice and cash the most common (tuning pass 1 density: Scrapyard has 12 for ~1049 m, so about one pickup per 90 m). Must pass `validateTrack`.
+Designed by WP11 (and the WP22/WP23 tracks) under these constraints: length 1100-1500 m (Junkyard Sprint 800-1000 m, Blast Pit up to 1700 m), width 13-16, min radius >= width, min clearance >= width + 2*shoulder + 8, at least one straight >= 150 m, at least one hairpin (radius < 25 m), pickups as in the track list rules above, every kind at least twice and cash the most common. Must pass `validateTrack`.

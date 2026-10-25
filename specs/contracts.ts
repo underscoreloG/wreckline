@@ -143,7 +143,7 @@ export interface TrackDef {
   shoulder: number; // m of dirt on each side between road edge and wall
   checkpointSpacing: number; // target meters between checkpoints (actual = length / round(length / spacing))
   pickups: PickupSpawn[];
-  props: PropPlacement[]; // decoration, must be outside walls; static colliders only for 'container' | 'building' | 'rock'
+  props: PropPlacement[]; // decoration, must be outside walls; static colliders only for 'container' | 'building' | 'rock' | 'crane' | 'billboard' (CCR-6: posts and base only)
   referenceLapTime: number; // seconds, a clean medium-AI lap; used by tests and results
 }
 
@@ -472,7 +472,7 @@ export interface SaveGame {
   wrecks: number; // career total of wrecks caused by the player (CCR-1)
   cashEarned: number; // career total of payouts (CCR-1)
   /** Sabotage bought for the current round's offer, applied when that offer's race starts, cleared after it (CCR-5). */
-  sabotage: { offerId: string; driverId: string; name: string; pct: number } | null;
+  sabotage: { offerId: string; pct: number; price: number } | null; // target is re-picked from that offer's rivals when the race is set up; refunded if another offer is raced (CCR-5)
   rngState: number; // meta RNG state so offers are reproducible
 }
 
@@ -502,6 +502,7 @@ export interface Settings {
   quality: Quality;
   cameraShake: boolean;
   showFps: boolean;
+  quickTrackId: string | null; // last track picked for quick race; null = first track (CCR-6). `?race=1` ignores it
 }
 
 // ---------------------------------------------------------------- game shell <-> UI (src/game/store.ts)
@@ -596,7 +597,8 @@ export type GameCommand =
   | { type: 'repair'; amount: 'full' | number }
   | { type: 'buyMines'; count: number }
   | { type: 'buyTurbo'; seconds: number }
-  | { type: 'buySabotage' }; // for state.selectedOffer, on the preRace screen (CCR-5)
+  | { type: 'buySabotage' } // for state.selectedOffer, on the preRace screen (CCR-5)
+  | { type: 'setQuickTrack'; trackId: string }; // quick race pre-race track picker, persisted in Settings.quickTrackId (CCR-6)
 
 export interface GameStore {
   getState(): UiState;

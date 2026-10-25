@@ -189,7 +189,7 @@ Gates:
 - **G0:** `npm run verify` green; boundary check (and its self-test) green; `?harness=debug2d&fake=1` shows 4 fake cars lapping Scrapyard in the 2D debug view; `?harness=debug2d` shows the real sim on the grid with the stub dynamics.
 - **GA:** all WP01-05 acceptance tests green on main; each harness works.
 - **GB / M1:** full race playable from the title screen with keyboard and gamepad; `?race=1&autoplay=1` finishes a race unattended with no console errors; 60 fps at 1920x1080 on the dev Mac with `quality=high`; AI soak test green.
-- **GC / M2:** a scripted career (`scripts/balance/career.ts`) becomes champion in 18-35 races across 16 seeds; all three tracks pass validation and AI soak.
+- **GC / M2:** a scripted career (`scripts/balance/career.ts`) becomes champion in 18-35 races across 16 seeds; all 10 tracks pass validation and AI soak.
 
 `npm run verify` = `npm run typecheck && npm run check:boundaries && npm test && npm run build`.
 

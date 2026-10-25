@@ -7,11 +7,11 @@ Dispatch: subagent (opus, effort high) each.
 
 ## Deliverables (per worker, two tracks)
 - Track defs with the listed signature, header comment with the corner list, pickups at tuning-pass-1 density, `referenceLapTime` from the 16-seed soak median, using the existing themes and props only.
-- Tests: validateTrack, placeProps stable, pickup rules, soak 16 seeds per track (import the track directly, not through TRACKS).
+- Tests: validateTrack, placeProps stable, pickup rules, soak 16 seeds per track via `runSoak({ track: <your TrackDef>, seed })` (WP22 added the `track` option and `wallImpacts`; your tracks are not in TRACKS on your branch).
 
 ## Acceptance tests
 - [ ] `npm test` for your test file: all pass; report length, minRadius, minClearance, pickups, referenceLapTime, wall impacts and wrecks per race per track.
-- [ ] Browser (`preview_start` on your own launch entry): register the tracks locally only for the check (do not commit index.ts), `?race=1&track=<id>&autoplay=1&autopause=0`, one screenshot per track, `drawCalls < 150`, no console errors.
+- [ ] Browser (`preview_start` on your own launch entry: `wreckline-wp23a` port 5223, `wreckline-wp23b` port 5224): register the tracks locally only for the check (do not commit index.ts), `?race=1&track=<id>&autoplay=1&autopause=0`, one screenshot per track, `drawCalls < 150`, no console errors.
 - [ ] `npm run verify` green.
 
 ## Out of scope
