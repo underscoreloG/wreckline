@@ -2,6 +2,7 @@ import { createRenderer } from '../render';
 import type { AudioEngine, CarId, HudState, InputFrame, InputSource, RaceSetup, RaceSnapshot, Renderer, Settings, Sim, SimEvent } from '../shared/contracts';
 import { PLAYER_CAR_ID, SIM_HZ } from '../shared/contracts';
 import { createSim } from '../sim';
+import { createTally, tallyEvent, type RaceTally } from './careerSession';
 import { createHudMemo, deriveHud } from './hud';
 
 /** Results show this long after the sim phase turns 'finished' (WP08 table). */
@@ -30,6 +31,8 @@ export interface RaceSession {
   /** True once the race has been finished for RESULTS_DELAY_TICKS. */
   isOver(): boolean;
   snapshot(): RaceSnapshot;
+  /** Wreck credits and cash pickups so far (a quit career race has no sim result to read them from). */
+  readonly tally: RaceTally;
   /** Overrides fields of the player's input until cleared (null). */
   setOverride(patch: Partial<InputFrame> | null): void;
   dispose(): void;
@@ -68,6 +71,7 @@ export async function createRaceSession(opts: RaceSessionOptions): Promise<RaceS
   let frames = 0;
   let finishedTicks = 0;
   let disposed = false;
+  const tally = createTally(setup.entrants.length);
 
   const flushHud = (): void => {
     hud = deriveHud(curr, hudEvents, hud, setup, memo);
@@ -84,7 +88,10 @@ export async function createRaceSession(opts: RaceSessionOptions): Promise<RaceS
         Object.assign(merged, input.poll(), override);
         inputs.set(PLAYER_CAR_ID, merged);
       }
-      for (const e of sim.step(inputs)) renderEvents.push(e);
+      for (const e of sim.step(inputs)) {
+        renderEvents.push(e);
+        tallyEvent(tally, e);
+      }
       prev = curr;
       curr = sim.snapshot();
       if (curr.phase === 'finished') finishedTicks++;
@@ -102,6 +109,7 @@ export async function createRaceSession(opts: RaceSessionOptions): Promise<RaceS
     flushHud,
     isOver: () => finishedTicks >= RESULTS_DELAY_TICKS,
     snapshot: () => curr,
+    tally,
     setOverride(patch) {
       override = patch;
     },

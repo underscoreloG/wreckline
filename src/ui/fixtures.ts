@@ -1,6 +1,7 @@
 import { getCar } from '../content/cars';
 import { buildQuickRaceSetup } from '../content/quickRace';
-import type { HudState, RaceResult, Screen, UiState, Vec2 } from '../shared/contracts';
+import { generateOffers, newCareer } from '../meta/career';
+import type { HudState, Payout, RaceResult, SaveGame, Screen, UiState, Vec2 } from '../shared/contracts';
 import { buildTrackGeometry } from '../shared/trackGeometry';
 
 // Harness fixtures built from the real M1 content (Scrapyard, the quick race entrants).
@@ -102,21 +103,49 @@ const RESULTS: RaceResult = {
   ],
 };
 
-/** A full UiState for any M1 screen; race, hud and results are always filled so the fake store can move between screens. */
-export function fixtureState(screen: Screen, hud: HudFixture = 'mid'): UiState {
+export const CAREER_SCREENS: readonly Screen[] = ['career', 'garage', 'shop', 'raceSelect', 'standings', 'champion'];
+
+/** Mid-career save from the real meta functions: some upgrades, a damaged car, points on the board. */
+function careerSave(screen: Screen): SaveGame {
+  const s = newCareer(1);
+  const mid: SaveGame = {
+    ...s,
+    cash: 2450,
+    upgrades: { engine: 2, tires: 1, armor: 0, gun: 1 },
+    hp: 64,
+    mines: 3,
+    turbo: 4,
+    points: 24,
+    racesRun: 8,
+    wins: 3,
+    rivals: s.rivals.map((r, i) => ({ ...r, points: r.points + (i % 4) * 3 })),
+  };
+  return screen === 'champion' ? { ...mid, cash: 18640, points: 96, racesRun: 31, wins: 14, championWon: true } : mid;
+}
+
+const PAYOUT: Payout = { prize: 350, wreckBonus: 250, pickups: 300, total: 900, pointsGained: 2 };
+
+/**
+ * A full UiState for any screen; race, hud and results are always filled so the fake store can move between screens.
+ * `career` adds a save and offers (on by default for the career screens) and, on results, the payout.
+ */
+export function fixtureState(screen: Screen, hud: HudFixture = 'mid', career = CAREER_SCREENS.includes(screen)): UiState {
+  const save = career ? careerSave(screen) : null;
+  const offers = save ? generateOffers(save).offers : null;
+  const sub = screen !== 'career' && screen !== 'champion' && CAREER_SCREENS.includes(screen);
   return {
     screen,
-    previousScreen: screen === 'settings' || screen === 'controls' ? 'title' : null,
+    previousScreen: screen === 'settings' || screen === 'controls' ? 'title' : sub ? 'career' : null,
     settings: { version: 1, masterVolume: 0.8, sfxVolume: 0.9, quality: 'high', cameraShake: true, showFps: false },
     usingGamepad: false,
     version: __APP_VERSION__,
     race: { trackId: setup.track.id, trackName: setup.track.name, laps: setup.laps, entrants, minimapPath },
     hud: fixtureHud(hud),
     results: RESULTS,
-    save: null,
-    offers: null,
-    selectedOffer: null,
-    lastPayout: null,
+    save,
+    offers,
+    selectedOffer: offers && screen === 'results' ? (offers[0]?.id ?? null) : null,
+    lastPayout: career && screen === 'results' ? PAYOUT : null,
     toast: null,
   };
 }

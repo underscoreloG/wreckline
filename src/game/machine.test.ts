@@ -28,7 +28,40 @@ const TABLE: [Screen, Screen | null, MachineInput, Screen, Screen | null, string
   ['settings', 'paused', { type: 'back' }, 'paused', null, []],
 ];
 
+// WP10 career rows: [from, previous, career flags, input, to, previous after, effects]
+const CAREER: [Screen, Screen | null, { career?: boolean; champion?: boolean }, MachineInput, Screen, Screen | null, string[]][] = [
+  ['title', null, {}, { type: 'newCareer' }, 'career', null, []],
+  ['title', null, {}, { type: 'continueCareer' }, 'career', null, []],
+  ['career', null, {}, { type: 'navigate', screen: 'garage' }, 'garage', 'career', []],
+  ['career', null, {}, { type: 'navigate', screen: 'shop' }, 'shop', 'career', []],
+  ['career', null, {}, { type: 'navigate', screen: 'raceSelect' }, 'raceSelect', 'career', []],
+  ['career', null, {}, { type: 'navigate', screen: 'standings' }, 'standings', 'career', []],
+  ['career', null, {}, { type: 'navigate', screen: 'title' }, 'title', null, []],
+  ['career', null, {}, { type: 'back' }, 'title', null, []],
+  ['garage', 'career', {}, { type: 'back' }, 'career', null, []],
+  ['shop', 'career', {}, { type: 'back' }, 'career', null, []],
+  ['standings', 'career', {}, { type: 'back' }, 'career', null, []],
+  ['raceSelect', 'career', {}, { type: 'back' }, 'career', null, []],
+  ['raceSelect', 'career', {}, { type: 'selectOffer', offerId: '0-easy' }, 'preRace', 'raceSelect', []],
+  ['preRace', 'raceSelect', { career: true }, { type: 'back' }, 'raceSelect', null, []],
+  ['preRace', 'raceSelect', { career: true }, { type: 'startRace' }, 'race', null, ['stopBackdrop', 'unlockAudio', 'startSession']],
+  ['paused', null, { career: true }, { type: 'quitRace' }, 'career', null, ['disposeSession', 'startBackdrop']],
+  ['results', null, { career: true }, { type: 'continueFromResults' }, 'career', null, ['disposeSession', 'startBackdrop']],
+  ['results', null, { career: true, champion: true }, { type: 'continueFromResults' }, 'champion', null, ['disposeSession', 'startBackdrop']],
+  ['champion', null, {}, { type: 'newCareer' }, 'career', null, []],
+  ['champion', null, {}, { type: 'navigate', screen: 'title' }, 'title', null, []],
+];
+
 describe('machine', () => {
+  it.each(CAREER)('career: %s (prev %s, %o) + %o -> %s', (screen, prev, flags, input, to, prevAfter, effects) => {
+    expect(transition({ ...from(screen, prev), ...flags }, input)).toEqual({ screen: to, previousScreen: prevAfter, effects });
+  });
+
+  it('a career race cannot be restarted', () => {
+    expect(transition({ ...from('paused'), career: true }, { type: 'restartRace' })).toBeNull();
+    expect(transition({ ...from('results'), career: true }, { type: 'restartRace' })).toBeNull();
+  });
+
   it.each(TABLE)('%s + %o: %s -> %s', (screen, prev, input, to, prevAfter, effects) => {
     expect(transition(from(screen, prev), input)).toEqual({ screen: to, previousScreen: prevAfter, effects });
   });

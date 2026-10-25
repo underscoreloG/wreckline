@@ -1,0 +1,172 @@
+import { PICKUP_CASH_UNITS } from '../content/pickups';
+import { applyRaceResult, buildCareerRaceSetup, generateOffers, newCareer } from '../meta/career';
+import { loadSave, writeSave, type KeyValueStore } from '../meta/save';
+import { buyCar, buyMines, buyTurbo, buyUpgrade, repair, type ShopFail, type ShopResult } from '../meta/shop';
+import type { GameCommand, Payout, RaceOffer, RaceResult, RaceResultRow, RaceSetup, RaceSnapshot, SaveGame, SimEvent } from '../shared/contracts';
+import { PLAYER_CAR_ID } from '../shared/contracts';
+
+export type ShopCommand = Extract<GameCommand, { type: 'buyUpgrade' | 'buyCar' | 'repair' | 'buyMines' | 'buyTurbo' }>;
+export type CareerOutcome = { ok: true } | { ok: false; error: string };
+
+export const REPAIR_FIRST = 'Repair your car first';
+
+const FAIL_TEXT: Record<ShopFail, string> = {
+  cash: 'Not enough cash',
+  max: 'Maxed out',
+  owned: 'Already owned',
+  invalid: 'Not available',
+};
+
+/** Holds the career save, calls the WP09 functions and persists after every change. */
+export interface CareerSession {
+  /** The current career, or the stored one before it is continued (title CONTINUE). */
+  readonly save: SaveGame | null;
+  /** This round's offers, kept until a race is run. */
+  readonly offers: RaceOffer[] | null;
+  readonly selected: RaceOffer | null;
+  /** false when the last write was refused (quota, private mode). */
+  readonly lastWriteOk: boolean;
+  newCareer(seed: number): void;
+  /** Reloads the stored save; false when there is none (or it is corrupt). */
+  continueCareer(): boolean;
+  /** Generates the round's offers once, then returns the same ones until a race is run. */
+  ensureOffers(): RaceOffer[];
+  selectOffer(offerId: string, seed: number): { ok: true; setup: RaceSetup } | { ok: false; error: string };
+  shop(cmd: ShopCommand): CareerOutcome;
+  /** Applies the selected offer's result; `champion` is true when this race just won the title. */
+  finishRace(result: RaceResult): { payout: Payout; champion: boolean };
+}
+
+export function createCareerSession(storage: KeyValueStore): CareerSession {
+  let save = loadSave(storage);
+  let offers: RaceOffer[] | null = null;
+  let selected: RaceOffer | null = null;
+  let lastWriteOk = true;
+
+  const persist = (next: SaveGame): void => {
+    save = next;
+    lastWriteOk = writeSave(storage, next);
+  };
+  const shopFn = (s: SaveGame, cmd: ShopCommand): ShopResult => {
+    switch (cmd.type) {
+      case 'buyUpgrade':
+        return buyUpgrade(s, cmd.kind);
+      case 'buyCar':
+        return buyCar(s, cmd.carDefId);
+      case 'repair':
+        return repair(s, cmd.amount === 'full' ? Infinity : cmd.amount);
+      case 'buyMines':
+        return buyMines(s, cmd.count);
+      case 'buyTurbo':
+        return buyTurbo(s, cmd.seconds);
+    }
+  };
+
+  return {
+    get save() {
+      return save;
+    },
+    get offers() {
+      return offers;
+    },
+    get selected() {
+      return selected;
+    },
+    get lastWriteOk() {
+      return lastWriteOk;
+    },
+    newCareer(seed) {
+      offers = null;
+      selected = null;
+      persist(newCareer(seed));
+    },
+    continueCareer() {
+      const s = loadSave(storage);
+      if (!s) return false;
+      save = s;
+      offers = null;
+      selected = null;
+      lastWriteOk = true;
+      return true;
+    },
+    ensureOffers() {
+      if (!save) throw new Error('no career in progress');
+      if (!offers) {
+        const g = generateOffers(save);
+        offers = g.offers;
+        persist(g.save);
+      }
+      return offers;
+    },
+    selectOffer(offerId, seed) {
+      const offer = offers?.find((o) => o.id === offerId);
+      if (!save || !offer) return { ok: false, error: 'Offer not available' };
+      if (save.hp <= 0) return { ok: false, error: REPAIR_FIRST };
+      selected = offer;
+      return { ok: true, setup: buildCareerRaceSetup(save, offer, seed) };
+    },
+    shop(cmd) {
+      if (!save) return { ok: false, error: 'No career in progress' };
+      const r = shopFn(save, cmd);
+      if (!r.ok) return { ok: false, error: cmd.type === 'repair' && r.reason === 'max' ? 'Car already repaired' : FAIL_TEXT[r.reason] };
+      persist(r.save);
+      return { ok: true };
+    },
+    finishRace(result) {
+      if (!save || !selected) throw new Error('no career race in progress');
+      const before = save.championWon;
+      const r = applyRaceResult(save, selected, result);
+      offers = null;
+      selected = null;
+      persist(r.save);
+      return { payout: r.payout, champion: !before && r.save.championWon };
+    },
+  };
+}
+
+/** Per-car wreck credits and cash pickups seen in the event stream, for a race quit before the sim built a result. */
+export interface RaceTally {
+  wrecksCaused: number[];
+  cashPicked: number[];
+}
+
+export function createTally(cars: number): RaceTally {
+  return { wrecksCaused: new Array<number>(cars).fill(0), cashPicked: new Array<number>(cars).fill(0) };
+}
+
+/** Same credit rules as the sim: carWrecked.by gets the wreck, a cash pickup adds PICKUP_CASH_UNITS. */
+export function tallyEvent(t: RaceTally, e: SimEvent): void {
+  if (e.type === 'carWrecked' && e.by !== null) t.wrecksCaused[e.by] = (t.wrecksCaused[e.by] ?? 0) + 1;
+  else if (e.type === 'pickupCollected' && e.kind === 'cash') t.cashPicked[e.car] = (t.cashPicked[e.car] ?? 0) + PICKUP_CASH_UNITS;
+}
+
+/**
+ * Quitting a career race counts as a DNF (WP10): the sim's own result when it has one, else the live
+ * order from the snapshot, with the player row forced to finished: false (prize 0, no points).
+ */
+export function dnfResult(setup: RaceSetup, snap: RaceSnapshot, tally: RaceTally, simResult: RaceResult | null): RaceResult {
+  const rows: RaceResultRow[] =
+    simResult?.rows ??
+    [...snap.cars]
+      .sort((a, b) => a.position - b.position)
+      .map((c) => ({
+        car: c.id,
+        driverId: setup.entrants[c.id]?.driverId ?? '',
+        name: setup.entrants[c.id]?.name ?? '',
+        position: c.position,
+        finished: c.finished,
+        wrecked: c.wrecked,
+        totalTime: c.finished ? c.finishTime : null,
+        bestLap: c.bestLapTime,
+        wrecksCaused: tally.wrecksCaused[c.id] ?? 0,
+        cashPicked: tally.cashPicked[c.id] ?? 0,
+        hpLeft: Math.max(0, c.hp),
+        minesLeft: c.mines,
+        turboLeft: c.turbo,
+      }));
+  return {
+    trackId: setup.track.id,
+    laps: setup.laps,
+    rows: rows.map((r) => (r.car === PLAYER_CAR_ID ? { ...r, finished: false, totalTime: null } : r)),
+  };
+}
