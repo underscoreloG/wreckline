@@ -375,3 +375,99 @@ describe('determinism', () => {
     expect(a.counts.mines).toBeGreaterThan(0);
   });
 });
+
+describe('finished cars are immune (WP07, content.md section 7)', () => {
+  const finish = (car: SimCar): SimCar => {
+    car.finished = true;
+    car.finishTime = 0;
+    return car;
+  };
+
+  it('take no gun damage and are skipped by aim assist', () => {
+    const { sim, world } = make();
+    place(world, 0, 10, 0, 0);
+    const target = finish(place(world, 1, 10 + 20 * Math.cos(5 * DEG), 20 * Math.sin(5 * DEG), 0));
+    const ev = run(sim, SIM_HZ, new Map([[0, FIRE]]));
+    const shots = of(ev, 'gunShot');
+    expect(shots.length).toBeGreaterThan(0);
+    // Not aimed at: every shot leaves along the heading, within the spread.
+    for (const s of shots) expect(Math.abs(Math.atan2(s.to.y - s.from.y, s.to.x - s.from.x))).toBeLessThanOrEqual(GUN_SPREAD + 1e-9);
+    expect(target.hp).toBe(target.base.maxHp);
+    expect(damageTo(ev, 1)).toHaveLength(0);
+    sim.dispose();
+  });
+
+  it('do not trigger mines and are not mine-blast victims', () => {
+    const { sim, world } = make();
+    const fin = finish(place(world, 1, 60, 0, 0));
+    world.mines.push({ id: 900, owner: 0, pos: { x: 60, y: 0 }, age: 1, armed: true });
+    expect(of(run(sim, 1), 'mineExploded')).toHaveLength(0);
+    // A racing car sets it off with the finished car inside the blast radius.
+    place(world, 1, 60, 3.5, 0);
+    place(world, 2, 60, 0, 0);
+    const ev = run(sim, 1);
+    expect(of(ev, 'mineExploded')).toEqual([expect.objectContaining({ mine: 900, hitCars: [2] })]);
+    expect(fin.hp).toBe(fin.base.maxHp);
+    expect(world.cars[2]!.hp).toBeLessThan(world.cars[2]!.base.maxHp);
+    sim.dispose();
+  });
+
+  it('take no collision, wall or wreck-explosion damage and are never wrecked', () => {
+    // Rear-ended at 25 m/s: only the racing car is hurt.
+    {
+      const { sim, world } = make();
+      const a = place(world, 0, 20, 0, 0, 25, 0);
+      const b = finish(place(world, 1, 20 + a.entrant.mesh.length + 0.3, 0, 0));
+      const ev = run(sim, 10);
+      expect(of(ev, 'impact').some((e) => e.a === 0 && e.b === 1)).toBe(true);
+      expect(damageTo(ev, 0).length).toBeGreaterThan(0);
+      expect(damageTo(ev, 1)).toHaveLength(0);
+      expect(b.hp).toBe(b.base.maxHp);
+      sim.dispose();
+    }
+    // 30 m/s head-on into a wall.
+    {
+      const { sim, world } = make();
+      const smp = world.track.sampleAt(60);
+      const face = Math.atan2(smp.right.y, smp.right.x);
+      const car = finish(place(world, 0, smp.pos.x + smp.right.x * 5, smp.pos.y + smp.right.y * 5, face, smp.right.x * 30, smp.right.y * 30));
+      const ev = run(sim, 15);
+      expect(of(ev, 'impact').some((e) => e.a === 0 && e.b === 'wall' && e.speed > 20)).toBe(true);
+      expect(car.hp).toBe(car.base.maxHp);
+      sim.dispose();
+    }
+    // A car wrecked right next to it: no explosion damage.
+    {
+      const { sim, world } = make();
+      place(world, 0, 10, 0, 0);
+      const b = place(world, 1, 30, 0, 0);
+      const c = finish(place(world, 2, 30, 3.5, 0));
+      b.hp = 3;
+      const all: SimEvent[] = [];
+      for (let t = 0; t < SIM_HZ && !b.wrecked; t++) all.push(...sim.step(new Map([[0, FIRE]])));
+      expect(b.wrecked).toBe(true);
+      expect(c.hp).toBe(c.base.maxHp);
+      expect(damageTo(all, 2)).toHaveLength(0);
+      expect(c.wrecked).toBe(false);
+      sim.dispose();
+    }
+  });
+
+  it('never fire, drop mines, use turbo or collect pickups', () => {
+    const { sim, world } = make();
+    const cash = world.pickups.find((p) => p.kind === 'cash')!;
+    const car = finish(place(world, 0, cash.pos.x, cash.pos.y, 0));
+    car.turbo = 4;
+    place(world, 1, cash.pos.x + 20, cash.pos.y, 0);
+    const all = { ...NEUTRAL_INPUT, fire: true, dropMine: true, turbo: true };
+    const ev: SimEvent[] = [];
+    for (let t = 0; t < SIM_HZ; t++) ev.push(...sim.step(new Map([[0, t % 2 === 0 ? all : { ...all, dropMine: false }]])));
+    expect(of(ev, 'gunShot').filter((e) => e.car === 0)).toHaveLength(0);
+    expect(of(ev, 'mineDropped')).toHaveLength(0);
+    expect(of(ev, 'pickupCollected')).toHaveLength(0);
+    expect(of(ev, 'turboStart')).toHaveLength(0);
+    expect(car.turbo).toBe(4);
+    expect(cash.active).toBe(true);
+    sim.dispose();
+  });
+});

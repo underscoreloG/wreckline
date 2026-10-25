@@ -249,3 +249,62 @@ describe('applyDynamics', () => {
     sim.dispose();
   });
 });
+
+describe('finished cars (WP07, content.md section 7)', () => {
+  /** Scrapyard, both entrants scripted, green light on, car 1 parked far off the track. */
+  function scrapyard() {
+    const s = buildQuickRaceSetup({ seed: 5, aiCount: 1 });
+    const { sim, world } = createSimWithWorld({ ...s, entrants: s.entrants.map((e) => ({ ...e, ai: null })) });
+    world.phase = 'racing';
+    world.countdown = 0;
+    placeAt(world, 1, { x: 5000, y: 5000 }, 0, 0);
+    return { sim, world };
+  }
+
+  /** Steps `ticks` with car 0 holding `input`; returns the distance car 0 covered along s, worst |lateral| and wall impacts. */
+  function cruise(sim: ReturnType<typeof scrapyard>['sim'], world: SimWorld, ticks: number, input: InputFrame) {
+    const len = world.track.length;
+    let travelled = 0;
+    let worstLateral = 0;
+    let wallHits = 0;
+    let lastS = world.cars[0].trackS;
+    for (let t = 0; t < ticks; t++) {
+      const ev = sim.step(drive(input));
+      const car = world.cars[0];
+      let ds = car.trackS - lastS;
+      if (ds < -len / 2) ds += len;
+      if (ds > len / 2) ds -= len;
+      travelled += ds;
+      lastS = car.trackS;
+      worstLateral = Math.max(worstLateral, Math.abs(car.lateral));
+      wallHits += ev.filter((e) => e.type === 'impact' && e.a === 0 && e.b === 'wall' && e.speed > 4).length;
+    }
+    return { travelled, worstLateral, wallHits };
+  }
+
+  it('a finished car cruises the racing line: on the road, > 0.7 lap in 60 s, no wall hit, its input ignored', () => {
+    const { sim, world } = scrapyard();
+    place(world, 0, 100, 0, 20);
+    world.cars[0].finished = true;
+    world.cars[0].finishTime = 0;
+    // Full throttle and steer are ignored: the cruise drives.
+    const r = cruise(sim, world, 60 * SIM_HZ, { ...NEUTRAL_INPUT, throttle: 1, steer: 1 });
+    expect(r.worstLateral).toBeLessThan(world.track.def.width / 2);
+    expect(r.travelled).toBeGreaterThan(0.7 * world.track.length);
+    expect(r.wallHits).toBe(0);
+    expect(world.cars[0].wrecked).toBe(false);
+    sim.dispose();
+  });
+
+  it('once the race is over every car cruises, unfinished ones included', () => {
+    const { sim, world } = scrapyard();
+    place(world, 0, 300, 0, 0);
+    sim.debugFinishRace();
+    const r = cruise(sim, world, 15 * SIM_HZ, NEUTRAL_INPUT);
+    expect(world.phase).toBe('finished');
+    expect(world.cars[0].finished).toBe(false);
+    expect(r.travelled).toBeGreaterThan(150);
+    expect(r.worstLateral).toBeLessThan(world.track.def.width / 2);
+    sim.dispose();
+  });
+});

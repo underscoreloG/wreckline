@@ -1,7 +1,8 @@
 import { HANDBRAKE_MODS, OFFROAD_DRAG, OFFROAD_MODS, TURBO_MODS, WRECKED_ANGULAR_DAMPING, WRECKED_LINEAR_DAMPING } from '../content/vehicle';
-import type { InputFrame, Vec2 } from '../shared/contracts';
-import { NEUTRAL_INPUT, SIM_DT } from '../shared/contracts';
+import type { Vec2 } from '../shared/contracts';
+import { SIM_DT } from '../shared/contracts';
 import { clamp } from '../shared/math';
+import { cruiseInput } from './ai';
 import type { SimSystem } from './internal';
 
 const ACCEL_TAPER_START = 0.75; // fraction of maxSpeed where full accel starts fading to 0 at maxSpeed
@@ -17,9 +18,6 @@ const HANDBRAKE_SCRUB = 0.5; // fraction of brake decel the handbrake applies
 const DRIVE_DEADBAND = 0.5; // m/s, below this throttle drives and brake reverses
 const BRAKE_LIGHT_INPUT = 0.1;
 const BRAKE_LIGHT_SPEED = 1; // m/s
-
-/** Finished cars (and every car once the race is over) roll on at part throttle, input ignored. */
-const FINISHED_INPUT: Readonly<InputFrame> = { ...NEUTRAL_INPUT, throttle: 0.3 };
 
 const STEER_BLEND = 1 - Math.exp(-ANGVEL_RESPONSE * SIM_DT);
 const scratchVel: Vec2 = { x: 0, y: 0 };
@@ -42,7 +40,8 @@ export const applyDynamics: SimSystem = (world) => {
       car.braking = false;
       continue;
     }
-    const input = car.finished || world.phase === 'finished' ? FINISHED_INPUT : car.input;
+    // Finished cars (and every car once the race is over) cruise the racing line, their own input ignored.
+    const input = car.finished || world.phase === 'finished' ? cruiseInput(world, car) : car.input;
     const { throttle, brake, steer, handbrake } = input;
 
     // 1. effective stats (offroad from last tick's projection)
