@@ -21,7 +21,7 @@ const BASE: TrackDef = {
   width: 15,
   shoulder: 3,
   checkpointSpacing: 40,
-  referenceLapTime: 36,
+  referenceLapTime: 35.75, // WP12: soak median 35.75 s sits exactly between two 0.5 s steps
   centerline: [
     { x: 0, y: 0 },
     { x: 100, y: 0 },

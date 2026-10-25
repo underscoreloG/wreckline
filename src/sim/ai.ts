@@ -6,9 +6,9 @@ import type { AiDriver, SimCar, SimWorld } from './internal';
 import { buildRacingLine, lineCurvature, lineLimit, type RacingLine } from './racingLine';
 
 // AI-side tuning factors (WP12 tunes these, never src/content), multiplied onto the profile values.
-/** Measured over 16 soak seeds: at 1 the pack shoots the leader (usually the player) to a wreck within ~15 s, 2.1 wrecks per race; 0.2 gives ~0.75. */
-export const AGGRESSION_SCALE = 0.2;
-export const MINE_USE_SCALE = 1;
+/** Measured over 16 soak seeds: at 1 the pack shoots the leader (usually the player) to a wreck within ~15 s, 2.1 wrecks per race; 0.2 gives ~0.75. WP12: 0.25 with MINE_USE_SCALE 0.6 (docs/tuning-log.md). */
+export const AGGRESSION_SCALE = 0.25;
+export const MINE_USE_SCALE = 0.6;
 export const TURBO_USE_SCALE = 1;
 
 const DEG = Math.PI / 180;
@@ -44,6 +44,10 @@ const WRECK_ROOM = 2.5; // m
 /** Within this range in the avoidance cone the AI crawls, so it does not shove the wreck while steering round. */
 const WRECK_CRAWL_RANGE = 8; // m
 const WRECK_CRAWL = 3; // m/s
+/** CCR-8: crawling under WRECK_CRAWL with a wreck this close ahead counts as stuck (the crawl never drops under STUCK_SPEED, so a glued AI never recovered). */
+const WRECK_GLUE_RANGE = 4.5; // m
+/** A glued AI reverses this long instead of REVERSE_TIME: 1 s left it too close to turn round the wreck, so it nosed back in. */
+const WRECK_REVERSE_TIME = 2.5; // s
 // 5. handbrake
 const HAIRPIN_K = 1 / 18;
 const HANDBRAKE_OVERSPEED = 6; // m/s
@@ -210,6 +214,7 @@ export function createAiDriver(world: SimWorld, car: CarId, profile: AiProfile):
 
   let mode = MODE_RACE;
   let modeTime = 0;
+  let reverseTime = REVERSE_TIME;
   let wrongWayTime = 0;
   let avoid = 0;
   let avoidDir = 0;
@@ -246,11 +251,21 @@ export function createAiDriver(world: SimWorld, car: CarId, profile: AiProfile):
 
       // 6. stuck / wrong-way detection
       if (mode === MODE_RACE) {
-        me.stuckTimer = absSpeed < STUCK_SPEED ? me.stuckTimer + dt : 0;
+        let glued = false;
+        if (absSpeed < WRECK_CRAWL) {
+          for (const o of w.cars) {
+            if (!o.wrecked || o.id === car) continue;
+            const dx = c.x[o.id] - x;
+            const dy = c.y[o.id] - y;
+            if (dx * fx + dy * fy > 0 && Math.hypot(dx, dy) < WRECK_GLUE_RANGE) glued = true;
+          }
+        }
+        me.stuckTimer = absSpeed < STUCK_SPEED || glued ? me.stuckTimer + dt : 0;
         wrongWayTime = me.wrongWay ? wrongWayTime + dt : 0;
         if (me.stuckTimer >= STUCK_TIME) {
           mode = MODE_REVERSE;
           modeTime = 0;
+          reverseTime = glued ? WRECK_REVERSE_TIME : REVERSE_TIME;
           me.stuckTimer = 0;
         } else if (wrongWayTime >= WRONG_WAY_TIME) {
           mode = MODE_TURN;
@@ -320,7 +335,7 @@ export function createAiDriver(world: SimWorld, car: CarId, profile: AiProfile):
         modeTime += dt;
         f.brake = 1;
         f.steer = -Math.sign(a);
-        if (modeTime >= REVERSE_TIME) mode = MODE_RACE;
+        if (modeTime >= reverseTime) mode = MODE_RACE;
         return f;
       }
       if (mode === MODE_TURN) {

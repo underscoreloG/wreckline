@@ -5,7 +5,7 @@ import { CAREER_TIERS } from '../content/economy';
 /** WP09 off-screen model: tier by skill, 4-car race against phantoms at the tier's median skill. */
 export const OFF_SIM_EASY_BELOW = 0.4;
 export const OFF_SIM_MEDIUM_BELOW = 0.75;
-export const OFF_SIM_MEDIAN_SKILL: Readonly<Record<Exclude<RaceTier, 'boss'>, number>> = { easy: 0.25, medium: 0.55, hard: 0.85 };
+export const OFF_SIM_MEDIAN_SKILL: Readonly<Record<Exclude<RaceTier, 'boss'>, number>> = { easy: 0.5, medium: 1.0, hard: 1.2 };
 export const OFF_SIM_PHANTOMS = 3;
 /** Finishing weight w = exp(SKILL_WEIGHT_K * skill). */
 export const SKILL_WEIGHT_K = 4;

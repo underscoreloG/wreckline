@@ -107,9 +107,9 @@ export interface CareerTier {
 }
 
 export const CAREER_TIERS: Readonly<Record<RaceTier, CareerTier>> = {
-  easy: { laps: 3, prizes: [600, 350, 150, 0], points: [3, 2, 1, 0], cashPickupValue: 100, wreckBonus: 250 },
-  medium: { laps: 4, prizes: [1200, 700, 300, 0], points: [6, 4, 2, 1], cashPickupValue: 200, wreckBonus: 375 },
-  hard: { laps: 5, prizes: [2500, 1400, 600, 100], points: [10, 6, 3, 1], cashPickupValue: 400, wreckBonus: 625 },
+  easy: { laps: 3, prizes: [900, 530, 230, 0], points: [3, 2, 1, 0], cashPickupValue: 100, wreckBonus: 250 },
+  medium: { laps: 4, prizes: [1800, 1050, 450, 0], points: [6, 4, 2, 1], cashPickupValue: 200, wreckBonus: 375 },
+  hard: { laps: 5, prizes: [3750, 2100, 900, 150], points: [10, 6, 3, 1], cashPickupValue: 400, wreckBonus: 625 },
   boss: { laps: 5, prizes: [10000, 0, 0, 0], points: [0, 0, 0, 0], cashPickupValue: 0, wreckBonus: 0 },
 };
 

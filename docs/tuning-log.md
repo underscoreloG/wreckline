@@ -91,3 +91,140 @@ Old Pine Hollow starts: WP23a's first start is not recorded, so 24 start points 
 - Frostbite and Junkyard Sprint sit 0.24 / 0.21 s off their reference: any pace change will push them out of the 0.25 s tolerance.
 - After passing a wreck on the far side of its line the AI's avoid offset can be large (up to ~14 m) and decays at 2 m/s, so it can run off-line for a few seconds after the pass.
 - The general (non-wreck) avoidance still picks its side from the racing line, not from where the blocking car is.
+
+## 2026-10-25 - AI recovers when glued to a wreck (CCR-8, in WP12)
+
+A crawling AI (WP24: <= `WRECK_CRAWL` 3 m/s while a wreck is within 8 m ahead) could stay in contact with the wreck (~3.2 m centre to centre) at 0.6-2.6 m/s and shove it for 30-200 s. Above `STUCK_SPEED` 1.5 m/s the stuck recovery never fired; below it, the 1 s reverse left the car too close to turn round the wreck and it nosed straight back in. Seen in WP12's probe (rainDistrict seed 14 with the 0.75 AI in slot 0: the race timed out) and, with the WP12 retune values, in the gate tests pineHollow seed 12 and frostbite seed 13 (a 0.35 AI a lap down behind a wreck in a hairpin) and blastPit seed 6 (the autoplay car pushed a wreck along the wall at 0.6 m/s for 200 s: timeout).
+
+### Changed (AI behaviour, `src/sim/ai.ts`; no scale constant changed)
+
+| Rule | Before | After | Why |
+|---|---|---|---|
+| Stuck timer | counts while \|speed\| < 1.5 m/s | also counts while \|speed\| < `WRECK_CRAWL` with a wreck within `WRECK_GLUE_RANGE` 4.5 m ahead | the existing reverse recovery then runs; it steers toward the avoid target, which is away from the wreck |
+| Reverse time | `REVERSE_TIME` 1 s | `WRECK_REVERSE_TIME` 2.5 s when the stuck came from a wreck, else 1 s | the stuck-timer change alone fixed rainDistrict seed 14 but not pineHollow 12 / blastPit 6 (1 s of reverse is not enough room to turn); 2, 2.5 and 3.5 s all fixed the three gate cases, 2 s cost pineHollow 12 a wreck, 2.5 s kept |
+
+Regression test: `ai.test.ts` "wrecks (CCR-8) > an AI glued to a wreck below crawl speed recovers: rainDistrict seed 14, 0.75 AI in slot 0, finishes before the soak timeout" (fails on main: no result before the timeout; passes with the fix). `npm test` 533/533 with the fix at main's tuning values.
+
+### Before / after (main 46c088f tuning values, WP12 probe: 10 tracks x 16 seeds x 4 grid rotations)
+
+Shove = metres a wreck travels more than 3 s after wrecking, per race; longest = longest continuous run with the wreck moving > 0.5 m/s (WP24 used > 2 m/s, which misses a 0.6-2.6 m/s glue; the old 1 s reverses also split the run).
+
+| Track | Wrecks / race | Shove m / race | Longest (s) | Timeouts |
+|---|---|---|---|---|
+| scrapyard | 0.45 -> 0.44 | 4.8 -> 4.0 | 8.9 -> 3.5 | 0 -> 0 |
+| dustBowl | 0.50 -> 0.50 | 2.7 -> 2.5 | 6.2 -> 6.2 | 0 -> 0 |
+| dockside | 0.44 -> 0.44 | 1.0 -> 1.0 | 2.3 -> 2.3 | 0 -> 0 |
+| frostbite | 0.64 -> 0.64 | 3.0 -> 2.6 | 9.4 -> 3.4 | 0 -> 0 |
+| neonMile | 0.73 -> 0.73 | 4.3 -> 4.3 | 5.1 -> 5.1 | 0 -> 0 |
+| redrock | 0.52 -> 0.52 | 2.1 -> 2.1 | 2.4 -> 2.4 | 0 -> 0 |
+| junkyardSprint | 0.45 -> 0.45 | 1.4 -> 1.2 | 4.2 -> 3.0 | 0 -> 0 |
+| pineHollow | 0.84 -> 0.84 | 2.7 -> 2.7 | 6.6 -> 6.6 | 0 -> 0 |
+| rainDistrict | 0.30 -> 0.30 | 2.9 -> 1.3 | 11.0 -> 3.6 | 1 -> 0 |
+| blastPit | 0.69 -> 0.67 | 3.4 -> 1.9 | 3.9 -> 3.7 | 0 -> 0 |
+
+Every other probe number is unchanged to two decimals (gun share 0.44, mine hits 4.41, spread 0.91 worst, lap medians identical at start 0).
+
+## 2026-10-25 - Balance pass (WP12): 10 tracks, career length
+
+Probes (`scripts/balance/`, run with `node scripts/balance/run.mjs`): every track x 16 seeds x 4 starts. A start is a grid rotation: the four soak drivers (autoplay 0.55, AI 0.35/0.55/0.75, stock ravens) are rotated over the four grid slots, so each skill starts from each slot (WP22: start position swings walls and wrecks 2x). Start 0 is exactly `runSoak` (it reproduces WP24's numbers: Frostbite 32.74 s / 1.13 wrecks, Scrapyard 27.67 s / 0.38). The lap-time row uses start 0 only, the grid every `referenceLapTime` was measured on: on rotated grids a 0.55 car sits behind the 0.35 for whole laps without contact, which the clean-lap rule does not catch (Frostbite +1.3 s). The career rows run `simulateCareer` (model, not physics) on seeds 1-16.
+
+### Baseline (main 46c088f values, post-WP24 AI)
+
+| Metric | Value | Target |
+|---|---|---|
+| Wrecks per AI race | 0.30-0.84 by track (avg 0.56) | 0.2-2.0 |
+| Gun damage share | 0.44 | 0.45-0.65 |
+| Mine hits per race | 4.41 | 0.8-3 |
+| AI finish spread 0.75 vs 0.35 (worst track) | 0.91 (neonMile) | >= 0.8 |
+| Lap time, worst track (start 0) | 0.24 s (Frostbite 32.74 vs 32.5) | +-1 s |
+| Career greedy (WP09 model) | 0/16 champions within 60 races | 18-35 in >= 14/16 |
+| Career safe | 0/16 champions | 25-50 or never |
+| Greedy cash by race 5 | 6500 worst seed | >= 1000 |
+
+### Model change: careerSim strength (not a tuning change)
+
+WP09's `playerSkill = 0.35 + 0.1 * avgUpgrade + 0.15 * tier` ignored Rocket Fuel and Bumper Spikes, and compared the player's car-and-upgrade score with the rivals' bare driver skill. Replaced by one strength for everyone: `driver value + CAR_VALUE[car] + sum(LEVEL_VALUE[line] * level)`, used for the player and for every rival (their own car and `rivalUpgradeLevel`/`rivalSpikesLevel`), in both the greedy offer prediction and the race result draw (weight `exp(SKILL_WEIGHT_K * strength)`, unchanged K = 4).
+
+Measured with `node scripts/balance/run.mjs --calibrate`: one car with a variant against three stock 0.55 ravens, scrapyard/dockside/junkyardSprint/pineHollow x 16 seeds x 4 grid slots (256 races per variant). Average place -> Plackett-Luce log-weight vs the field -> / 4 = skill units. Driver skill 0.15 -> 1.1 spans 3.8 log units, so K = 4 holds for the driver term.
+
+| Variant | Avg place | Skill units | Model value |
+|---|---|---|---|
+| skill 0.15 / 0.35 / 0.45 / 0.55 / 0.65 / 0.75 / 0.95 / 1.1 | 3.79 / 3.48 / 2.90 / 2.50 / 2.25 / 1.83 / 1.82 / 1.67 | -0.65 / -0.39 / -0.14 / 0 / +0.09 / +0.24 / +0.25 / +0.31 | `DRIVER_CURVE` = 0.55 + these (the AI gains little above 0.75) |
+| engine 2 / 5 | 1.47 / 1.21 | +0.42 / +0.65 | 0.14 per level (least squares) |
+| tires 2 / 5 | 2.21 / 1.94 | +0.10 / +0.20 | 0.041 per level |
+| armor 5 | 2.21 | +0.10 | 0.02 per level |
+| gun 5 | 2.38 | +0.04 | 0.008 per level |
+| fuel 5 | 2.14 | +0.12 | 0.025 per level |
+| spikes 3 | 2.51 | 0 | 0 (the AI never rams on purpose; a human may get more) |
+| car outlaw / iceberg / scorch / titan / blaze / viper / wraith | 2.86 / 3.26 / 1.46 / 1.88 / 1.08 / 1.04 / 1.01 | -0.12 / -0.28 / +0.43 / +0.22 / +0.89 / +1.08 / +1.38 | `CAR_VALUE` (viper and wraith saturate: lower bounds) |
+
+The human driver is an assumption: `PLAYER_DRIVER_SKILL` 0.75. User, asked how they finish a 3-lap quick race against the 0.35/0.55/0.75 AIs: "Mostly 1st-2nd".
+
+Probe player (greedy shop, `shopVisit`): it bought one level of every line on every visit, so it maxed the Raven and lost it all on trade-in, and never reached a Viper inside 60 races. Now: repair, then the next car when affordable with `CAR_MARGIN` 1000 left, then one level per line in the same priority, but no level above `SAVE_ABOVE_LEVEL` 1 while a better car is for sale (it saves). Offer policy unchanged.
+
+With the measured model and main's content, greedy stays 0/16 at driver 0.55, 0.75 and 1.0: the top rivals' packages (Viper/Blaze at L4, 2.5-3.0) and the boss (skill 1.1 + Wraith L5 + 6% speed, about 3.6) are out of reach of any gear a 60-race income buys, and the top rivals score about 6 points per race off-screen.
+
+User decision (asked with the numbers above): "Beatable boss (Recommended)": weaker rival gear, lower off-screen scoring for the top rivals, boss down to about a well-upgraded Viper.
+
+### Changed values
+
+| Where | Value | Before | After | Why |
+|---|---|---|---|---|
+| `src/sim/ai.ts` | `MINE_USE_SCALE` | 1 | 0.6 | mine hits 4.41 per race (target 0.8-3) |
+| `src/sim/ai.ts` | `AGGRESSION_SCALE` | 0.2 | 0.25 | fewer mines dropped wrecks below 0.2 on 4 tracks; more gunfire also lifts gun share (0.44, target 0.45-0.65). 0.3 broke the spread on Dust Bowl (0.66) |
+| `src/content/weapons.ts` | `MINE_DAMAGE_CENTER` / `MINE_DAMAGE_EDGE` | 40 / 20 | 50 / 25 | fewer but punchier mines keep Scrapyard's wrecks (mine-driven) above 0.2 and the Scrapyard soak gate in `ai.test.ts` green (0.125 at 0.25/0.6 with 40/20). gunDps x1.1 on every car was tried and dropped: no gain on Scrapyard, spread 0.84 |
+| `src/content/tracks/dustBowl.ts` | `referenceLapTime` | 36 | 35.75 | soak median 35.75 s (29 laps), exactly between two 0.5 s steps: both 35.5 and 36 miss the 0.25 s test tolerance by 2e-12 |
+| `src/content/tracks/neonMile.ts` | `referenceLapTime` | 39 | 38.5 | soak median 38.50 s (16 laps, still shaky) |
+| `src/content/tracks/blastPit.ts` | `referenceLapTime` | 41 | 41.5 | soak median 41.47 s (41.50 with CCR-8) |
+| `src/content/rivals.ts` | `rivalUpgradeLevel` | floor(skill * 5) | floor(skill * 2) | rival gear: rivals under 0.5 run L0, 0.5-0.96 L1, the boss L2 (fuel included). M = 3 left greedy at 24-54 races |
+| `src/content/ai.ts` | `BOSS_MAX_SPEED_MULT` | 1.06 | 1 | user: boss beatable; the calibration did not include the 6%, so the game boss now matches the modelled one (strength 2.71 vs 2.11 for the best rival) |
+| `src/meta/offSim.ts` | `OFF_SIM_MEDIAN_SKILL` easy / medium / hard | 0.25 / 0.55 / 0.85 | 0.5 / 1.0 / 1.2 | off-screen expected points per race: BANSHEE 6.0 -> 3.1, mid-pack (0.6) 3.5 -> 1.7, bottom (0.1) 1.1 -> 0.5; stays monotone in skill, so the standings keep their order (a hard median of 1.6 alone also gave careers in range but put JINX 0.65 on top) |
+| `src/content/economy.ts` | prizes easy / medium / hard | 600-350-150-0 / 1200-700-300-0 / 2500-1400-600-100 | 900-530-230-0 / 1800-1050-450-0 / 3750-2100-900-150 | x1.5: the mid career saved for the Viper in easy races at ~500 net per race (Viper at race 23-26); x1.3 gave 13-14/16. Sabotage prices follow (30% of 1st: 270 / 540 / 1125, boss 3000) |
+| `src/content/cars.ts` | Viper price | 16000 | 12000 | margin on unseen seeds: at 14000, seeds 17-32 gave 13/16 (tail 36-38 from boss attempts); 12000 gives 15/16 on both sets |
+| `src/content/cars.ts` | Titan price | 11000 | 9000 | keeps an even 6000 / 9000 / 12000 ladder; at 11000 the Titan would sit 1000 under the Viper (the probe player skips the Titan either way) |
+| `src/meta/career.ts` | `MEDIUM_RANK_WINDOW` | 3 | 5 | at a fresh career (rank 20) medium drew the same 3 rivals as easy every time (ranks 17-19 = r01-r03); now a random 3 of ranks 15-19, the same set 1 time in 10. Career length unchanged (15/16) |
+
+Combat feel check on port 5212 (AI scales and mine damage above), user: "Good, keep it".
+
+Pinned test expectations updated with these values (logic unchanged): `career.test.ts` (medium window 5, medium prizes, payout 1050 + 375 + 400 = 1825, rival levels floor(skill * 2), boss levels 2 and no speed bonus), `careerSim.test.ts` (player skill 0.79 at start, 3.04 for a maxed Viper; car-first shop cash 40 and 3200; Viper 12000), `sabotage.test.ts` (prices 270 / 540 / 1125, refund 540, rival and boss fuel floor(skill * 2): the boss now has fuel 2, content.md said 5), `shop.test.ts` (Titan 9000).
+
+### After (all 10 tracks x 16 seeds x 4 starts, on top of CCR-8)
+
+| Track | Wrecks / race | Mine hits / race | Gun share | Spread 0.75 vs 0.35 | 0.55 median clean lap, start 0 (s) |
+|---|---|---|---|---|---|
+| scrapyard | 0.45 -> 0.23 | 3.80 -> 2.27 | 0.33 -> 0.43 | 1.58 -> 1.66 | 27.67 -> 27.69 |
+| dustBowl | 0.50 -> 0.80 | 3.70 -> 2.36 | 0.53 -> 0.62 | 1.16 -> 0.95 | 36.13 -> 35.75 |
+| dockside | 0.44 -> 0.39 | 4.63 -> 2.80 | 0.38 -> 0.50 | 2.16 -> 2.13 | 30.78 -> 30.90 |
+| frostbite | 0.64 -> 0.48 | 3.81 -> 2.45 | 0.49 -> 0.57 | 1.69 -> 1.77 | 32.74 -> 32.58 |
+| neonMile | 0.73 -> 0.83 | 6.52 -> 4.45 | 0.36 -> 0.45 | 0.91 -> 0.97 | 39.18 -> 38.50 |
+| redrock | 0.52 -> 0.75 | 3.52 -> 2.27 | 0.51 -> 0.59 | 1.73 -> 1.17 | 34.85 -> 34.97 |
+| junkyardSprint | 0.45 -> 0.42 | 5.16 -> 3.23 | 0.33 -> 0.44 | 1.64 -> 1.36 | 22.79 -> 22.77 |
+| pineHollow | 0.84 -> 0.88 | 4.69 -> 2.86 | 0.51 -> 0.57 | 0.98 -> 1.23 | 36.42 -> 36.39 |
+| rainDistrict | 0.30 -> 0.23 | 3.66 -> 2.19 | 0.38 -> 0.46 | 1.67 -> 1.34 | 31.60 -> 31.53 |
+| blastPit | 0.69 -> 0.61 | 4.67 -> 3.52 | 0.53 -> 0.61 | 1.38 -> 1.59 | 41.17 -> 41.50 |
+
+| Metric | Before | After | Target |
+|---|---|---|---|
+| Wrecks per AI race | 0.30-0.84 (avg 0.56) | 0.23-0.88 (avg 0.56) | 0.2-2.0 |
+| Gun damage share | 0.44 | 0.53 | 0.45-0.65 |
+| Mine hits per race | 4.41 | 2.84 | 0.8-3 |
+| Spread, worst track | 0.91 | 0.95 (dustBowl) | >= 0.8 |
+| Lap time, worst track (start 0) | 0.24 s (frostbite) | 0.23 s (junkyardSprint) | +-1 s |
+| Career greedy, seeds 1-16 | 0/16 within 60 | 15/16 in 18-35 (22-33, one 38) | >= 14/16 |
+| Career greedy, seeds 17-32 (check) | - | 15/16 (20-35, one 36) | - |
+| Career safe | never | never (safe never takes the boss by definition) | 25-50 or never |
+| Greedy cash by race 5, worst seed | 6500 | 10250 | >= 1000 |
+
+Same check at 32 seeds before the career changes and before CCR-8 (races only): wrecks 0.20-0.81, gun 0.57, mines 2.41, spread 1.07, worst lap 0.67 s.
+
+### Measured, not changed
+
+- Rival loadouts in races (measured before CCR-8; `--loadout rival`, each AI car upgraded like a career rival of its skill with the new floor(skill * 2): 0.35 -> L0 spikes 1, 0.55 -> L1 spikes 1, 0.75 -> L1 spikes 2): wrecks 0.20-0.48 (avg 0.34, armor), gun 0.51, mines 2.61, spread 1.69 or more on every track (gear gaps add to skill), laps 1.0-2.5 s faster than the stock references. WP20's fuel 4 / spikes 2 probe (wrecks 0.25 -> 0.56) no longer applies: rivals now carry fuel 0-1.
+- Career sensitivity to the driver assumption (seeds 1-16): driver 0.55 -> 31-47 races (2/16 inside 35); driver 1.0 -> 18-37.
+
+### Notes for the brain / next pass
+
+- CCR-8 applied in its own commit before this pass (entry above): with these values it was what failed pineHollow seed 12, frostbite seed 13 and blastPit seed 6; after it, 0 probe timeouts and `npm test` 533/533. No gate seed was changed.
+- Wrecks on Scrapyard and Rain District sit at 0.23 (floor 0.2; 0.4-1.5 preferred). Next knob if the user wants more carnage: `AGGRESSION_SCALE` 0.3 (costs Dust Bowl spread, 0.66 measured).
+- Mine hits 2.84 sit near the 3 ceiling (Neon Mile 4.45, Blast Pit 3.50 are the high tracks).
+- content.md needs the new numbers (rival levels floor(skill * 2), boss fuel follows it, no boss speed bonus, prizes, Viper 12000, Titan 9000, mine damage 50/25).
