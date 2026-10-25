@@ -228,3 +228,26 @@ Same check at 32 seeds before the career changes and before CCR-8 (races only): 
 - Wrecks on Scrapyard and Rain District sit at 0.23 (floor 0.2; 0.4-1.5 preferred). Next knob if the user wants more carnage: `AGGRESSION_SCALE` 0.3 (costs Dust Bowl spread, 0.66 measured).
 - Mine hits 2.84 sit near the 3 ceiling (Neon Mile 4.45, Blast Pit 3.50 are the high tracks).
 - content.md needs the new numbers (rival levels floor(skill * 2), boss fuel follows it, no boss speed bonus, prizes, Viper 12000, Titan 9000, mine damage 50/25).
+
+## 2026-10-25 - Engine voice per car (WP25)
+
+Each car has its own synth profile (`src/audio/engineProfiles.ts`); the game names the race cars through `setRaceCars` (CCR-9), so rpm01 = |speed| / that car's effective maxSpeed. MIX levels unchanged (`MIX.engine` player 0.28, AI 0.12); per-profile `level` trims stay at 1 because every profile already sits within +-3 dB of raven.
+
+Offline check (`?harness=audio`, "offline level check"): one voice at the player level through the real bus, 48 kHz. Level at rpm01 0.5 on throttle; fundamental (normalised autocorrelation, so the sub-octave square counts when it is strong) and spectral centroid (8192-point FFT) at rpm01 0.2 and 0.8 on throttle. Character is by measurement only, not verified by ear.
+
+| car | target | peak dBFS | rms dBFS | vs raven | fund 0.2 (Hz) | centroid 0.2 (Hz) | fund 0.8 (Hz) | centroid 0.8 (Hz) |
+|---|---|---|---|---|---|---|---|---|
+| raven | V8 burble | -7.9 | -17.0 | 0 | 62.2 | 1507 | 67.1 | 1433 |
+| outlaw | small rough engine | -7.9 | -18.3 | -1.3 | 95.3 | 2470 | 91.1 | 2530 |
+| iceberg | diesel SUV | -8.1 | -16.2 | +0.8 | 45.8 | 3347 | 42.2 | 3342 |
+| scorch | big-block hot rod | -6.6 | -14.9 | +2.1 | 45.7 | 1217 | 48.8 | 1190 |
+| blaze | high-revving four | -9.5 | -19.1 | -2.1 | 139.6 | 3546 | 123.4 | 3510 |
+| titan | diesel truck | -7.5 | -15.5 | +1.5 | 23.3 | 2505 | 30.7 | 2572 |
+| viper | V10/V12 scream | -10.7 | -19.3 | -2.3 | 234.0 | 2558 | 309.0 | 2687 |
+| wraith | supercharged V8 | -6.9 | -16.2 | +0.8 | 56.9 | 1477 | 62.0 | 1445 |
+
+No two cars are within 5% on both fundamental and centroid at either rpm. First pass had wraith = raven (1509 vs 1507 Hz centroid): a 12x blower whine sat inside the tone's own centroid. Fix: whine at 24x the engine frequency, blower level 0.25, base pitch ~8% under raven.
+
+Cost: 15 nodes per engine voice (WP05: 8), still one voice per car in the voice count. Game race check (raven, viper, blaze, titan, career offer): no console errors, at most 39 live Web Audio sources in 35 s with guns, mines and turbo (24 of them the 4 engines and 4 skids). Harness fake race: max 11 voices (cap 48).
+
+For the listening session: the user judges each car with the per-car sweep buttons, and the recorded Mercedes 190E bench against blaze. Knobs per car: pitch (`base`, `span`, `step`, `gears`), `revTau`, `sub`, lowpass, noise layer (`noise`, `noiseHz`, `noiseQ`, `pulse`), idle wobble, `blower`, `level`.

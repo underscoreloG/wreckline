@@ -49,6 +49,7 @@ export interface RaceSession {
 export async function createRaceSession(opts: RaceSessionOptions): Promise<RaceSession> {
   const { setup, input, audio } = opts;
   const sim = createSim(setup);
+  audio.setRaceCars(setup.entrants.map((e) => ({ carDefId: e.carDefId, maxSpeed: e.stats.maxSpeed })));
   let renderer: Renderer;
   try {
     renderer = await createRenderer({

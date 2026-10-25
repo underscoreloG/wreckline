@@ -2,12 +2,14 @@ import { getCar, STARTER_CAR_ID } from '../content/cars';
 import type { AudioEngine, CarId, CarState, PickupKind, RaceSnapshot, UiSound, Vec2 } from '../shared/contracts';
 import { buildBus, fadeRace, setBusVolumes, type Bus } from './bus';
 import { createEngineVoice, ENGINE_GAIN_AI, ENGINE_GAIN_PLAYER, type EngineVoice } from './engine';
+import { DEFAULT_PROFILE_ID, engineProfile } from './engineProfiles';
 import { loadSamples, playSound } from './samples';
 import { PITCH_JITTER, pitchRate, type SfxName } from './sfx';
 import { createSkidVoice, SKID_GAIN, type SkidVoice } from './skid';
 import { distanceFalloff, MAX_VOICES, panFor, RateLimit, VoicePool, type Voice } from './voices';
 
-// The snapshot carries no per-car stats, so rpm uses the stock starter car's top speed (faster cars sit at the top of gear 3).
+// The snapshot carries no per-car stats: until the game names the race cars (setRaceCars, CCR-9), every car is a raven
+// and rpm uses the stock starter car's top speed.
 const RPM_REF_SPEED = getCar(STARTER_CAR_ID).base.maxSpeed;
 const MINE_BEEP_RANGE = 20; // m
 const MINE_BEEP_PERIOD = 0.5; // s
@@ -22,6 +24,7 @@ interface CarVoices {
   engine: EngineVoice;
   skid: SkidVoice;
   lastSpeed: number;
+  maxSpeed: number;
 }
 
 export interface AudioDebug {
@@ -40,6 +43,7 @@ export function createAudioEngine(): AudioEngine & AudioDebug {
   let master = 1;
   let sfx = 1;
   let cars: CarVoices[] | null = null;
+  let raceCars: readonly { carDefId: string; maxSpeed: number }[] = [];
   let raceMuted = false;
   let lastTick = -1;
   const pool = new VoicePool(MAX_VOICES);
@@ -72,9 +76,10 @@ export function createAudioEngine(): AudioEngine & AudioDebug {
     if (!bus) return [];
     const { ctx: c, race } = bus;
     return snapshot.cars.map((car, i) => ({
-      engine: createEngineVoice(c, race, now),
+      engine: createEngineVoice(c, race, now, engineProfile(raceCars[i]?.carDefId ?? DEFAULT_PROFILE_ID), i),
       skid: createSkidVoice(c, race, now, i),
       lastSpeed: Math.abs(car.speed),
+      maxSpeed: raceCars[i]?.maxSpeed ?? RPM_REF_SPEED,
     }));
   };
 
@@ -131,7 +136,7 @@ export function createAudioEngine(): AudioEngine & AudioDebug {
         else
           v.engine.set(
             {
-              rpm01: speed / RPM_REF_SPEED,
+              rpm01: speed / v.maxSpeed,
               throttle: speed > v.lastSpeed + 1e-3 ? 1 : 0,
               turbo: car.turboActive,
               gain: (isMe ? ENGINE_GAIN_PLAYER : ENGINE_GAIN_AI) * m.gain,
@@ -224,6 +229,12 @@ export function createAudioEngine(): AudioEngine & AudioDebug {
         play(bus.race, 'mineBeep', m.gain, m.pan);
         mineNextBeep.set(mine.id, now - next < MINE_BEEP_PERIOD ? next + MINE_BEEP_PERIOD : now + MINE_BEEP_PERIOD);
       }
+    },
+
+    setRaceCars(list) {
+      raceCars = list.map((c) => ({ ...c }));
+      // The next update builds this race's voices.
+      if (ctx) stopCars(ctx.currentTime);
     },
 
     stopRace() {
