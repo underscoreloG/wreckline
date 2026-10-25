@@ -9,7 +9,7 @@ const memory = (init: Record<string, string> = {}): SettingsStorage & { data: Re
 describe('settings', () => {
   it('defaults when nothing is stored or storage is unavailable', () => {
     expect(loadSettings(memory())).toEqual(DEFAULT_SETTINGS);
-    expect(loadSettings(null)).toEqual({ version: 1, masterVolume: 0.8, sfxVolume: 0.9, quality: 'high', cameraShake: true, showFps: false });
+    expect(loadSettings(null)).toEqual({ version: 1, masterVolume: 0.8, sfxVolume: 0.9, quality: 'high', cameraShake: true, showFps: false, quickTrackId: null });
   });
 
   it('round-trips through save and load', () => {

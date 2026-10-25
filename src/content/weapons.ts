@@ -30,6 +30,8 @@ export const MINE_MAX_ON_TRACK = 24;
 // ---- collisions
 export const CAR_IMPACT_THRESHOLD = 6; // m/s
 export const CAR_IMPACT_DAMAGE = 1.6; // x sqrt(otherMass / selfMass)
+/** CCR-5: a car's hit is a front hit when the other car lies within this half-angle of its heading. */
+export const RAM_FRONT_HALF_ANGLE = 40 * DEG;
 export const WALL_IMPACT_THRESHOLD = 9; // m/s
 export const WALL_IMPACT_DAMAGE = 1.0;
 export const REPEAT_HIT_IGNORE = 0.25; // s, same pair after a damaging hit

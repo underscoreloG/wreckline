@@ -111,7 +111,7 @@ function careerSave(screen: Screen): SaveGame {
   const mid: SaveGame = {
     ...s,
     cash: 2450,
-    upgrades: { engine: 2, tires: 1, armor: 0, gun: 1 },
+    upgrades: { engine: 2, tires: 1, armor: 0, gun: 1, fuel: 0, spikes: 0 },
     hp: 64,
     mines: 3,
     turbo: 4,
@@ -138,7 +138,7 @@ export function fixtureState(screen: Screen, hud: HudFixture = 'mid', career = C
   return {
     screen,
     previousScreen: screen === 'settings' || screen === 'controls' ? 'title' : sub ? 'career' : null,
-    settings: { version: 1, masterVolume: 0.8, sfxVolume: 0.9, quality: 'high', cameraShake: true, showFps: false },
+    settings: { version: 1, masterVolume: 0.8, sfxVolume: 0.9, quality: 'high', cameraShake: true, showFps: false, quickTrackId: null },
     usingGamepad: false,
     version: __APP_VERSION__,
     race: { trackId: setup.track.id, trackName: setup.track.name, laps: setup.laps, entrants, minimapPath },

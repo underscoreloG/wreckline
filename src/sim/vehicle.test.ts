@@ -1,5 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { buildQuickRaceSetup } from '../content/quickRace';
+import { getCar } from '../content/cars';
+import { computeStats } from '../content/economy';
 import { OFFROAD_MODS } from '../content/vehicle';
 import type { InputFrame, RaceSetup, TrackDef, Vec2 } from '../shared/contracts';
 import { NEUTRAL_INPUT, SIM_DT, SIM_HZ } from '../shared/contracts';
@@ -108,6 +110,26 @@ describe('applyDynamics', () => {
     expect(v).toBeGreaterThanOrEqual(RAVEN.maxSpeed * 0.97);
     expect(peak).toBeLessThanOrEqual(RAVEN.maxSpeed * 1.0 + 1e-6);
     sim.dispose();
+  });
+
+  it('1b. rocket fuel 5: turbo top speed is 1.50 / 1.30 of the fuel-0 turbo top speed (+-2%)', () => {
+    const turboTop = (fuel: number): number => {
+      const s = setupOn('straight');
+      const stats = computeStats(getCar('raven'), { engine: 0, tires: 0, armor: 0, gun: 0, fuel, spikes: 0 });
+      const { sim, world } = createSimWithWorld({ ...s, entrants: s.entrants.map((e, i) => (i === 0 ? { ...e, stats, turbo: 10 } : e)) });
+      while (world.phase !== 'racing') sim.step(new Map());
+      place(world, 0, STRAIGHT_START(world), -3, RAVEN.maxSpeed * 1.25);
+      let peak = 0;
+      for (let t = 0; t < 4 * SIM_HZ; t++) {
+        sim.step(drive({ ...follow(world, 0, 1, -3, 30), turbo: true }));
+        if (world.cars[0].turboActive) peak = Math.max(peak, forwardSpeed(world, 0));
+      }
+      sim.dispose();
+      return peak;
+    };
+    const ratio = turboTop(5) / turboTop(0);
+    expect(ratio).toBeGreaterThan((1.5 / 1.3) * 0.98);
+    expect(ratio).toBeLessThan((1.5 / 1.3) * 1.02);
   });
 
   it('2. 0-100 km/h in 1.6-2.7 s', () => {

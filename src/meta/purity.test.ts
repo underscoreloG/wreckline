@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { RaceResult, SaveGame } from '../shared/contracts';
 import { createRng } from '../shared/rng';
-import { applyRaceResult, buildCareerRaceSetup, generateOffers, ladder, newCareer, rankOf } from './career';
+import { applyRaceResult, buildCareerRaceSetup, generateOffers, ladder, newCareer, newlyUnlocked, rankOf, sabotageTarget, unlockedTrackIds } from './career';
 import { chooseOffer, playerSkill, shopVisit } from './careerSim';
 import { simulateOtherRivals } from './offSim';
 import { parseSave, writeSave } from './save';
-import { buyCar, buyMines, buyTurbo, buyUpgrade, canAfford, repair, shopCars } from './shop';
+import { buyCar, buyMines, buySabotage, buyTurbo, buyUpgrade, canAfford, repair, shopCars } from './shop';
 
 function deepFreeze<T>(v: T): T {
   if (typeof v === 'object' && v !== null) {
@@ -17,10 +17,16 @@ function deepFreeze<T>(v: T): T {
 
 describe('purity (test 7)', () => {
   it('every function runs on deep-frozen inputs and leaves them unchanged', () => {
-    for (const points of [0, 23, 100]) {
-      const base: SaveGame = { ...newCareer(4), points, cash: 50000, hp: 60, upgrades: { engine: 1, tires: 0, armor: 2, gun: 0 } };
+    for (const [points, pending] of [
+      [0, false],
+      [23, true],
+      [100, false],
+      [100, true],
+    ] as const) {
+      const plain: SaveGame = { ...newCareer(4), points, cash: 50000, hp: 60, upgrades: { engine: 1, tires: 0, armor: 2, gun: 0, fuel: 1, spikes: 2 } };
+      const { offers } = generateOffers(plain);
+      const base: SaveGame = pending ? { ...plain, sabotage: { offerId: offers[1].id, pct: 40, price: offers[1].sabotagePrice } } : plain;
       const save = deepFreeze(structuredClone(base));
-      const { offers } = generateOffers(save);
       deepFreeze(offers);
       const offer = offers[2];
       const result: RaceResult = deepFreeze({
@@ -45,14 +51,19 @@ describe('purity (test 7)', () => {
       expect(() => {
         rankOf(save);
         ladder(save);
+        generateOffers(save);
+        unlockedTrackIds(save);
+        newlyUnlocked(save, save);
         for (const o of offers) {
+          sabotageTarget(save, o);
+          buySabotage(save, o);
           buildCareerRaceSetup(save, o, 7);
           applyRaceResult(save, o, result);
           simulateOtherRivals(save, o, createRng(1));
         }
         shopCars(save);
         canAfford(save, 10);
-        for (const k of ['engine', 'tires', 'armor', 'gun'] as const) buyUpgrade(save, k);
+        for (const k of ['engine', 'tires', 'armor', 'gun', 'fuel', 'spikes'] as const) buyUpgrade(save, k);
         buyCar(save, 'viper');
         repair(save, 10);
         buyMines(save, 2);

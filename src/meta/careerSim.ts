@@ -44,7 +44,7 @@ export const CAREER_SIM_MAX_RACES = 60;
 export const PLAYER_SKILL_MODEL = { base: 0.35, perUpgrade: 0.1, perTier: 0.15 } as const;
 /** A new car is bought only if this much cash is left afterwards. */
 export const CAR_MARGIN = 1000;
-const UPGRADE_PRIORITY: readonly UpgradeKind[] = ['engine', 'armor', 'tires', 'gun'];
+const UPGRADE_PRIORITY: readonly UpgradeKind[] = ['engine', 'armor', 'tires', 'gun', 'fuel', 'spikes'];
 
 export function playerSkill(save: SaveGame): number {
   const u = save.upgrades;
@@ -65,7 +65,7 @@ export function chooseOffer(save: SaveGame, offers: RaceOffer[], policy: CareerP
   return [...offers].reverse().find((o) => predictedPosition(save, o) <= 2) ?? offers[0];
 }
 
-/** One shop visit, each item at most once, in priority order: repair > engine > armor > tires > gun > next car. */
+/** One shop visit, each item at most once, in priority order: repair > engine > armor > tires > gun > fuel > spikes > next car. */
 export function shopVisit(save: SaveGame): SaveGame {
   let s = save;
   const r = repair(s, Infinity);

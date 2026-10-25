@@ -74,7 +74,7 @@ describe('career session', () => {
     expect(broke.career.shop({ type: 'buyUpgrade', kind: 'gun' })).toEqual({ ok: false, error: 'Not enough cash' });
     expect(broke.storage.get(SAVE_KEY)).toBe(stored);
 
-    const maxed = careerWith({ cash: 1e6, upgrades: { engine: 5, tires: 0, armor: 0, gun: 0 } });
+    const maxed = careerWith({ cash: 1e6, upgrades: { engine: 5, tires: 0, armor: 0, gun: 0, fuel: 0, spikes: 0 } });
     expect(maxed.career.shop({ type: 'buyUpgrade', kind: 'engine' })).toEqual({ ok: false, error: 'Maxed out' });
     expect(maxed.career.shop({ type: 'buyMines', count: 1 })).toEqual({ ok: true });
     expect(maxed.career.shop({ type: 'buyTurbo', seconds: 1 })).toEqual({ ok: true });

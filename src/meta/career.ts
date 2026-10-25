@@ -3,10 +3,18 @@ import { PLAYER_CAR_ID } from '../shared/contracts';
 import { createRng, type Rng } from '../shared/rng';
 import { BOSS_MAX_SPEED_MULT, profileForSkill } from '../content/ai';
 import { getCar } from '../content/cars';
-import { CAREER_TIERS, computeStats, STARTING_CAREER, TIER_TRACK_INDEX } from '../content/economy';
+import {
+  CAREER_TIERS,
+  computeStats,
+  RANKS_PER_UNLOCK,
+  SABOTAGE_PRICE_FRACTION,
+  STARTING_CAREER,
+  TIER_TRACK_INDEX,
+  TRACKS_AT_START,
+} from '../content/economy';
 import { PLAYER_LIVERY } from '../content/liveries';
 import { COUNTDOWN_SECONDS } from '../content/race';
-import { BOSS, initialRivalPoints, RIVALS, rivalUpgradeLevel } from '../content/rivals';
+import { BOSS, initialRivalPoints, RIVALS, rivalSpikesLevel, rivalUpgradeLevel } from '../content/rivals';
 import { getTrack, TRACKS } from '../content/tracks';
 import { simulateOtherRivals } from './offSim';
 
@@ -22,6 +30,9 @@ const MEDIUM_RANK_WINDOW = 3;
 const HARD_TOP_RANKS = 6;
 const BOSS_TOP_RANKS = 3;
 const OFFER_RIVALS = 3;
+/** The rank every career starts at (player + 19 rivals), and the most tracks a career can unlock (content.md section 11). */
+const START_RANK = RIVALS.length + 1;
+const MAX_UNLOCKED_TRACKS = 10;
 
 export interface LadderRow {
   driverId: string;
@@ -33,7 +44,7 @@ export interface LadderRow {
 
 export function newCareer(seed: number): SaveGame {
   return {
-    version: 1,
+    version: 2,
     cash: STARTING_CAREER.cash,
     carDefId: STARTING_CAREER.carDefId,
     upgrades: { ...STARTING_CAREER.upgrades },
@@ -45,6 +56,10 @@ export function newCareer(seed: number): SaveGame {
     wins: 0,
     rivals: RIVALS.map((r) => ({ driverId: r.driverId, name: r.name, color: r.color, carDefId: r.carDefId, skill: r.skill, points: initialRivalPoints(r.skill) })),
     championWon: false,
+    bestRank: START_RANK,
+    wrecks: 0,
+    cashEarned: 0,
+    sabotage: null,
     rngState: seed >>> 0,
   };
 }
@@ -95,12 +110,26 @@ function makeOffer(save: SaveGame, tier: RaceTier, rivals: string[], trackIds: r
     laps: t.laps,
     rivals,
     prizes: [...t.prizes],
+    sabotagePrice: Math.round(SABOTAGE_PRICE_FRACTION * t.prizes[0]),
     points: [...t.points],
   };
 }
 
-/** Easy, medium, then hard (boss instead at rank 1). `trackIds` is a parameter so tests can rotate over any list. */
-export function generateOffers(save: SaveGame, trackIds: readonly string[] = Object.keys(TRACKS)): { offers: RaceOffer[]; save: SaveGame } {
+/** The first min(10, 3 + floor((20 - bestRank) / 2)) of `trackIds`, in order (content.md section 11). */
+export function unlockedTrackIds(save: SaveGame, trackIds: readonly string[] = Object.keys(TRACKS)): string[] {
+  const n = Math.min(MAX_UNLOCKED_TRACKS, TRACKS_AT_START + Math.floor((START_RANK - save.bestRank) / RANKS_PER_UNLOCK));
+  return trackIds.slice(0, n);
+}
+
+/** Tracks unlocked in `after` but not in `before`, for the one-time "New track" message. */
+export function newlyUnlocked(before: SaveGame, after: SaveGame, trackIds: readonly string[] = Object.keys(TRACKS)): string[] {
+  const had = unlockedTrackIds(before, trackIds);
+  return unlockedTrackIds(after, trackIds).filter((id) => !had.includes(id));
+}
+
+/** Easy, medium, then hard (boss instead at rank 1), rotating over the unlocked tracks. `trackIds` is a parameter so tests can inject any list. */
+export function generateOffers(save: SaveGame, allTrackIds: readonly string[] = Object.keys(TRACKS)): { offers: RaceOffer[]; save: SaveGame } {
+  const trackIds = unlockedTrackIds(save, allTrackIds);
   if (trackIds.length === 0) throw new Error('generateOffers needs at least one track');
   const rng = createRng(save.rngState);
   const player = rankOf(save);
@@ -138,7 +167,24 @@ export function generateOffers(save: SaveGame, trackIds: readonly string[] = Obj
     );
     offers.push(makeOffer(save, 'hard', ids(pickRandom(top, OFFER_RIVALS, rng)), trackIds));
   }
-  return { offers, save: { ...save, upgrades: { ...save.upgrades }, rivals: save.rivals.map((r) => ({ ...r })), rngState: rng.state() } };
+  return { offers, save: { ...copySave(save), rngState: rng.state() } };
+}
+
+/** A copy that shares no nested object with `save`. */
+const copySave = (save: SaveGame): SaveGame => ({
+  ...save,
+  upgrades: { ...save.upgrades },
+  rivals: save.rivals.map((r) => ({ ...r })),
+  sabotage: save.sabotage && { ...save.sabotage },
+});
+
+/** Who a sabotage on this offer hits: THE WARDEN in the boss race, else the offer's rival with the most points (ties: higher skill). */
+export function sabotageTarget(save: SaveGame, offer: RaceOffer): { driverId: string; name: string } {
+  if (offer.tier === 'boss') return { driverId: BOSS.driverId, name: BOSS.name };
+  const inRace = save.rivals.filter((r) => offer.rivals.includes(r.driverId));
+  const best = inRace.sort((a, b) => b.points - a.points || b.skill - a.skill)[0];
+  if (!best) throw new Error(`offer '${offer.id}' has no rival in the save`);
+  return { driverId: best.driverId, name: best.name };
 }
 
 function rivalEntrant(id: number, driverId: string, save: SaveGame, tier: RaceTier): EntrantSetup {
@@ -146,7 +192,8 @@ function rivalEntrant(id: number, driverId: string, save: SaveGame, tier: RaceTi
   if (!def) throw new Error(`offer rival '${driverId}' is not in the save`);
   const car = getCar(def.carDefId);
   const level = rivalUpgradeLevel(def.skill);
-  const stats = computeStats(car, { engine: level, tires: level, armor: level, gun: level });
+  const spikes = rivalSpikesLevel(def.skill);
+  const stats = computeStats(car, { engine: level, tires: level, armor: level, gun: level, fuel: level, spikes });
   if (driverId === BOSS.driverId) stats.maxSpeed *= BOSS_MAX_SPEED_MULT;
   const profile = profileForSkill(def.skill);
   // content.md section 8: hard and boss races never rubber-band.
@@ -158,7 +205,7 @@ function rivalEntrant(id: number, driverId: string, save: SaveGame, tier: RaceTi
     color: def.color,
     carDefId: car.id,
     stats,
-    mesh: { ...car.mesh },
+    mesh: { ...car.mesh, spikes },
     hp: stats.maxHp,
     mines: RIVAL_LOADOUT.mines,
     turbo: RIVAL_LOADOUT.turbo,
@@ -178,17 +225,24 @@ export function buildCareerRaceSetup(save: SaveGame, offer: RaceOffer, seed: num
     color: PLAYER_LIVERY,
     carDefId: car.id,
     stats,
-    mesh: { ...car.mesh },
+    mesh: { ...car.mesh, spikes: save.upgrades.spikes },
     hp: Math.min(save.hp, stats.maxHp),
     mines: save.mines,
     turbo: save.turbo,
     ai: null,
   };
+  const rivals = offer.rivals.map((d, i) => rivalEntrant(i + 1, d, save, offer.tier));
+  // Sabotage bought for this offer: the target is re-picked here, since offers are rebuilt after a reload.
+  const sab = save.sabotage;
+  if (sab && sab.offerId === offer.id) {
+    const target = rivals.find((e) => e.driverId === sabotageTarget(save, offer).driverId);
+    if (target) target.hp = Math.round(target.stats.maxHp * (1 - sab.pct / 100));
+  }
   return {
     seed: seed >>> 0,
     track: getTrack(offer.trackId),
     laps: offer.laps,
-    entrants: [player, ...offer.rivals.map((d, i) => rivalEntrant(i + 1, d, save, offer.tier))],
+    entrants: [player, ...rivals],
     countdownSeconds: COUNTDOWN_SECONDS,
   };
 }
@@ -209,10 +263,11 @@ export function applyRaceResult(save: SaveGame, offer: RaceOffer, result: RaceRe
     return rr ? { ...r, points: r.points + pointsFor(offer, rr.finished, rr.position) } : { ...r };
   });
   const won = row.finished && row.position === 1;
+  // A sabotage bought for another offer is refunded; either way it is spent after this race.
+  const refund = save.sabotage && save.sabotage.offerId !== offer.id ? save.sabotage.price : 0;
   const after: SaveGame = {
-    ...save,
-    upgrades: { ...save.upgrades },
-    cash: save.cash + payout.total,
+    ...copySave(save),
+    cash: save.cash + payout.total + refund,
     hp: row.wrecked ? 0 : Math.max(0, row.hpLeft),
     mines: row.minesLeft,
     turbo: row.turboLeft,
@@ -221,8 +276,11 @@ export function applyRaceResult(save: SaveGame, offer: RaceOffer, result: RaceRe
     wins: save.wins + (won ? 1 : 0),
     rivals,
     championWon: save.championWon || (offer.tier === 'boss' && won),
+    wrecks: save.wrecks + row.wrecksCaused,
+    cashEarned: save.cashEarned + payout.total,
+    sabotage: null,
   };
   const rng = createRng(save.rngState);
-  const simulated = simulateOtherRivals(after, offer, rng);
-  return { save: { ...simulated, rngState: rng.state() }, payout };
+  const simulated = { ...simulateOtherRivals(after, offer, rng), rngState: rng.state() };
+  return { save: { ...simulated, bestRank: Math.min(save.bestRank, rankOf(simulated)) }, payout };
 }

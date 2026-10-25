@@ -11,6 +11,11 @@ const stats = (maxSpeed: number, accel: number, brake: number, turnRate: number,
   mass,
   maxHp,
   gunDps,
+  // CCR-5: the same for every car (content.md section 1); the fuel and spikes upgrades add to them.
+  turboSpeedMult: 1.3,
+  turboAccelMult: 1.6,
+  ramDealtMult: 1,
+  ramTakenMult: 1,
 });
 
 const mesh = (
@@ -22,7 +27,7 @@ const mesh = (
   cabinOffset: number,
   spoiler: boolean,
   wheelRadius: number,
-): CarMeshSpec => ({ style, length, width, height, cabinLength, cabinOffset, spoiler, wheelRadius, model: null });
+): CarMeshSpec => ({ style, length, width, height, cabinLength, cabinOffset, spoiler, wheelRadius, model: null, spikes: 0 });
 
 // content.md section 1, in table order (carsForSale keeps this order). Tuning pass 1: maxSpeed x1.15, accel x1.20.
 const ROWS: Row[] = [

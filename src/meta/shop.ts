@@ -1,10 +1,13 @@
-import type { CarDef, SaveGame, UpgradeKind } from '../shared/contracts';
+import type { CarDef, RaceOffer, SaveGame, UpgradeKind } from '../shared/contracts';
+import { createRng } from '../shared/rng';
 import { CARS, carsForSale, getCar } from '../content/cars';
 import {
   computeStats,
-  MAX_UPGRADE_LEVEL,
+  MAX_LEVEL,
   MINE_PRICE,
   repairCost,
+  SABOTAGE_PCT_MAX,
+  SABOTAGE_PCT_MIN,
   SHOP_MINES_CAP,
   SHOP_TURBO_CAP,
   TRADE_IN_FRACTION,
@@ -12,16 +15,17 @@ import {
   upgradeCost,
 } from '../content/economy';
 
-export type ShopFail = 'cash' | 'max' | 'owned' | 'invalid';
+/** 'pending': a sabotage is already bought and not raced yet. */
+export type ShopFail = 'cash' | 'max' | 'owned' | 'invalid' | 'pending';
 export type ShopResult = { ok: true; save: SaveGame } | { ok: false; reason: ShopFail };
 
 const fail = (reason: ShopFail): ShopResult => ({ ok: false, reason });
 /** A fresh save (no shared nested objects with the input) with `patch` applied. */
 const done = (save: SaveGame, patch: Partial<SaveGame>): ShopResult => ({
   ok: true,
-  save: { ...save, upgrades: { ...save.upgrades }, rivals: save.rivals.map((r) => ({ ...r })), ...patch },
+  save: { ...save, upgrades: { ...save.upgrades }, rivals: save.rivals.map((r) => ({ ...r })), sabotage: save.sabotage && { ...save.sabotage }, ...patch },
 });
-const UPGRADE_KINDS: readonly UpgradeKind[] = ['engine', 'tires', 'armor', 'gun'];
+const UPGRADE_KINDS = Object.keys(MAX_LEVEL) as readonly UpgradeKind[];
 
 /** `forSale` cars other than the one owned, in table order. */
 export function shopCars(save: SaveGame): CarDef[] {
@@ -33,7 +37,7 @@ export const canAfford = (save: SaveGame, cost: number): boolean => save.cash >=
 /** Cost of the next level on this line, or null when maxed. */
 export function nextUpgradeCost(save: SaveGame, kind: UpgradeKind): number | null {
   const level = save.upgrades[kind];
-  return level >= MAX_UPGRADE_LEVEL ? null : upgradeCost(getCar(save.carDefId), kind, level + 1);
+  return level >= MAX_LEVEL[kind] ? null : upgradeCost(getCar(save.carDefId), kind, level + 1);
 }
 
 export function buyUpgrade(save: SaveGame, kind: UpgradeKind): ShopResult {
@@ -53,7 +57,7 @@ export function buyCar(save: SaveGame, carDefId: string): ShopResult {
   if (car.id === save.carDefId) return fail('owned');
   const cash = save.cash + tradeInValue(save) - car.price;
   if (cash < 0) return fail('cash');
-  const upgrades = { engine: 0, tires: 0, armor: 0, gun: 0 };
+  const upgrades = { engine: 0, tires: 0, armor: 0, gun: 0, fuel: 0, spikes: 0 };
   return done(save, { cash, carDefId: car.id, upgrades, hp: computeStats(car, upgrades).maxHp });
 }
 
@@ -119,4 +123,17 @@ export function buyTurbo(save: SaveGame, seconds: number): ShopResult {
   const cost = Math.ceil(secs * TURBO_PRICE_PER_SECOND);
   if (!canAfford(save, cost)) return fail('cash');
   return done(save, { cash: save.cash - cost, turbo: save.turbo + secs });
+}
+
+/**
+ * Pays `offer.sabotagePrice` for a sabotage on that offer's race (content.md section 3). One pending at a time, even for the
+ * same offer. The damage pct is drawn now from the meta RNG; the target is picked when the race is set up.
+ */
+export function buySabotage(save: SaveGame, offer: RaceOffer): ShopResult {
+  if (save.sabotage !== null) return fail('pending');
+  const price = offer.sabotagePrice;
+  if (!canAfford(save, price)) return fail('cash');
+  const rng = createRng(save.rngState);
+  const pct = rng.int(SABOTAGE_PCT_MIN, SABOTAGE_PCT_MAX);
+  return done(save, { cash: save.cash - price, sabotage: { offerId: offer.id, pct, price }, rngState: rng.state() });
 }
