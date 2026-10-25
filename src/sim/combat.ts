@@ -125,7 +125,8 @@ function push(st: CombatState, car: SimCar, dx: number, dy: number, dv: number):
 // ---------------------------------------------------------------- damage and wrecks
 
 function applyDamage(world: SimWorld, car: SimCar, amount: number, source: DamageSource, by: CarId | null, pos: Vec2): void {
-  if (car.wrecked || amount <= 0) return;
+  // Finished cars are immune (content.md section 7).
+  if (car.wrecked || car.finished || amount <= 0) return;
   const before = car.hp;
   car.hp = Math.max(0, car.hp - amount);
   if (by !== null && by !== car.id) {
@@ -146,7 +147,7 @@ function applyDamage(world: SimWorld, car: SimCar, amount: number, source: Damag
   // Wreck explosion: by = null, so a chain wreck keeps whatever credit the victim already had.
   const st = stateOf(world);
   for (const other of world.cars) {
-    if (other === car || other.wrecked) continue;
+    if (other === car || other.wrecked || other.finished) continue;
     const q = other.body.translation();
     const dx = q.x - t.x;
     const dy = q.y - t.y;
@@ -164,7 +165,7 @@ function applyDamage(world: SimWorld, car: SimCar, amount: number, source: Damag
 export const updateTurbo: SimSystem = (world) => {
   const racing = world.phase === 'racing';
   for (const car of world.cars) {
-    const active = racing && !car.wrecked && car.input.turbo && car.turbo > 0;
+    const active = racing && !car.wrecked && !car.finished && car.input.turbo && car.turbo > 0;
     if (active !== car.turboActive) world.out.push({ type: active ? 'turboStart' : 'turboEnd', car: car.id });
     car.turboActive = active;
     if (active) car.turbo = Math.max(0, car.turbo - SIM_DT);
@@ -264,7 +265,7 @@ function fireShot(world: SimWorld, st: CombatState, car: SimCar): void {
   let ay = fy;
   let bestCos = Math.cos(GUN_AIM_CONE);
   for (const other of world.cars) {
-    if (other === car || other.wrecked) continue;
+    if (other === car || other.wrecked || other.finished) continue;
     const dx = st.px[other.id] - mx;
     const dy = st.py[other.id] - my;
     const d = Math.hypot(dx, dy);
@@ -302,7 +303,7 @@ export const updateGuns: SimSystem = (world) => {
   const racing = world.phase === 'racing';
   let positionsRead = false;
   for (const car of world.cars) {
-    const firing = racing && car.input.fire && !car.gunOverheated && !car.wrecked;
+    const firing = racing && car.input.fire && !car.gunOverheated && !car.wrecked && !car.finished;
     car.firing = firing;
     if (!firing) {
       car.gunHeat = Math.max(0, car.gunHeat - GUN_COOL_RATE * SIM_DT);
@@ -337,7 +338,7 @@ function explodeMine(world: SimWorld, st: CombatState, m: SimMine): void {
   const hitCars: CarId[] = [];
   world.out.push({ type: 'mineExploded', mine: m.id, pos: { x: m.pos.x, y: m.pos.y }, hitCars });
   for (const car of world.cars) {
-    if (car.wrecked) continue;
+    if (car.wrecked || car.finished) continue;
     const dx = st.px[car.id] - m.pos.x;
     const dy = st.py[car.id] - m.pos.y;
     const d = Math.hypot(dx, dy);
@@ -354,7 +355,7 @@ function explodeMine(world: SimWorld, st: CombatState, m: SimMine): void {
 
 function triggered(world: SimWorld, st: CombatState, m: SimMine): boolean {
   for (const car of world.cars) {
-    if (car.wrecked) continue;
+    if (car.wrecked || car.finished) continue;
     const r = MINE_TRIGGER_RADIUS + car.entrant.mesh.width / 2;
     const dx = st.px[car.id] - m.pos.x;
     const dy = st.py[car.id] - m.pos.y;
@@ -369,7 +370,7 @@ export const updateMines: SimSystem = (world) => {
   readPositions(world, st);
 
   for (const car of world.cars) {
-    if (!car.input.dropMine || car.prevInput.dropMine || car.mines <= 0 || car.mineCooldown > 0 || car.wrecked) continue;
+    if (!car.input.dropMine || car.prevInput.dropMine || car.mines <= 0 || car.mineCooldown > 0 || car.wrecked || car.finished) continue;
     if (world.mines.length >= MINE_MAX_ON_TRACK) world.mines.shift();
     const h = st.ph[car.id];
     const off = car.entrant.mesh.length / 2 + MINE_DROP_OFFSET;
@@ -448,7 +449,7 @@ export const updatePickups: SimSystem = (world) => {
     }
     // world.cars is in id order, so the lowest id wins a tie.
     for (const car of world.cars) {
-      if (car.wrecked || atCap(car, p.kind)) continue;
+      if (car.wrecked || car.finished || atCap(car, p.kind)) continue;
       const r = PICKUP_RADIUS + car.entrant.mesh.width / 2;
       const dx = st.px[car.id] - p.pos.x;
       const dy = st.py[car.id] - p.pos.y;
