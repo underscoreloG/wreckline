@@ -45,6 +45,9 @@ Multiplayer, touch controls, track editor, replays/ghosts, sponsors/loans, mobil
 | `@types/react` / `@types/react-dom` | 19.3.0 | |
 | `@vitejs/plugin-react` | 6.1.2 | JSX |
 | `@fontsource/chakra-petch` / `@fontsource/inter` | 5.3.0 | Self-hosted fonts |
+| `@gltf-transform/core` / `functions` / `extensions` | 4.5.1 | devDependency, WP14 car import script only (node, not bundled). Added 2026-10-25 (published 2026-09-28) |
+| `sharp` | 0.35.5 | devDependency, texture resize/WebP for the import script (gltf-transform `textureCompress`). Added 2026-10-25 |
+| `meshoptimizer` | 1.3.0 | devDependency, `MeshoptSimplifier` for gltf-transform `simplify` only. No meshopt or Draco **compression** in output files. Added 2026-10-25 |
 
 Pin exact versions (no `^`). Do not add dependencies outside this table; a WP that needs one files a Contract Change Request (section 9).
 
