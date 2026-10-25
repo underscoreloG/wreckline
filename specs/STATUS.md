@@ -47,6 +47,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | WP16 | Sound import and mix | C2 | subagent | opus high | todo | - | | copy art-incoming/sfx; listening session with user after merge |
 | WP17 | M1 tuning pass 1 (faster, more pickups) | 5 | subagent | opus high | merged | agent afc590ff684ca968e | wp/17-tuning-1 (8033df0) | lap 30.95->27.70 s; walls 1.75->2.94/race; wrecks 0.75->0.25; pickups 8.7->21.9/race; gap 1.25->0.88; released v0.2.1 |
 | WP18 | Career soft-lock fix (free tow, partial repair) | C2 | subagent | opus high | merged | agent a8c4fe9a0ce5d36d4 | wp/18-soft-lock (ac38f68) | tow + partial repairs; CCR-4 toast wiring applied by brain; released in v0.3.0 |
+| WP19 | Instant results after the player finishes | C2 | subagent | opus high | todo | - | wp/19-instant-results | patch v0.3.1 |
 | WP12 | Balance and polish | C3 | session | opus high | todo | - | | |
 
 ## Helper agents (not WPs)
@@ -89,6 +90,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 - Minor review items still open (`specs/REVIEW-2026-10-23.md`): 23 (finished cars coast and stay hittable), 24 (aim target and impact speed wording), 25 (names/colors past 3 AIs, TRACKS shape), 27 (sound check, fps checks need a visible pane), 28 (handbrake flag, audio car stats, layout map), 30 (easy-rival fallback wording), 31 (doc drift: GC seeds, placeProps args, WP12 probe runner).
 - Before WP14: pin a glTF optimizer version on npm into SPEC.md section 2.
 - From WP08: App is mounted by src/game/index.ts (rule 5: main.tsx may not create input/audio), accepted. Any keydown/pointerdown unlocks audio. Results delay counts 150 sim ticks. Title backdrop restarts its fake race every ~7 min (wrecked-car reset visuals unchecked). Pages workflow runs on push to main.
+- 2026-10-25 User on v0.3.0, verbatim: "waiting for the ai to finish the race to go to the main menu is kinda annoying". Fix: results 1.5 s after the player finishes or wrecks, the rest of the race fast-forwarded headlessly so results stay identical (WP19).
 - 2026-10-25 Soft-lock rule: free tow to ceil(30% maxHp) when hp 0 and the player cannot afford 30%; garage adds +25% and MAX partial repairs (WP18). Release v0.3.0 (career) after WP18.
 - 2026-10-25 Fun gate: yes on v0.2.1. M2 starts with wave C1 (WP09, WP11, WP13, WP15). New tracks get 10-14 pickups (every kind >= 2) to match the approved density.
 - 2026-10-25 Playtest of v0.2.0, user verbatim: "seems to be working great, it is a little bit too slow in my opinion. And I would love a little bit more bonuses on the race". Chosen: all cars maxSpeed x1.15 / accel x1.20, camera 46-62 m + turbo speed streaks; Scrapyard pickups 6 -> 12, respawn 12 -> 8 s. New pickup kinds not now (M2 if wanted). -> WP17.

@@ -35,7 +35,7 @@ Owns: `src/game/**`, `src/main.tsx` (taken over from WP00), `.github/**`, `CHANG
 | paused | restartRace | race | dispose + new session with the same setup but a new seed |
 | paused | quitRace | title | dispose session, restart backdrop |
 | paused | navigate settings | settings (previousScreen = paused) | |
-| race | (sim phase finished, + 2.5 s) | results | `state.results = sim.result()`, cash shown as units x 100 |
+| race | (player finished or wrecked, + 1.5 s; superseded by WP19) | results | fast-forward the sim headlessly to phase finished, then `state.results = sim.result()`, cash shown as units x 100 |
 | results | continueFromResults | title (M1) | dispose session |
 | results | restartRace | race | as above |
 | title | navigate controls/settings | that screen (previousScreen = title) | |
