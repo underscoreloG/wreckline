@@ -20,10 +20,11 @@ vi.mock('../render', () => ({
 const SETTINGS = { quality: 'high', cameraShake: true } as Settings;
 const MAX_TICKS = 60 * 400;
 
-const spyAudio = (): AudioEngine & { update: Mock<AudioEngine['update']>; stopRace: Mock<AudioEngine['stopRace']> } => ({
+const spyAudio = (): AudioEngine & { update: Mock<AudioEngine['update']>; stopRace: Mock<AudioEngine['stopRace']>; setRaceCars: Mock<AudioEngine['setRaceCars']> } => ({
   unlock: vi.fn(async () => {}),
   setVolumes: vi.fn(),
   update: vi.fn<AudioEngine['update']>(),
+  setRaceCars: vi.fn<AudioEngine['setRaceCars']>(),
   stopRace: vi.fn<AudioEngine['stopRace']>(),
   ui: vi.fn(),
   dispose: vi.fn(),
@@ -132,5 +133,16 @@ describe('instant results (WP19)', () => {
     }
     expect(error).not.toHaveBeenCalled();
     error.mockRestore();
+  });
+});
+
+describe('engine voices (CCR-9)', () => {
+  it('passes every entrant car and its effective maxSpeed to the audio before the first update', async () => {
+    const setup = buildQuickRaceSetup({ seed: 5, laps: 1, aiCount: 3 });
+    const audio = spyAudio();
+    const s = await makeSession(setup, undefined, audio);
+    expect(audio.setRaceCars).toHaveBeenCalledWith(setup.entrants.map((e) => ({ carDefId: e.carDefId, maxSpeed: e.stats.maxSpeed })));
+    expect(audio.update).not.toHaveBeenCalled();
+    s.dispose();
   });
 });

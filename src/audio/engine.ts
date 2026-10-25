@@ -1,25 +1,23 @@
+import { DEFAULT_PROFILE_ID, engineProfile, profileFrequency, type EngineProfile } from './engineProfiles';
 import { MIX } from './mix';
+import { getNoise } from './noise';
 
-// Engine voice recipe (WP05): saw + square at half frequency -> lowpass (Q 4) -> gain -> pan. Levels: MIX.engine.
+// Engine voice recipe (WP05, per-car numbers from WP25's profiles): saw + square at half frequency -> lowpass -> gain
+// -> pan, plus a bandpassed noise layer gated by the square (burble or clatter), a slow LFO on pitch and cutoff
+// (lumpy idle) and a whine oscillator (turbo, or an always-on supercharger). Levels: MIX.engine.
 export const ENGINE_GAIN_PLAYER = MIX.engine.player;
 export const ENGINE_GAIN_AI = MIX.engine.ai;
-const SUB_LEVEL = 0.5; // square relative to the saw
-const LOWPASS_Q = 4;
-const CUTOFF_BASE = 400; // Hz
-const CUTOFF_THROTTLE = 1800; // Hz added while accelerating
 const TURBO_PITCH = 1.15;
-const WHINE_RATIO = 9; // whine frequency / engine frequency
 const WHINE_LEVEL = 0.25;
-const SMOOTH = 0.04; // s, setTargetAtTime constant per update
+const SMOOTH = 0.04; // s, setTargetAtTime constant per update for levels and pan
 const WRECK_DROP = 0.3; // s
 const WRECK_PITCH = 0.3; // frequency multiplier at the end of the drop
+const NOISE_OFFSET_STEP = 0.37; // s into the shared noise buffer per car, so exhausts do not hiss in unison
+const NOISE_IDLE = 0.6; // noise layer level off throttle, relative to on throttle
 
-/** Fake 3-gear sawtooth: continuous inside each gear, 83.5-174 Hz overall. */
+/** Raven's fake 3-gear sawtooth (WP05): continuous inside each gear, 83.5-174 Hz overall. */
 export function engineFrequency(rpm01: number): number {
-  const r = Math.max(0, Math.min(1, rpm01));
-  const gear = Math.min(2, Math.floor(r * 3));
-  const g = r * 3 - gear;
-  return 55 + (g * 0.7 + 0.3) * 95 + gear * 12;
+  return profileFrequency(engineProfile(DEFAULT_PROFILE_ID), rpm01);
 }
 
 export interface EngineParams {
@@ -38,41 +36,66 @@ export interface EngineVoice {
   stop(when: number): void;
 }
 
-export function createEngineVoice(ctx: BaseAudioContext, dest: AudioNode, now: number): EngineVoice {
+export function createEngineVoice(ctx: BaseAudioContext, dest: AudioNode, now: number, pr: EngineProfile = engineProfile(DEFAULT_PROFILE_ID), index = 0): EngineVoice {
   const saw = ctx.createOscillator();
   saw.type = 'sawtooth';
   const sub = ctx.createOscillator();
   sub.type = 'square';
   const whine = ctx.createOscillator();
   whine.type = 'sine';
+  const lfo = ctx.createOscillator();
+  lfo.frequency.value = pr.wobbleHz;
   const subGain = ctx.createGain();
-  subGain.gain.value = SUB_LEVEL;
+  subGain.gain.value = pr.sub;
   const whineGain = ctx.createGain();
   whineGain.gain.value = 0;
   const lowpass = ctx.createBiquadFilter();
   lowpass.type = 'lowpass';
-  lowpass.Q.value = LOWPASS_Q;
-  lowpass.frequency.value = CUTOFF_BASE;
+  lowpass.Q.value = pr.q;
+  lowpass.frequency.value = pr.cutoff;
+  const noise = ctx.createBufferSource();
+  noise.buffer = getNoise(ctx).white;
+  noise.loop = true;
+  const band = ctx.createBiquadFilter();
+  band.type = 'bandpass';
+  band.frequency.value = pr.noiseHz;
+  band.Q.value = pr.noiseQ;
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.value = 0;
+  const gate = ctx.createGain(); // the sub square swings the noise level by +-gate around noiseGain
+  gate.gain.value = 0;
+  const wobblePitch = ctx.createGain();
+  wobblePitch.gain.value = 0;
+  const wobbleCutoff = ctx.createGain();
+  wobbleCutoff.gain.value = 0;
   const out = ctx.createGain();
   out.gain.value = 0;
   const panner = ctx.createStereoPanner();
 
-  const f0 = engineFrequency(0);
+  const f0 = profileFrequency(pr, 0);
   saw.frequency.value = f0;
   sub.frequency.value = f0 / 2;
-  whine.frequency.value = f0 * WHINE_RATIO;
+  whine.frequency.value = f0 * pr.whineRatio;
   saw.connect(lowpass);
   sub.connect(subGain).connect(lowpass);
   lowpass.connect(out);
+  sub.connect(gate).connect(noiseGain.gain);
+  noise.connect(band).connect(noiseGain).connect(out);
+  lfo.connect(wobblePitch);
+  wobblePitch.connect(saw.detune);
+  wobblePitch.connect(sub.detune);
+  lfo.connect(wobbleCutoff).connect(lowpass.frequency);
   // The whine skips the lowpass so it stays audible as a high layer.
   whine.connect(whineGain).connect(out);
   out.connect(panner).connect(dest);
-  const oscs = [saw, sub, whine];
+  const oscs = [saw, sub, whine, lfo];
   for (const o of oscs) o.start(now);
+  noise.start(now, (index * NOISE_OFFSET_STEP) % 2);
 
   let alive = true;
   const stop = (when: number): void => {
     for (const o of oscs) o.stop(when);
+    noise.stop(when);
     saw.onended = () => panner.disconnect();
   };
 
@@ -82,13 +105,19 @@ export function createEngineVoice(ctx: BaseAudioContext, dest: AudioNode, now: n
     },
     set(p, t) {
       if (!alive) return;
-      const f = engineFrequency(p.rpm01) * (p.turbo ? TURBO_PITCH : 1);
-      saw.frequency.setTargetAtTime(f, t, SMOOTH);
-      sub.frequency.setTargetAtTime(f / 2, t, SMOOTH);
-      whine.frequency.setTargetAtTime(f * WHINE_RATIO, t, SMOOTH);
-      whineGain.gain.setTargetAtTime(p.turbo ? WHINE_LEVEL : 0, t, SMOOTH * 2);
-      lowpass.frequency.setTargetAtTime(CUTOFF_BASE + p.throttle * CUTOFF_THROTTLE, t, SMOOTH * 2);
-      out.gain.setTargetAtTime(p.gain, t, SMOOTH);
+      const f = profileFrequency(pr, p.rpm01) * (p.turbo ? TURBO_PITCH : 1);
+      const idle = Math.max(0, 1 - 2 * Math.max(0, Math.min(1, p.rpm01)));
+      const n = pr.noise * (NOISE_IDLE + (1 - NOISE_IDLE) * p.throttle);
+      saw.frequency.setTargetAtTime(f, t, pr.revTau);
+      sub.frequency.setTargetAtTime(f / 2, t, pr.revTau);
+      whine.frequency.setTargetAtTime(f * pr.whineRatio, t, pr.revTau);
+      whineGain.gain.setTargetAtTime(p.turbo ? WHINE_LEVEL : pr.blower * (0.5 + 0.5 * p.rpm01), t, SMOOTH * 2);
+      lowpass.frequency.setTargetAtTime(pr.cutoff + p.throttle * pr.cutoffThrottle, t, SMOOTH * 2);
+      noiseGain.gain.setTargetAtTime(n, t, SMOOTH * 2);
+      gate.gain.setTargetAtTime(n * pr.pulse, t, SMOOTH * 2);
+      wobblePitch.gain.setTargetAtTime(pr.wobbleCents * idle, t, SMOOTH * 2);
+      wobbleCutoff.gain.setTargetAtTime(pr.wobbleCutoff * idle, t, SMOOTH * 2);
+      out.gain.setTargetAtTime(p.gain * pr.level, t, SMOOTH);
       panner.pan.setTargetAtTime(p.pan, t, SMOOTH);
     },
     kill(t) {

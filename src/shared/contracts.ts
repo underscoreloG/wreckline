@@ -418,6 +418,8 @@ export interface AudioEngine {
   setVolumes(master: number, sfx: number): void; // 0..1
   /** Called once per rendered frame with new events and the latest snapshot. */
   update(snapshot: RaceSnapshot, events: readonly SimEvent[], listener: CarId): void;
+  /** Called when a race setup is built, before the first update of that race. Index === CarId. maxSpeed is the effective stat (upgrades included). (CCR-9) */
+  setRaceCars(cars: readonly { carDefId: string; maxSpeed: number }[]): void;
   /** Silence all race sounds (pause, leaving the race). */
   stopRace(): void;
   ui(sound: UiSound): void;
