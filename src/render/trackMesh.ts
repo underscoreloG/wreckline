@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import type { TrackGeometry, Vec2 } from '../shared/contracts';
+import { planDressing, WALL_THICK } from './dressing';
+import { buildDressing } from './dressingMesh';
 import { boxNoBottom, merge, paint } from './geo';
 import type { WorldTextures } from './textures';
 import type { ThemeDef } from './themes';
@@ -14,11 +16,8 @@ const Y_START = 0.034;
 const TEXTURE_REPEAT_M = 8; // road and shoulder v = s / 8
 const GROUND_SIZE = 1200;
 const GROUND_TILE_M = 6;
-const KERB_WIDTH = 1;
-const KERB_CURVATURE = 1 / 40;
 const KERB_STRIPE_M = 2;
 const WALL_HEIGHT = 0.9;
-const WALL_THICK = 0.6;
 const WALL_SECTION_M = 24;
 const WATER_EDGE = 0.5;
 const GANTRY_HEIGHT = 6;
@@ -93,7 +92,8 @@ function ribbonGeometry(parts: { pos: number[]; uv: number[]; index: number[] }[
   return g;
 }
 
-function kerbs(track: TrackGeometry, theme: ThemeDef): THREE.BufferGeometry | null {
+/** Kerb strips outside the road edges; `width[i]` per sample, 0 = none (dressing.ts plans them). */
+function kerbs(track: TrackGeometry, theme: ThemeDef, width: Float32Array): THREE.BufferGeometry | null {
   const n = track.samples.length;
   const pos: number[] = [];
   const col: number[] = [];
@@ -103,13 +103,13 @@ function kerbs(track: TrackGeometry, theme: ThemeDef): THREE.BufferGeometry | nu
     const j = (i + 1) % n;
     const si = track.samples[i];
     const sj = track.samples[j];
-    if (Math.abs(si.curvature) <= KERB_CURVATURE || Math.abs(sj.curvature) <= KERB_CURVATURE) continue;
+    if (width[i] <= 0 || width[j] <= 0) continue;
     const c = Math.floor(si.s / KERB_STRIPE_M) % 2 === 0 ? ca : cb;
     for (const side of [-1, 1]) {
       const ei = side < 0 ? track.leftEdge[i] : track.rightEdge[i];
       const ej = side < 0 ? track.leftEdge[j] : track.rightEdge[j];
-      const oi = { x: ei.x + si.right.x * side * KERB_WIDTH, y: ei.y + si.right.y * side * KERB_WIDTH };
-      const oj = { x: ej.x + sj.right.x * side * KERB_WIDTH, y: ej.y + sj.right.y * side * KERB_WIDTH };
+      const oi = { x: ei.x + si.right.x * side * width[i], y: ei.y + si.right.y * side * width[i] };
+      const oj = { x: ej.x + sj.right.x * side * width[j], y: ej.y + sj.right.y * side * width[j] };
       quad(pos, w3(ei, Y_KERB), w3(ej, Y_KERB), w3(oj, Y_KERB), w3(oi, Y_KERB), UP);
       for (let k = 0; k < 6; k++) col.push(c.r, c.g, c.b);
     }
@@ -236,9 +236,11 @@ export function buildTrackMesh(track: TrackGeometry, theme: ThemeDef, tex: World
     new THREE.MeshStandardMaterial({ map: tex.dirt, roughness: 0.95 }),
   );
   const vc = { vertexColors: true, flatShading: true } as const;
-  const kerbGeo = kerbs(track, theme);
+  const plan = planDressing(track, theme.dressing);
+  const kerbGeo = kerbs(track, theme, plan.kerbWidth);
   if (kerbGeo) add(kerbGeo, new THREE.MeshStandardMaterial({ ...vc, roughness: 0.75 }));
   add(walls(track, theme), new THREE.MeshStandardMaterial({ ...vc, roughness: 0.8 }), true);
+  group.add(buildDressing(theme, plan, tex));
 
   // Start line: 2 rows of 1 m checks across the road at s = 0.
   const s0 = track.samples[0];
