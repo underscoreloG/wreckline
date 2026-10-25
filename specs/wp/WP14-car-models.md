@@ -2,7 +2,7 @@
 
 **Wave C2 (after WP13U), parallel with WP10.** Goal: the 8 generated models in the game: correct facing and size, within budget, readable from the race camera, with the roof plate in the driver's color, and the procedural placeholders as the fallback.
 Read first: `SPEC.md`, `specs/contracts.ts` (CarMeshSpec.model, Renderer), `specs/design.md` (Car art), `specs/content.md` sections 1 and 9, `specs/art/prompts/checks.md`, the WP03 report (carMesh rig, roof plate, harness).
-Depends on: WP03 merged, WP13U done (files in `art-incoming/cars/`).
+Depends on: WP03 and WP21 merged (WP21's `buildSpikesGeometry`; both own `carMesh.ts`, never at the same time), WP13U done (files in `art-incoming/cars/`).
 Owns: `scripts/assets/**`, `public/models/cars/**` (outside `public/assets` so `bundleSize.mjs`, which sums `dist/assets`, stays a JS budget), `src/render/carModel.ts` (+ `carModel.test.ts`), and, taken over from WP03 (nobody else writes `src/render` in C2), `src/render/carMesh.ts`, `src/render/index.ts` (the preload call) and `src/render/harness.ts` (the lineup), and the `mesh.model` values in `src/content/cars.ts` (values only). Anything else needs a CCR.
 Tooling: the brain pins a glTF optimizer (e.g. `@gltf-transform/cli`) in SPEC.md section 2 before dispatch; use only that, without meshopt or Draco compression (GLTFLoader would need a decoder, and a missing one makes every model silently fall back).
 Inputs: `art-incoming/` is gitignored, so the brain copies `art-incoming/cars/` from the main checkout into your worktree before dispatch.

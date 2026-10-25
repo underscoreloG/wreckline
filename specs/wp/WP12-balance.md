@@ -2,7 +2,7 @@
 
 Goal: the numbers in `src/content/**` hit the health metrics below, measured by headless probes, with every change logged.
 Read first: `SPEC.md`, `specs/content.md` (all), the reports of WP07, WP09, WP11, and the user's M1 playtest notes (quoted verbatim in the brief by the orchestrator).
-Depends on: WP09, WP10, WP11 merged.
+Depends on: WP09-WP11 and WP20-WP23 merged (all 10 tracks, fuel, spikes, sabotage).
 Owns: values in `src/content/**` (no structural changes), `scripts/balance/**`, `docs/tuning-log.md`, the AI scale constants at the top of `src/sim/ai.ts`, and the **expected values only** in tests that assert tuning numbers (`src/sim/vehicle.test.ts`, `src/sim/race.test.ts`, `src/sim/combat.test.ts`, `src/sim/ai.test.ts`, `src/meta/*.test.ts`, `src/content/**/*.test.ts`): when a retune moves a number a test pins, update that expectation in the same commit and log it. Test logic stays as is. Anything else needs a CCR.
 Dispatch: **session** (feel tuning needs the user's live steering).
 

@@ -132,7 +132,7 @@ Query params (dev and prod, handled in `main.tsx`):
 | WP10 | Career UI and wiring | C2 | WP08, WP09 | `src/ui/**` (taken over from WP04, edits listed in WP10), `src/ui/career.css`, `src/game/**` (taken over from WP08) | opus high | subagent |
 | WP13 | Car art prompt pack | C1 | M1 gate | `specs/art/prompts/**` | opus high | subagent |
 | WP13U | Generate car sheets and models | U1 | WP13 | `art-incoming/cars/**` (gitignored) | external: ChatGPT image generation + Tripo image-to-model, latest in the user's accounts (not pinned) | user:ChatGPT+Tripo |
-| WP14 | Car model import | C2 | WP03, WP13U | `scripts/assets/**`, `public/models/cars/**`, `src/render/carModel.ts` (+ test), `src/render/{carMesh,index,harness}.ts` (taken over from WP03), `mesh.model` values in `src/content/cars.ts` | opus high | subagent |
+| WP14 | Car model import | C2 | WP03, WP21, WP13U | `scripts/assets/**`, `public/models/cars/**`, `src/render/carModel.ts` (+ test), `src/render/{carMesh,index,harness}.ts` (taken over from WP03), `mesh.model` values in `src/content/cars.ts` | opus high | subagent |
 | WP15 | Sound list (Pixabay picks) | C1 | M1 gate | `specs/sfx/**` | sonnet high | subagent |
 | WP15U | Download the sounds | U1 | WP15 | `art-incoming/sfx/**` (gitignored) | external: pixabay.com/sound-effects in the user's browser | user:Pixabay |
 | WP16 | Sound import and mix | C2 | WP05, WP15U | `src/audio/**`, `scripts/sfx/**`, `public/sfx/**`, `docs/sfx-sources.md` | opus high | subagent |
@@ -141,10 +141,10 @@ Query params (dev and prod, handled in `main.tsx`):
 | WP19 | Instant results | C2 | WP08 | `src/game/**` | opus high | subagent |
 | WP20 | Rocket fuel, spikes, sabotage, unlocks: core | C2 | WP19 | `src/shared/contracts.ts` (CCR-5, CCR-6), `src/content/**` except tracks, `src/sim/{vehicle,combat}.ts`, `src/meta/**` | opus high | subagent |
 | WP21 | Rocket fuel, spikes, sabotage, track picker: UI | C2 | WP20 | `src/ui/**`, `src/game/**`, `src/render/carMesh.ts` | opus high | subagent |
-| WP22 | Snow, city, quarry themes, new props, 3 tracks | C2 | WP20 | `src/render/themes/**`, `src/render/props.ts`, prop radii/colliders, 3 track files, `tracks/index.ts` | opus high | subagent |
+| WP22 | Snow, city, quarry themes, new props, 3 tracks | C2 | WP20 | `src/sim/soak.ts`, `src/render/themes/**`, `src/render/props.ts`, prop radii/colliders, 3 track files, `tracks/index.ts` | opus high | subagent |
 | WP23a | Junkyard Sprint, Pine Hollow | C2 | WP22 | 2 track files + test | opus high | subagent |
 | WP23b | Rain District, Blast Pit | C2 | WP22 | 2 track files + test | opus high | subagent |
-| WP12 | Balance and polish | C3 | WP09-11 merged | values in `src/content/**`, AI scale constants in `src/sim/ai.ts`, expected values in tuning-pinned tests (list in WP12), `scripts/balance/**`, `docs/tuning-log.md` | opus high | session |
+| WP12 | Balance and polish | C3 | WP09-11, WP20-23 merged | values in `src/content/**`, AI scale constants in `src/sim/ai.ts`, expected values in tuning-pinned tests (list in WP12), `scripts/balance/**`, `docs/tuning-log.md` | opus high | session |
 
 WP06 is intentionally unused (reserved). Each WP spec lists exact deliverables, algorithms, numbers and acceptance tests. WP12 runs as a session because feel tuning needs the user's live steering; all others are fresh-context subagents in their own worktree.
 
