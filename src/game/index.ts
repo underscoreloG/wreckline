@@ -4,18 +4,19 @@ import { createAudioEngine } from '../audio';
 import { getCar } from '../content/cars';
 import { QUICK_RACE_CASH_VALUE } from '../content/economy';
 import { buildQuickRaceSetup } from '../content/quickRace';
+import { TRACKS } from '../content/tracks';
 import { createInputSource } from '../input';
 import type { KeyValueStore } from '../meta/save';
 import type { GameCommand, GameStore, InputFrame, RaceResult, RaceSetup, Renderer, UiState, Vec2 } from '../shared/contracts';
 import { buildTrackGeometry } from '../shared/trackGeometry';
 import { initPhysics } from '../sim';
 import { App } from '../ui/App';
-import { createCareerSession, dnfResult } from './careerSession';
+import { createCareerSession, dnfResult, unlockText } from './careerSession';
 import { installDebug } from './debug';
 import { createLoop } from './loop';
 import { transition, type Effect, type MachineInput } from './machine';
 import { createRaceSession, type RaceSession } from './raceSession';
-import { loadSettings, saveSettings, type SettingsStorage } from './settings';
+import { loadSettings, quickTrackOrFirst, saveSettings, type SettingsStorage } from './settings';
 import { createGameStore } from './store';
 import { createTitleBackdrop, type TitleBackdrop } from './titleBackdrop';
 
@@ -125,6 +126,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
   let debugDriven = false;
   let mode: 'quick' | 'career' = 'quick';
   let justChampion = false;
+  let unlocked: string[] = []; // tracks the last career race unlocked, announced on the hub
   let toastId = 0;
 
   const toast = (text: string, kind: NonNullable<UiState['toast']>['kind']): void => store.set({ toast: { id: ++toastId, text, kind } });
@@ -170,6 +172,26 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
         store.set({ race: raceInfo(setup), hud: null, results: null, selectedOffer: cmd.offerId, lastPayout: null });
         break;
       }
+      case 'buySabotage': {
+        const offerId = store.getState().selectedOffer;
+        if (mode !== 'career' || screen !== 'preRace' || !offerId || !setup) return;
+        const r = career.buySabotage();
+        if (!r.ok) return fail(r.error);
+        audio.ui('buy');
+        // The setup was built at selectOffer, before the purchase: rebuild it (same seed) so the target starts damaged.
+        const s = career.selectOffer(offerId, setup.seed);
+        if (s.ok) setup = s.setup;
+        publishCareer();
+        if (career.lastWriteOk) toast(`Sabotaged: ${r.target} -${r.pct}%`, 'info');
+        return;
+      }
+      case 'setQuickTrack': {
+        if (mode !== 'quick' || screen !== 'preRace' || !TRACKS[cmd.trackId] || !setup) return;
+        applySettings({ quickTrackId: cmd.trackId });
+        setup = quickSetup(setup.seed);
+        store.set({ race: raceInfo(setup) });
+        return;
+      }
       case 'buyUpgrade':
       case 'buyCar':
       case 'repair':
@@ -187,16 +209,20 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
         break;
       case 'quitRace':
         if (mode === 'career' && screen === 'paused' && session) {
-          const { payout } = career.finishRace(dnfResult(session.setup, session.snapshot(), session.tally, session.sim.result()));
+          const r = career.finishRace(dnfResult(session.setup, session.snapshot(), session.tally, session.sim.result()));
           publishCareer();
           store.set({ selectedOffer: null, lastPayout: null });
-          toast(payout.total > 0 ? `DNF - earned $${payout.total}` : 'DNF', 'info');
+          const dnf = r.payout.total > 0 ? `DNF - earned $${r.payout.total}` : 'DNF';
+          toast(r.unlocked.length ? `${dnf} · ${unlockText(r.unlocked)}` : dnf, 'info');
         }
         break;
       case 'continueFromResults':
         run(cmd);
         justChampion = false;
         if (mode === 'career') store.set({ offers: career.offers, selectedOffer: null, lastPayout: null });
+        // Shown once, on the hub (the champion screen skips it: the career is over).
+        if (unlocked.length && store.getState().screen === 'career') toast(unlockText(unlocked), 'info');
+        unlocked = [];
         return;
       case 'startQuickRace':
         mode = 'quick';
@@ -219,7 +245,8 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
     if (loop.isPaused()) session?.redraw();
   };
 
-  const quickSetup = (seed: number): RaceSetup => buildQuickRaceSetup({ seed, laps: QUICK_LAPS, aiCount: QUICK_AI, autoplay });
+  const quickSetup = (seed: number): RaceSetup =>
+    buildQuickRaceSetup({ seed, laps: QUICK_LAPS, aiCount: QUICK_AI, autoplay, trackId: quickTrackOrFirst(store.getState().settings.quickTrackId, Object.keys(TRACKS)) });
 
   const startBackdrop = async (): Promise<void> => {
     const g = ++backdropGen;
@@ -302,8 +329,9 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
         session?.fastForward();
         const r = session?.sim.result() ?? null;
         if (mode === 'career' && r) {
-          const { payout, champion } = career.finishRace(r);
+          const { payout, champion, unlocked: ids } = career.finishRace(r);
           justChampion = champion;
+          unlocked = ids;
           // Offers stay in the UI state until CONTINUE: the results PRIZE column reads the selected offer.
           store.set({ results: r, lastPayout: payout, save: career.save });
           if (!career.lastWriteOk) toast('Could not save: browser storage is full or blocked', 'error');
@@ -376,6 +404,8 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
   const debugStep = (n: number): void => {
     debugDriven = true;
     for (let i = 1; i <= n; i++) {
+      // Behind the results screen the session is frozen, as in the live loop (paused there).
+      if (store.getState().screen === 'results') break;
       onStep();
       if (i % DEBUG_RENDER_EVERY === 0 || i === n) onRender(1, DEBUG_RENDER_DT);
     }

@@ -6,7 +6,10 @@ import type { RaceResult, RaceSetup, SaveGame } from '../shared/contracts';
 import { PLAYER_CAR_ID } from '../shared/contracts';
 import { createFakeSim } from '../sim';
 import { affordableRepairHp, partialRepairHp } from '../meta/shop';
-import { createCareerSession, createTally, dnfResult, REPAIR_FIRST, tallyEvent, TOWED } from './careerSession';
+import { createCareerSession, createTally, dnfResult, REPAIR_FIRST, tallyEvent, TOWED, unlockText } from './careerSession';
+import { TRACKS_AT_START } from '../content/economy';
+import { getTrack, TRACKS } from '../content/tracks';
+import { sabotageTarget, unlockedTrackIds } from '../meta/career';
 
 function memoryStorage(failWrites = false): KeyValueStore & { map: Map<string, string> } {
   const map = new Map<string, string>();
@@ -210,5 +213,65 @@ describe('career session', () => {
     const rich = careerWith({ hp: 64, cash: 1000 }).career;
     expect(rich.shop({ type: 'repair', amount: partialRepairHp(rich.save!) })).toEqual({ ok: true });
     expect(rich.save).toMatchObject({ hp: 89, cash: 900 });
+  });
+
+  it('sabotage flow: buy for the selected offer, refused while one is pending, persisted, applied, cleared after the race', () => {
+    const { career, storage } = careerWith({ cash: 5000 });
+    const [a, b] = career.ensureOffers();
+    if (!a || !b) throw new Error('need two offers');
+    expect(career.selectOffer(a.id, 1).ok).toBe(true);
+
+    const bought = career.buySabotage();
+    if (!bought.ok) throw new Error(bought.error);
+    const sab = career.save!.sabotage!;
+    expect(sab).toEqual({ offerId: a.id, pct: bought.pct, price: a.sabotagePrice });
+    expect(bought.pct).toBeGreaterThanOrEqual(25);
+    expect(bought.pct).toBeLessThanOrEqual(49);
+    expect(bought.target).toBe(sabotageTarget(career.save!, a).name);
+    expect(career.save!.cash).toBe(5000 - a.sabotagePrice);
+    expect(loadSave(storage)!.sabotage).toEqual(sab);
+
+    // Refused twice: again for the same offer, then for another offer; nothing changes.
+    const pending = { ok: false, error: 'Sabotage already bought for another race' };
+    expect(career.buySabotage()).toEqual(pending);
+    expect(career.selectOffer(b.id, 1).ok).toBe(true);
+    expect(career.buySabotage()).toEqual(pending);
+    expect(career.save!.cash).toBe(5000 - a.sabotagePrice);
+    expect(loadSave(storage)!.sabotage).toEqual(sab);
+
+    // The setup rebuilt after the purchase starts the target damaged.
+    const r = career.selectOffer(a.id, 1);
+    if (!r.ok) throw new Error(r.error);
+    const target = r.setup.entrants.find((e) => e.name === bought.target)!;
+    expect(target.hp).toBe(Math.round(target.stats.maxHp * (1 - sab.pct / 100)));
+
+    career.finishRace(resultFor(r.setup, 2));
+    expect(career.save!.sabotage).toBeNull();
+    expect(loadSave(storage)!.sabotage).toBeNull();
+  });
+
+  it('sabotage refused without the cash or a selected offer', () => {
+    const poor = careerWith({ cash: 0 }).career;
+    expect(poor.buySabotage()).toEqual({ ok: false, error: 'Offer not available' });
+    const offer = poor.ensureOffers()[0]!;
+    expect(poor.selectOffer(offer.id, 1).ok).toBe(true);
+    expect(poor.buySabotage()).toEqual({ ok: false, error: 'Not enough cash' });
+    expect(poor.save!.sabotage).toBeNull();
+  });
+
+  it('finishRace reports the tracks the race unlocked (none pinned: derived from TRACKS)', () => {
+    const { career } = careerWith({ points: 100000, bestRank: 20 });
+    const offer = career.ensureOffers()[0]!;
+    const r = career.selectOffer(offer.id, 1);
+    if (!r.ok) throw new Error(r.error);
+    const { unlocked } = career.finishRace(resultFor(r.setup, 1));
+    expect(career.save!.bestRank).toBe(1);
+    expect(unlocked).toEqual(unlockedTrackIds(career.save!).slice(TRACKS_AT_START));
+  });
+
+  it('unlock message: one track, then several', () => {
+    const ids = Object.keys(TRACKS);
+    expect(unlockText(ids.slice(0, 1))).toBe(`New track: ${getTrack(ids[0]!).name}`);
+    expect(unlockText(ids.slice(0, 2))).toBe(`New tracks: ${getTrack(ids[0]!).name}, ${getTrack(ids[1]!).name}`);
   });
 });

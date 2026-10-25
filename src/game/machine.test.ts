@@ -18,7 +18,7 @@ const TABLE: [Screen, Screen | null, MachineInput, Screen, Screen | null, string
   ['paused', null, { type: 'restartRace' }, 'race', null, ['restartSession']],
   ['paused', null, { type: 'quitRace' }, 'title', null, ['disposeSession', 'startBackdrop']],
   ['paused', null, { type: 'navigate', screen: 'settings' }, 'settings', 'paused', []],
-  ['race', null, { type: 'raceOver' }, 'results', null, ['showResults']],
+  ['race', null, { type: 'raceOver' }, 'results', null, ['showResults', 'pauseLoop']],
   ['results', null, { type: 'continueFromResults' }, 'title', null, ['disposeSession', 'startBackdrop']],
   ['results', null, { type: 'restartRace' }, 'race', null, ['restartSession']],
   ['title', null, { type: 'navigate', screen: 'controls' }, 'controls', 'title', []],

@@ -6,7 +6,7 @@ import { bar, boxNoBottom, merge, paint } from './geo';
 
 /**
  * Procedural cars (WP03), modeled facing +x with the origin at the ground center.
- * Draw calls per car: body (with extras), glass, lights, gun, roof plate, 4 wheels.
+ * Draw calls per car: body (with extras and bumper spikes), glass, lights, gun, roof plate, 4 wheels.
  */
 
 const BEVEL = 0.08;
@@ -29,6 +29,11 @@ const STRIPE_SHADE = 0.6;
 const DECAL_SHADE = 0.55;
 const WRECK_TINT = 0.2;
 const DAMAGE_TINT = 0.45; // brightness lost at 0 hp before the wreck
+const SPIKE_RADIUS = 0.07;
+const SPIKE_LENGTH = 0.3;
+const SPIKE_HEIGHT = 0.25; // fraction of body height above the body bottom
+const SPIKE_SPREAD = 0.8; // fraction of width the row covers
+const MUSCLE_BUMPER = 0.12; // the muscle push bar sticks out this far past the nose
 
 /** Side profiles, x in -0.5..0.5 of length (front = +x), y in 0..1 of height. Listed CCW: bottom edge, then the top from nose to tail. */
 const PROFILES: Record<CarMeshStyle, readonly (readonly [number, number])[]> = {
@@ -91,6 +96,26 @@ function decal(kind: number, size: number): THREE.BufferGeometry {
 }
 
 const shade = (color: string, k: number): THREE.Color => new THREE.Color(color).multiplyScalar(k);
+
+/**
+ * Bumper spikes (CCR-5): 2 open 4-sided cones per level along the front bumper, dark metal, painted and
+ * non-indexed like every body part (position, normal, color), in the car frame (+x forward, origin at the
+ * ground center). null for level 0 and for styles that already carry spikes (boss).
+ */
+export function buildSpikesGeometry(spec: CarMeshSpec): THREE.BufferGeometry | null {
+  const n = 2 * clamp(Math.round(spec.spikes), 0, 3);
+  if (n === 0 || spec.style === 'boss') return null;
+  const x = spec.length / 2 + (spec.style === 'muscle' ? MUSCLE_BUMPER : 0) + SPIKE_LENGTH / 2 - 0.04;
+  const y = spec.wheelRadius * 0.9 + SPIKE_HEIGHT * spec.height;
+  const row = SPIKE_SPREAD * spec.width;
+  const parts: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < n; i++) {
+    // Apex along +y, turned to point forward (+x).
+    const cone = new THREE.ConeGeometry(SPIKE_RADIUS, SPIKE_LENGTH, 4, 1, true);
+    parts.push(paint(at(cone, x, y, -row / 2 + ((i + 0.5) * row) / n, -Math.PI / 2), METAL));
+  }
+  return merge(parts);
+}
 
 export interface CarParts {
   group: THREE.Group;
@@ -226,6 +251,9 @@ export function buildCarParts(spec: CarMeshSpec, color: string): CarParts {
     bodyParts.push(paint(at(new THREE.PlaneGeometry(bl, W - 0.2).rotateX(-Math.PI / 2), (bx0 + bx1) / 2, top + 0.01, 0), METAL));
     bodyParts.push(paint(at(boxNoBottom(0.9, 0.45, 0.9), (bx0 + bx1) / 2, top + 0.225, 0), METAL));
   }
+
+  const spikes = buildSpikesGeometry(spec);
+  if (spikes) bodyParts.push(spikes);
 
   if (spec.spoiler) {
     const wedge = style === 'wedge';

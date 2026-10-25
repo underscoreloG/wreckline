@@ -1,7 +1,8 @@
 import { PICKUP_CASH_UNITS } from '../content/pickups';
-import { applyRaceResult, buildCareerRaceSetup, generateOffers, newCareer } from '../meta/career';
+import { getTrack } from '../content/tracks';
+import { applyRaceResult, buildCareerRaceSetup, generateOffers, newCareer, newlyUnlocked, sabotageTarget } from '../meta/career';
 import { loadSave, writeSave, type KeyValueStore } from '../meta/save';
-import { buyCar, buyMines, buyTurbo, buyUpgrade, freeTowIfStuck, repair, type ShopFail, type ShopResult } from '../meta/shop';
+import { buyCar, buyMines, buySabotage, buyTurbo, buyUpgrade, freeTowIfStuck, repair, type ShopFail, type ShopResult } from '../meta/shop';
 import type { GameCommand, Payout, RaceOffer, RaceResult, RaceResultRow, RaceSetup, RaceSnapshot, SaveGame, SimEvent } from '../shared/contracts';
 import { PLAYER_CAR_ID } from '../shared/contracts';
 
@@ -39,8 +40,13 @@ export interface CareerSession {
   ensureOffers(): RaceOffer[];
   selectOffer(offerId: string, seed: number): { ok: true; setup: RaceSetup } | { ok: false; error: string };
   shop(cmd: ShopCommand): CareerOutcome;
-  /** Applies the selected offer's result; `champion` is true when this race just won the title. */
-  finishRace(result: RaceResult): { payout: Payout; champion: boolean };
+  /** Buys a sabotage for the selected offer and persists; the caller rebuilds the race setup (selectOffer) so it applies. */
+  buySabotage(): { ok: true; target: string; pct: number } | { ok: false; error: string };
+  /**
+   * Applies the selected offer's result; `champion` is true when this race just won the title,
+   * `unlocked` lists the track ids this race unlocked (for the one-time "New track" message).
+   */
+  finishRace(result: RaceResult): { payout: Payout; champion: boolean; unlocked: string[] };
 }
 
 export function createCareerSession(storage: KeyValueStore, notify: (text: string) => void = () => {}): CareerSession {
@@ -125,16 +131,29 @@ export function createCareerSession(storage: KeyValueStore, notify: (text: strin
       persistChecked(r.save);
       return { ok: true };
     },
+    buySabotage() {
+      if (!save || !selected) return { ok: false, error: 'Offer not available' };
+      const r = buySabotage(save, selected);
+      if (!r.ok) return { ok: false, error: FAIL_TEXT[r.reason] };
+      persist(r.save);
+      return { ok: true, target: sabotageTarget(r.save, selected).name, pct: r.save.sabotage?.pct ?? 0 };
+    },
     finishRace(result) {
       if (!save || !selected) throw new Error('no career race in progress');
-      const before = save.championWon;
+      const before = save;
       const r = applyRaceResult(save, selected, result);
       offers = null;
       selected = null;
       persistChecked(r.save);
-      return { payout: r.payout, champion: !before && r.save.championWon };
+      return { payout: r.payout, champion: !before.championWon && r.save.championWon, unlocked: newlyUnlocked(before, r.save) };
     },
   };
+}
+
+/** "New track: Dust Bowl", or "New tracks: A, B" for several (career hub, once). */
+export function unlockText(trackIds: readonly string[]): string {
+  const names = trackIds.map((id) => getTrack(id).name);
+  return `New track${names.length > 1 ? 's' : ''}: ${names.join(', ')}`;
 }
 
 /** Per-car wreck credits and cash pickups seen in the event stream, for a race quit before the sim built a result. */

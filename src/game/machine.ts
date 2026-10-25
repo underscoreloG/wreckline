@@ -51,7 +51,8 @@ export function transition(from: MachineState, input: MachineInput): Transition 
       return null;
     case 'race':
       if (t === 'pause') return go('paused', ['pauseLoop']);
-      if (t === 'raceOver') return go('results', ['showResults']);
+      // The loop pauses behind the results screen: no render, no audio.update restarting engine sounds after stopRace.
+      if (t === 'raceOver') return go('results', ['showResults', 'pauseLoop']);
       return null;
     case 'paused':
       if (t === 'resume' || t === 'back') return go('race', ['resumeLoop']);

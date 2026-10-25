@@ -49,8 +49,16 @@ export function Champion({ state }: { state: UiState }) {
               <span className="muted">WINS</span>
             </span>
             <span>
+              <b className="display">{save.wrecks}</b>
+              <span className="muted">WRECKS</span>
+            </span>
+            <span>
               <b className="display">{save.points}</b>
               <span className="muted">POINTS</span>
+            </span>
+            <span>
+              <b className="display cash">{formatCash(save.cashEarned)}</b>
+              <span className="muted">EARNED</span>
             </span>
             <span>
               <b className="display cash">{formatCash(save.cash)}</b>
