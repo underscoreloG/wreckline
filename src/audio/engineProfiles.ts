@@ -165,10 +165,11 @@ export const ENGINE_PROFILES: Readonly<Record<string, EngineProfile>> = {
   },
   wraith: {
     ...RAVEN,
-    base: 52,
-    span: 100,
-    whineRatio: 12,
-    blower: 0.12,
+    base: 45, // ~8% under raven: the same V8, a bigger displacement
+    span: 95,
+    sub: 0.6,
+    whineRatio: 24, // well above the tone's own centroid, so the blower reads as a separate whine
+    blower: 0.25,
   },
 };
 
