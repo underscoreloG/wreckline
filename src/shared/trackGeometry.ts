@@ -30,11 +30,12 @@ export const PROP_RADIUS: Readonly<Record<PropKind, number>> = {
   rock: 1.5,
   cactus: 0.6,
   building: 6,
-  // CCR-6 kinds: neutral placeholders, WP22 sets the real radii with the models.
-  pine: 1,
-  snowbank: 1,
-  billboard: 1,
-  crane: 1,
+  // CCR-6 kinds (WP22): pine = lowest cone, snowbank = mound half-length, billboard = half the panel width,
+  // crane = the base's half-diagonal (its jib over the road is not part of the footprint).
+  pine: 1.6,
+  snowbank: 1.6,
+  billboard: 4.2,
+  crane: 3.5,
 };
 
 export const propRadius = (kind: PropKind): number => PROP_RADIUS[kind];

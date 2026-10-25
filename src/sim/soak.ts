@@ -1,5 +1,5 @@
 import { buildQuickRaceSetup } from '../content/quickRace';
-import type { CarId, RaceSetup } from '../shared/contracts';
+import type { CarId, RaceSetup, TrackDef } from '../shared/contracts';
 import { SIM_HZ } from '../shared/contracts';
 import { createSim } from './index';
 
@@ -38,6 +38,8 @@ export interface SoakStats {
   gunDamageEvents: number;
   minesDropped: number;
   wrecks: number;
+  /** impact events with b === 'wall', all cars (the tuning log's wall impacts). */
+  wallImpacts: number;
   /** Median of the 0.55-skill cars' clean laps (null if none). */
   medianCleanLap: number | null;
   raceTime: number;
@@ -45,14 +47,19 @@ export interface SoakStats {
 }
 
 export interface SoakOptions {
-  trackId: string;
+  /** A registered track id (default scrapyard). */
+  trackId?: string;
+  /** Any TrackDef, registered or not (WP23 tracks before registration); wins over trackId. */
+  track?: TrackDef;
   seed: number;
   laps?: number;
 }
 
 /** The soak race: quick-race grid (AI 0.35/0.55/0.75) with the player slot on autoplay 0.55. */
 export function soakSetup(opts: SoakOptions): RaceSetup {
-  return buildQuickRaceSetup({ seed: opts.seed, laps: opts.laps ?? 3, aiCount: 3, trackId: opts.trackId, autoplay: true });
+  const setup = buildQuickRaceSetup({ seed: opts.seed, laps: opts.laps ?? 3, aiCount: 3, trackId: opts.trackId, autoplay: true });
+  if (opts.track) setup.track = opts.track;
+  return setup;
 }
 
 const median = (xs: readonly number[]): number | null => {
@@ -75,6 +82,7 @@ export function runSoak(opts: SoakOptions): SoakStats {
   let gunDamageEvents = 0;
   let minesDropped = 0;
   let wrecks = 0;
+  let wallImpacts = 0;
   const maxTicks = Math.ceil((setup.countdownSeconds + setup.laps * setup.track.referenceLapTime * TIMEOUT_LAPS_FACTOR) * SIM_HZ);
   let ticks = 0;
   let timedOut = false;
@@ -93,6 +101,7 @@ export function runSoak(opts: SoakOptions): SoakStats {
       } else if (e.type === 'impact') {
         dirty[e.a] = true;
         if (e.b !== 'wall') dirty[e.b] = true;
+        else wallImpacts++;
       } else if (e.type === 'mineDropped') minesDropped++;
       else if (e.type === 'carWrecked') wrecks++;
       else if (e.type === 'lapCompleted') {
@@ -138,13 +147,14 @@ export function runSoak(opts: SoakOptions): SoakStats {
   });
   const mediumLaps = cars.filter((c) => Math.abs(c.skill - MEDIUM_SKILL) < 1e-9).flatMap((c) => c.cleanLaps);
   return {
-    trackId: opts.trackId,
+    trackId: setup.track.id,
     seed: opts.seed,
     endReason,
     cars,
     gunDamageEvents,
     minesDropped,
     wrecks,
+    wallImpacts,
     medianCleanLap: median(mediumLaps),
     raceTime: snap.time,
     ticks,

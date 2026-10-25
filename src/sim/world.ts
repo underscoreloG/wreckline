@@ -11,6 +11,9 @@ const CAR_RESTITUTION = 0.3;
 /** Cuboid prop colliders: half-width as a fraction of propRadius (container = 6.1 x 2.6 m box, building square). */
 const CONTAINER_ASPECT = 2.6 / 6.1;
 const BUILDING_HALF = Math.SQRT1_2;
+/** Billboard: two posts at +-3 m along the prop's x (render/props.ts BILLBOARD_POST_X), 0.3 m square. */
+const BILLBOARD_POST_X = 3;
+const BILLBOARD_POST_HALF = 0.15;
 
 /** Rapier InteractionGroups: membership in the high 16 bits, filter in the low 16. */
 const groups = (membership: number, filter: number): number => ((membership << 16) | filter) >>> 0;
@@ -44,7 +47,18 @@ export function buildWorld(rapier: Rapier, setup: RaceSetup): SimWorld {
     const r = propRadius(prop.kind) * prop.scale;
     let desc;
     if (prop.kind === 'container') desc = rapier.ColliderDesc.cuboid(r, r * CONTAINER_ASPECT);
-    else if (prop.kind === 'building') desc = rapier.ColliderDesc.cuboid(r * BUILDING_HALF, r * BUILDING_HALF);
+    else if (prop.kind === 'building' || prop.kind === 'crane') desc = rapier.ColliderDesc.cuboid(r * BUILDING_HALF, r * BUILDING_HALF);
+    else if (prop.kind === 'billboard') {
+      // Posts only: the panel is overhead decoration.
+      const c = Math.cos(prop.rotation) * BILLBOARD_POST_X * prop.scale;
+      const s = Math.sin(prop.rotation) * BILLBOARD_POST_X * prop.scale;
+      for (const k of [-1, 1]) {
+        const post = rapier.ColliderDesc.cuboid(BILLBOARD_POST_HALF * prop.scale, BILLBOARD_POST_HALF * prop.scale);
+        post.setTranslation(prop.pos.x + k * c, prop.pos.y + k * s).setRotation(prop.rotation).setCollisionGroups(groups(GROUP_PROP, GROUP_CAR));
+        physics.createCollider(post, fixed);
+      }
+      continue;
+    }
     else if (prop.kind === 'rock') desc = rapier.ColliderDesc.ball(r);
     else continue;
     desc.setTranslation(prop.pos.x, prop.pos.y).setRotation(prop.rotation).setCollisionGroups(groups(GROUP_PROP, GROUP_CAR));
