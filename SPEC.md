@@ -125,7 +125,7 @@ Query params (dev and prod, handled in `main.tsx`):
 | WP03 | Renderer | A | WP00 | `src/render/**` | opus high | subagent |
 | WP04 | UI shell and HUD | A | WP00 | `src/ui/**` (not `src/ui/screens/career/**`, `src/ui/career.css`) | opus high | subagent |
 | WP05 | Input and audio | A | WP00 | `src/input/**`, `src/audio/**` | opus high | subagent |
-| WP07 | AI drivers | B | WP01, WP02 | `src/sim/ai.ts`, `src/sim/racingLine.ts`, `src/sim/soak.ts`, `src/sim/ai.test.ts` | opus high | subagent |
+| WP07 | AI drivers | B | WP01, WP02 | `src/sim/ai.ts`, `src/sim/racingLine.ts`, `src/sim/soak.ts`, `src/sim/ai.test.ts`; finished-car rule in `src/sim/vehicle.ts`, `src/sim/combat.ts` (+ their tests) | opus high | subagent |
 | WP08 | Game integration | B | WP01-05 | `src/game/**`, `src/main.tsx` (taken over from WP00), `.github/**`, `CHANGELOG.md` | opus high | subagent |
 | WP09 | Career logic | C1 | M1 gate | `src/meta/**` | opus high | subagent |
 | WP11 | Tracks 2-3 and themes | C1 | M1 gate, WP03 | `src/content/tracks/dustBowl.ts`, `src/content/tracks/dockside.ts`, `src/content/tracks/m2Tracks.test.ts`, `src/render/themes/**` (data; WP03 created `index.ts`) | opus high | subagent |

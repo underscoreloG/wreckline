@@ -24,7 +24,7 @@ const ANGVEL_RESPONSE = 12;       // 1/s, how fast angVel tracks its target
 const DRIFT_THRESHOLD = 3.5;      // m/s lateral speed
 ```
 
-Per car (skip and apply wrecked damping if `wrecked`; skip input if `finished` -> treat as throttle 0.3, steer to follow nothing, i.e. coast):
+Per car (skip and apply wrecked damping if `wrecked`; skip input if `finished` -> superseded in wave B: finished cars (and all cars once phase is `finished`) use `cruiseInput(world, car)` from `ai.ts`, see content.md section 7 and WP07):
 
 1. `eff` = `base` with modifiers from content.md section 4: offroad when `|car.lateral| > width/2` (use last tick's projection), turbo when `car.turboActive` (WP02 sets it in step 3). Write into `car.eff` in place.
 2. `h = body.rotation()`, `f = fwd(h)`, `r = right(h)`, `v = body.linvel()`, `vF = dot(v, f)`, `vR = dot(v, r)`.

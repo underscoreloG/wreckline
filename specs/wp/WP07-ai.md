@@ -3,7 +3,7 @@
 Goal: AI cars that race a proper line, brake for corners, overtake, shoot, drop mines, use turbo and recover when stuck, with difficulty that clearly scales with skill.
 Read first: `SPEC.md`, `specs/contracts.ts` (AiProfile), `specs/sim-internal.ts` (AiDriver, SimWorld, system order), `specs/content.md` sections 1, 5, 8, 12, `specs/wp/WP01-vehicle-race.md` (dynamics you are driving).
 Depends on: WP01 and WP02 merged (real dynamics and combat).
-Owns: `src/sim/ai.ts`, `src/sim/racingLine.ts`, `src/sim/soak.ts`, `src/sim/ai.test.ts`. Anything else needs a CCR.
+Owns: `src/sim/ai.ts`, `src/sim/racingLine.ts`, `src/sim/soak.ts`, `src/sim/ai.test.ts`, and for the finished-car rule only (wave B, nobody else writes `src/sim` now): the finished-car branch in `src/sim/vehicle.ts` and the finished-car guards in `src/sim/combat.ts`, plus new tests for them in `src/sim/vehicle.test.ts` / `src/sim/combat.test.ts`. Anything else needs a CCR.
 
 ## Deliverables
 - `racingLine.ts`: `buildRacingLine(track, grip, brake): RacingLine` (signature from the WP00 stub). Cached per `(track.def.id, grip, brake)` in a module-level Map.
@@ -29,7 +29,13 @@ Let `c` = the car, `p` = profile.
 8. **Mines:** a car behind within 15 m and within 30 deg of the rear axis: `dropMine` with probability `p.mineUse` once per encounter (cooldown 3 s per AI). Never drop in the first 5 s of the race.
 9. **Turbo:** if `turbo > 0`, the next 80 m have `max |k| < 1/120`, and `speed > 0.7 * maxSpeed`: start with probability `p.turboUse` (one roll per straight), hold until the straight ends or turbo is empty.
 10. **Pickups:** if a needed pickup (repair when hp < 60%, mines when < 2, turbo when < 2 s) is active within 40 m ahead and within `lim` laterally, override the target lateral with its lateral.
-11. During countdown and after finishing: neutral input (finished cars coast with throttle 0.3 along the line).
+11. During countdown: neutral input. After finishing: see "Finished cars" below (the AI's `decide` is not used for finished cars).
+
+### Finished cars (user decision 2026-10-25, content.md section 7)
+- `ai.ts` exports `cruiseInput(world: SimWorld, car: SimCar): InputFrame` (pure, allocation-free, one reused frame per car): steer exactly like step 2 toward the racing line (`noise = 0`, no avoidance, no handbrake, no weapons), speed target `min(speeds[...], eff.maxSpeed) * 0.6`. Works for any car, the player included (finished player cars cruise too), and needs no `AiDriver`.
+- `vehicle.ts`: replace WP01's `FINISHED_INPUT` use (finished cars, and all cars once phase is `finished`) with `cruiseInput(world, car)`. Wrecked cars stay wrecked.
+- `combat.ts`: finished cars take no damage (`applyDamage` returns early), never fire, drop mines, trigger mines or collect pickups, and are skipped as gun targets and mine-blast victims. Collisions stay physical.
+- Tests: a finished car keeps |lateral| < width/2 and gains > 0.7 lap of progress over 60 s of cruising (a lap at 60% pace takes ~60 s) without hitting a wall (no `impact` with `'wall'` above 4 m/s); it takes 0 damage from guns, mines and collisions and is never wrecked; the other WP01/WP02 tests stay green.
 
 All randomness from `world.rng`. Reaction delay is applied by `index.ts` (WP00), not here.
 

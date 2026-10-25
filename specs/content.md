@@ -133,6 +133,7 @@ Pickup radius 2.2 m + half car width. Respawn after 12 s. A full car (at cap) do
 | wrong way | progress decreasing for > 1.2 s while speed > 3 m/s |
 | live position | finished cars by finishTime (a car that finished keeps that rank even if it is wrecked afterwards), then by `progress` desc, wrecked last (later wreck ranks higher) |
 | race end | all non-wrecked cars finished, OR 15 s after the player finished, OR 2 s after the player wrecked. Unfinished cars are ranked by progress, `finished: false` |
+| finished cars | (user decision 2026-10-25) a car that finished, and every car once the race phase is `finished`, keeps driving along the racing line at a calm cruise (`cruiseInput`, WP07) instead of coasting; it is immune: takes no damage, cannot be wrecked, does not fire, drop mines, trigger mines or collect pickups. Collisions with it stay physical. |
 
 ## 8. AI profiles (`src/content/ai.ts`)
 

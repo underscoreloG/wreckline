@@ -10,7 +10,7 @@ Read first: `SPEC.md`, `specs/contracts.ts`, `specs/sim-internal.ts`, `specs/con
 You develop while WP01 is still a stub (cars only move forward at 10 m/s). Tests therefore place cars directly with `body.setTranslation` / `setRotation` / `setLinvel` and step the sim; never rely on WP01 dynamics.
 
 ## Shared helper (inside combat.ts)
-`applyDamage(world, car, amount, source, by, pos)`: ignore if wrecked or amount <= 0; `hp = max(0, hp - amount)`; if `by !== null && by !== car.id`: `lastDamagedBy = by`, `lastDamagedAt = time`; emit `carDamaged`. If hp hits 0: `wrecked = true`, `wreckedAt = time`, credit = `lastDamagedBy` if `time - lastDamagedAt <= 5` else null, `cars[credit].wrecksCaused++` when credited, emit `carWrecked`, then apply the wreck explosion (content.md section 5: 20 damage within 5 m with `by = null`, 6 m/s outward velocity change).
+`applyDamage(world, car, amount, source, by, pos)`: ignore if `car.finished` (wave B rule, content.md section 7: finished cars are immune; WP07 adds this check) or wrecked or amount <= 0; `hp = max(0, hp - amount)`; if `by !== null && by !== car.id`: `lastDamagedBy = by`, `lastDamagedAt = time`; emit `carDamaged`. If hp hits 0: `wrecked = true`, `wreckedAt = time`, credit = `lastDamagedBy` if `time - lastDamagedAt <= 5` else null, `cars[credit].wrecksCaused++` when credited, emit `carWrecked`, then apply the wreck explosion (content.md section 5: 20 damage within 5 m with `by = null`, 6 m/s outward velocity change).
 
 ## 1. `updateTurbo`
 For each non-wrecked, racing car: `turboActive = input.turbo && turbo > 0`. While active, `turbo = max(0, turbo - SIM_DT)`. Emit `turboStart` / `turboEnd` on transitions (also `turboEnd` when it runs out).
