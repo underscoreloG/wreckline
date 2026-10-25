@@ -2,9 +2,10 @@ import { getCar, STARTER_CAR_ID } from '../content/cars';
 import type { AudioEngine, CarId, CarState, PickupKind, RaceSnapshot, UiSound, Vec2 } from '../shared/contracts';
 import { buildBus, fadeRace, setBusVolumes, type Bus } from './bus';
 import { createEngineVoice, ENGINE_GAIN_AI, ENGINE_GAIN_PLAYER, type EngineVoice } from './engine';
-import { playSfx, type SfxName } from './sfx';
+import { loadSamples, playSound } from './samples';
+import { PITCH_JITTER, pitchRate, type SfxName } from './sfx';
 import { createSkidVoice, SKID_GAIN, type SkidVoice } from './skid';
-import { distanceFalloff, MAX_VOICES, panFor, VoicePool, type Voice } from './voices';
+import { distanceFalloff, MAX_VOICES, panFor, RateLimit, VoicePool, type Voice } from './voices';
 
 // The snapshot carries no per-car stats, so rpm uses the stock starter car's top speed (faster cars sit at the top of gear 3).
 const RPM_REF_SPEED = getCar(STARTER_CAR_ID).base.maxSpeed;
@@ -12,6 +13,7 @@ const MINE_BEEP_RANGE = 20; // m
 const MINE_BEEP_PERIOD = 0.5; // s
 const MAX_BEEPING_MINES = 3;
 const IMPACT_FULL_SPEED = 25; // m/s
+const DAMAGE_SOUND_GAP = 0.25; // s, carDamaged plays at most once per gap
 
 const UI_SFX: Readonly<Record<UiSound, SfxName>> = { move: 'uiMove', confirm: 'uiConfirm', back: 'uiBack', buy: 'uiBuy', error: 'uiError' };
 const PICKUP_SFX: Readonly<Record<PickupKind, SfxName>> = { cash: 'pickupCash', repair: 'pickupRepair', mines: 'pickupMines', turbo: 'pickupTurbo' };
@@ -28,6 +30,8 @@ export interface AudioDebug {
   bus(): Bus | null;
   /** Plays one sound straight on the sfx bus (harness buttons). */
   play(name: SfxName): void;
+  /** Settles when every sample fetch has finished (loaded or fallen back to synth); null before unlock. */
+  samples(): Promise<void> | null;
 }
 
 export function createAudioEngine(): AudioEngine & AudioDebug {
@@ -41,6 +45,8 @@ export function createAudioEngine(): AudioEngine & AudioDebug {
   const pool = new VoicePool(MAX_VOICES);
   const gunVoices = new Map<CarId, Voice>();
   const mineNextBeep = new Map<number, number>();
+  const damageLimit = new RateLimit(DAMAGE_SOUND_GAP);
+  let samples: Promise<void> | null = null;
 
   const persistent = (): number => (cars ? cars.reduce((n, c) => n + (c.engine.alive ? 2 : 1), 0) : 0);
 
@@ -48,7 +54,7 @@ export function createAudioEngine(): AudioEngine & AudioDebug {
     if (!ctx || gain <= 0) return null;
     const now = ctx.currentTime;
     pool.setCap(MAX_VOICES - persistent());
-    const v = playSfx(ctx, dest, name, now, gain, pan);
+    const v = playSound(ctx, dest, name, now, gain, pan, PITCH_JITTER.has(name) ? pitchRate() : 1);
     pool.add(v, now);
     return v;
   };
@@ -81,6 +87,7 @@ export function createAudioEngine(): AudioEngine & AudioDebug {
         bus.sfx.gain.value = sfx;
       }
       if (ctx.state !== 'running') await ctx.resume();
+      samples ??= loadSamples(ctx);
     },
 
     setVolumes(m, s) {
@@ -180,6 +187,18 @@ export function createAudioEngine(): AudioEngine & AudioDebug {
             // Only the listener's own pickups chime: an AI's pickup jingle reads as the player's.
             if (e.car === listener) play(bus.race, PICKUP_SFX[e.kind], 1, 0);
             break;
+          case 'lapCompleted':
+            if (e.car === listener) play(bus.race, 'lapCompleted', 1, 0);
+            break;
+          case 'carDamaged':
+            // The player's car only: an AI being hit is already heard as the gunshot or impact.
+            if (e.car === listener && damageLimit.allow(now)) play(bus.race, 'carDamaged', 1, 0);
+            break;
+          case 'mineDropped': {
+            const m = mixAt(e.pos);
+            play(bus.race, 'mineDropped', m.gain, m.pan);
+            break;
+          }
           case 'turboStart': {
             const m = mixCar(e.car);
             play(bus.race, 'turbo', m.gain, m.pan);
@@ -232,6 +251,7 @@ export function createAudioEngine(): AudioEngine & AudioDebug {
 
     voices: () => (ctx ? persistent() + pool.count(ctx.currentTime) : 0),
     bus: () => bus,
+    samples: () => samples,
     play(name) {
       if (bus) play(bus.sfx, name, 1, 0);
     },

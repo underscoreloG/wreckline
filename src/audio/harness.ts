@@ -5,7 +5,8 @@ import { createFakeSim } from '../sim';
 import { buildBus } from './bus';
 import { createEngineVoice, ENGINE_GAIN_PLAYER } from './engine';
 import { createAudioEngine } from './index';
-import { playSfx, SFX_NAMES, type SfxName } from './sfx';
+import { playSound, soundSource } from './samples';
+import { SFX_NAMES, type SfxName } from './sfx';
 import { createSkidVoice, SKID_GAIN } from './skid';
 
 const MAX_STEPS = 5; // per frame, as in the game loop
@@ -18,6 +19,7 @@ const SILENCE_DB = -60;
 
 export interface SoundCheck {
   name: string;
+  source: 'sample' | 'synth';
   duration: number; // s above -60 dBFS
   peakDb: number;
   rmsDb: number; // over the audible span
@@ -39,7 +41,7 @@ async function checkSound(name: SfxName | 'engine' | 'engineTurbo' | 'skid'): Pr
     v.set(SKID_GAIN, 0, CHECK_START);
     v.stop(CHECK_START + 1);
   } else {
-    playSfx(off, bus.race, name, CHECK_START, 1, 0);
+    playSound(off, bus.race, name, CHECK_START, 1, 0);
   }
   const buf = await off.startRendering();
   const threshold = 10 ** (SILENCE_DB / 20);
@@ -70,6 +72,7 @@ async function checkSound(name: SfxName | 'engine' | 'engineTurbo' | 'skid'): Pr
   const peakDb = db(peak);
   return {
     name,
+    source: name === 'engine' || name === 'engineTurbo' || name === 'skid' ? 'synth' : soundSource(name),
     duration: first < 0 ? 0 : (last - first + 1) / CHECK_RATE,
     peakDb: Math.round(peakDb * 10) / 10,
     rmsDb: n ? Math.round(db(Math.sqrt(sum / n)) * 10) / 10 : -Infinity,
@@ -90,11 +93,13 @@ export function mountAudioHarness(root: HTMLElement): void {
     parent.appendChild(e);
     return e;
   };
-  el('div', 'WP05 audio harness - click anywhere once to unlock audio');
+  el('div', 'Audio harness - click anywhere once to unlock audio; each button shows sample or synth');
   const buttons = el('div');
   buttons.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin:12px 0';
+  const labels: [HTMLButtonElement, SfxName][] = [];
   for (const name of SFX_NAMES) {
     const b = el('button', name, buttons);
+    labels.push([b, name]);
     b.dataset.sound = name;
     b.onclick = async () => {
       await unlock();
@@ -186,6 +191,8 @@ export function mountAudioHarness(root: HTMLElement): void {
   raceBtn.onclick = () => (sim ? stopRace() : void startRace());
 
   const runChecks = async (): Promise<SoundCheck[]> => {
+    await unlock();
+    await engine.samples();
     checks = [];
     for (const name of [...SFX_NAMES, 'engine', 'engineTurbo', 'skid'] as const) checks.push(await checkSound(name));
     return checks;
@@ -193,6 +200,7 @@ export function mountAudioHarness(root: HTMLElement): void {
   checkBtn.onclick = () => void runChecks();
 
   const draw = (): void => {
+    for (const [b, name] of labels) b.textContent = `${name} (${soundSource(name)})`;
     const snap = sim?.snapshot();
     readout.textContent = [
       `context    ${engine.bus()?.ctx.state ?? 'locked'}`,
@@ -200,7 +208,7 @@ export function mountAudioHarness(root: HTMLElement): void {
       `live peak  ${db(livePeak).toFixed(1)} dBFS`,
       snap ? `fake race  t=${snap.time.toFixed(1)} s phase=${snap.phase}` : 'fake race  off',
       '',
-      ...checks.map((c) => `${c.ok ? 'ok  ' : 'FAIL'} ${c.name.padEnd(15)} ${c.duration.toFixed(3)} s  peak ${c.peakDb} dBFS  rms ${c.rmsDb} dBFS`),
+      ...checks.map((c) => `${c.ok ? 'ok  ' : 'FAIL'} ${c.name.padEnd(15)} ${c.source.padEnd(6)} ${c.duration.toFixed(3)} s  peak ${c.peakDb} dBFS  rms ${c.rmsDb} dBFS`),
     ].join('\n');
   };
   const drawLoop = (): void => {
@@ -226,5 +234,6 @@ export function mountAudioHarness(root: HTMLElement): void {
     fakeRaceTime: () => sim?.snapshot().time ?? null,
     check: runChecks,
     state: () => engine.bus()?.ctx.state ?? 'locked',
+    sources: () => Object.fromEntries(SFX_NAMES.map((n) => [n, soundSource(n)])),
   };
 }

@@ -20,6 +20,19 @@ export interface Voice {
   stop(): void;
 }
 
+/** At most one `allow` per `gap` seconds (carDamaged: 1 per 0.25 s). */
+export class RateLimit {
+  private last = -Infinity;
+
+  constructor(private readonly gap: number) {}
+
+  allow(now: number): boolean {
+    if (now - this.last < this.gap - 1e-9) return false;
+    this.last = now;
+    return true;
+  }
+}
+
 /** Live one-shot voices under a cap; adding past the cap stops the oldest first. */
 export class VoicePool {
   private live: Voice[] = [];
