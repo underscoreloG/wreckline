@@ -1,7 +1,7 @@
 import { PICKUP_CASH_UNITS } from '../content/pickups';
 import { applyRaceResult, buildCareerRaceSetup, generateOffers, newCareer } from '../meta/career';
 import { loadSave, writeSave, type KeyValueStore } from '../meta/save';
-import { buyCar, buyMines, buyTurbo, buyUpgrade, repair, type ShopFail, type ShopResult } from '../meta/shop';
+import { buyCar, buyMines, buyTurbo, buyUpgrade, freeTowIfStuck, repair, type ShopFail, type ShopResult } from '../meta/shop';
 import type { GameCommand, Payout, RaceOffer, RaceResult, RaceResultRow, RaceSetup, RaceSnapshot, SaveGame, SimEvent } from '../shared/contracts';
 import { PLAYER_CAR_ID } from '../shared/contracts';
 
@@ -9,6 +9,7 @@ export type ShopCommand = Extract<GameCommand, { type: 'buyUpgrade' | 'buyCar' |
 export type CareerOutcome = { ok: true } | { ok: false; error: string };
 
 export const REPAIR_FIRST = 'Repair your car first';
+export const TOWED = 'Towed: free repair to 30%';
 
 const FAIL_TEXT: Record<ShopFail, string> = {
   cash: 'Not enough cash',
@@ -17,7 +18,11 @@ const FAIL_TEXT: Record<ShopFail, string> = {
   invalid: 'Not available',
 };
 
-/** Holds the career save, calls the WP09 functions and persists after every change. */
+/**
+ * Holds the career save, calls the WP09 functions and persists after every change.
+ * After a race result, a shop action and on career load a stuck player gets the free tow (WP18):
+ * the towed save is persisted and `notify(TOWED)` is called for the info toast.
+ */
 export interface CareerSession {
   /** The current career, or the stored one before it is continued (title CONTINUE). */
   readonly save: SaveGame | null;
@@ -37,7 +42,7 @@ export interface CareerSession {
   finishRace(result: RaceResult): { payout: Payout; champion: boolean };
 }
 
-export function createCareerSession(storage: KeyValueStore): CareerSession {
+export function createCareerSession(storage: KeyValueStore, notify: (text: string) => void = () => {}): CareerSession {
   let save = loadSave(storage);
   let offers: RaceOffer[] | null = null;
   let selected: RaceOffer | null = null;
@@ -46,6 +51,12 @@ export function createCareerSession(storage: KeyValueStore): CareerSession {
   const persist = (next: SaveGame): void => {
     save = next;
     lastWriteOk = writeSave(storage, next);
+  };
+  /** Persists `next`, or its towed version when the player is stuck. */
+  const persistChecked = (next: SaveGame): void => {
+    const t = freeTowIfStuck(next);
+    persist(t.save);
+    if (t.towed) notify(TOWED);
   };
   const shopFn = (s: SaveGame, cmd: ShopCommand): ShopResult => {
     switch (cmd.type) {
@@ -87,6 +98,7 @@ export function createCareerSession(storage: KeyValueStore): CareerSession {
       offers = null;
       selected = null;
       lastWriteOk = true;
+      if (freeTowIfStuck(s).towed) persistChecked(s);
       return true;
     },
     ensureOffers() {
@@ -109,7 +121,7 @@ export function createCareerSession(storage: KeyValueStore): CareerSession {
       if (!save) return { ok: false, error: 'No career in progress' };
       const r = shopFn(save, cmd);
       if (!r.ok) return { ok: false, error: cmd.type === 'repair' && r.reason === 'max' ? 'Car already repaired' : FAIL_TEXT[r.reason] };
-      persist(r.save);
+      persistChecked(r.save);
       return { ok: true };
     },
     finishRace(result) {
@@ -118,7 +130,7 @@ export function createCareerSession(storage: KeyValueStore): CareerSession {
       const r = applyRaceResult(save, selected, result);
       offers = null;
       selected = null;
-      persist(r.save);
+      persistChecked(r.save);
       return { payout: r.payout, champion: !before && r.save.championWon };
     },
   };

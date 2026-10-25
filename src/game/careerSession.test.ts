@@ -5,7 +5,8 @@ import { loadSave, SAVE_KEY, type KeyValueStore } from '../meta/save';
 import type { RaceResult, RaceSetup, SaveGame } from '../shared/contracts';
 import { PLAYER_CAR_ID } from '../shared/contracts';
 import { createFakeSim } from '../sim';
-import { createCareerSession, createTally, dnfResult, REPAIR_FIRST, tallyEvent } from './careerSession';
+import { affordableRepairHp, partialRepairHp } from '../meta/shop';
+import { createCareerSession, createTally, dnfResult, REPAIR_FIRST, tallyEvent, TOWED } from './careerSession';
 
 function memoryStorage(failWrites = false): KeyValueStore & { map: Map<string, string> } {
   const map = new Map<string, string>();
@@ -26,9 +27,10 @@ function careerWith(patch: Partial<SaveGame>) {
   const seed = createCareerSession(storage);
   seed.newCareer(42);
   storage.set(SAVE_KEY, JSON.stringify({ ...seed.save, ...patch }));
-  const career = createCareerSession(storage);
+  const notices: string[] = [];
+  const career = createCareerSession(storage, (text) => notices.push(text));
   expect(career.continueCareer()).toBe(true);
-  return { career, storage };
+  return { career, storage, notices };
 }
 
 /** Every entrant finished, in entrant order unless the player is moved to `playerPos`. */
@@ -163,5 +165,50 @@ describe('career session', () => {
     const r2 = career.selectOffer(again.id, 6);
     if (!r2.ok) throw new Error(r2.error);
     expect(career.finishRace(resultFor(r2.setup, 1)).champion).toBe(false);
+  });
+
+  it('free tow: a wrecked player with no cash is towed on load and can race again', () => {
+    const { career, storage, notices } = careerWith({ hp: 0, cash: 0 });
+    expect(notices).toEqual([TOWED]);
+    expect(career.save).toMatchObject({ hp: 30, cash: 0 });
+    expect(loadSave(storage)!.hp).toBe(30);
+
+    const offer = career.ensureOffers()[0]!;
+    const r = career.selectOffer(offer.id, 1);
+    if (!r.ok) throw new Error(r.error);
+    expect(r.setup.entrants[PLAYER_CAR_ID]!.hp).toBe(30);
+
+    // Wrecked again, last place, nothing earned: towed right after the race result.
+    const res = resultFor(r.setup, 4);
+    const lost = { ...res, rows: res.rows.map((x) => (x.car === PLAYER_CAR_ID ? { ...x, finished: false, wrecked: true, totalTime: null, hpLeft: 0 } : x)) };
+    expect(career.finishRace(lost).payout.total).toBe(0);
+    expect(career.save).toMatchObject({ hp: 30, cash: 0 });
+    expect(loadSave(storage)!.hp).toBe(30);
+    expect(notices).toEqual([TOWED, TOWED]);
+  });
+
+  it('free tow after a shop action that leaves a wrecked car unrepairable; no tow while 30% is affordable', () => {
+    const { career, notices } = careerWith({ hp: 0, cash: 130 });
+    expect(notices).toEqual([]);
+    expect(career.save!.hp).toBe(0);
+    expect(career.shop({ type: 'buyMines', count: 1 })).toEqual({ ok: true });
+    expect(career.save).toMatchObject({ hp: 30, cash: 70 });
+    expect(notices).toEqual([TOWED]);
+  });
+
+  it('partial repairs: +25% and MAX charge the right amounts', () => {
+    const { career, storage } = careerWith({ hp: 64, cash: 90 });
+    const quarter = partialRepairHp(career.save!);
+    expect(quarter).toBe(25);
+    expect(career.shop({ type: 'repair', amount: quarter })).toEqual({ ok: false, error: 'Not enough cash' });
+    const max = affordableRepairHp(career.save!);
+    expect(max).toBe(22);
+    expect(career.shop({ type: 'repair', amount: max })).toEqual({ ok: true });
+    expect(career.save).toMatchObject({ hp: 86, cash: 2 });
+    expect(loadSave(storage)).toMatchObject({ hp: 86, cash: 2 });
+
+    const rich = careerWith({ hp: 64, cash: 1000 }).career;
+    expect(rich.shop({ type: 'repair', amount: partialRepairHp(rich.save!) })).toEqual({ ok: true });
+    expect(rich.save).toMatchObject({ hp: 89, cash: 900 });
   });
 });

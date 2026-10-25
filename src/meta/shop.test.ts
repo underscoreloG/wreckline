@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SaveGame } from '../shared/contracts';
 import { newCareer } from './career';
-import { buyCar, buyMines, buyTurbo, buyUpgrade, canAfford, repair, shopCars } from './shop';
+import { affordableRepairHp, buyCar, buyMines, buyTurbo, buyUpgrade, canAfford, freeTowIfStuck, partialRepairHp, repair, shopCars } from './shop';
 
 const career = (patch: Partial<SaveGame> = {}): SaveGame => ({ ...newCareer(1), ...patch });
 
@@ -89,5 +89,54 @@ describe('car shop (test 10)', () => {
     // Scorch trades in for 3000: 8000 + 3000 - 11000.
     expect(ok(buyCar(career({ carDefId: 'scorch', cash: 8000, hp: 140 }), 'titan'))).toMatchObject({ carDefId: 'titan', cash: 0, hp: 190 });
     expect(buyCar(career({ carDefId: 'scorch', cash: 7999, hp: 140 }), 'titan')).toEqual({ ok: false, reason: 'cash' });
+  });
+});
+
+function deepFreeze<T>(v: T): T {
+  if (v && typeof v === 'object') {
+    for (const x of Object.values(v)) deepFreeze(x);
+    Object.freeze(v);
+  }
+  return v;
+}
+
+describe('free tow (WP18)', () => {
+  it('hp 0 and cash 0: towed to ceil(30% maxHp) for free', () => {
+    const r = freeTowIfStuck(career({ hp: 0, cash: 0 }));
+    expect(r.towed).toBe(true);
+    expect(r.save).toMatchObject({ hp: 30, cash: 0 });
+    // armor 1: maxHp 115, 30% = 34.5 -> 35
+    expect(freeTowIfStuck(career({ hp: 0, cash: 0, upgrades: { engine: 0, tires: 0, armor: 1, gun: 0 } })).save.hp).toBe(35);
+  });
+
+  it('enough cash for a 30% repair, or hp left: unchanged', () => {
+    const canPay = career({ hp: 0, cash: 120 });
+    expect(freeTowIfStuck(canPay)).toEqual({ save: canPay, towed: false });
+    expect(freeTowIfStuck(career({ hp: 0, cash: 119 })).towed).toBe(true);
+    const damaged = career({ hp: 5, cash: 0 });
+    expect(freeTowIfStuck(damaged)).toEqual({ save: damaged, towed: false });
+  });
+
+  it('is pure: a frozen input is not mutated', () => {
+    const s = deepFreeze(career({ hp: 0, cash: 0 }));
+    const r = freeTowIfStuck(s);
+    expect(r.save.hp).toBe(30);
+    expect(s.hp).toBe(0);
+  });
+});
+
+describe('partial repair (WP18)', () => {
+  it('+25% is ceil(25% maxHp) clamped to the missing hp', () => {
+    expect(partialRepairHp(career({ hp: 64 }))).toBe(25);
+    expect(partialRepairHp(career({ hp: 90 }))).toBe(10);
+    expect(partialRepairHp(career({ hp: 0, upgrades: { engine: 0, tires: 0, armor: 1, gun: 0 } }))).toBe(29);
+    expect(partialRepairHp(career())).toBe(0);
+  });
+
+  it('MAX is the most hp the cash pays for, up to the missing hp', () => {
+    expect(affordableRepairHp(career({ hp: 64, cash: 90 }))).toBe(22);
+    expect(affordableRepairHp(career({ hp: 64, cash: 1000 }))).toBe(36);
+    expect(affordableRepairHp(career({ hp: 63.5, cash: 1000 }))).toBe(36.5);
+    expect(affordableRepairHp(career({ hp: 64, cash: 3 }))).toBe(0);
   });
 });
