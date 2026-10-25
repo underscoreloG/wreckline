@@ -1,6 +1,8 @@
-// Engine voice recipe (WP05): saw + square at half frequency -> lowpass (Q 4) -> gain -> pan.
-export const ENGINE_GAIN_PLAYER = 0.28;
-export const ENGINE_GAIN_AI = 0.12;
+import { MIX } from './mix';
+
+// Engine voice recipe (WP05): saw + square at half frequency -> lowpass (Q 4) -> gain -> pan. Levels: MIX.engine.
+export const ENGINE_GAIN_PLAYER = MIX.engine.player;
+export const ENGINE_GAIN_AI = MIX.engine.ai;
 const SUB_LEVEL = 0.5; // square relative to the saw
 const LOWPASS_Q = 4;
 const CUTOFF_BASE = 400; // Hz

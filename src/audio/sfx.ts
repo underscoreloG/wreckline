@@ -21,8 +21,46 @@ export const SFX_NAMES = [
   'uiBack',
   'uiBuy',
   'uiError',
+  'lapCompleted',
+  'carDamaged',
+  'mineDropped',
 ] as const;
 export type SfxName = (typeof SFX_NAMES)[number];
+
+/** Loudness group of each sound (import table in specs/sfx/list.md); MIX.category scales a whole group. */
+export type SfxCategory = 'combat' | 'pickups' | 'ui';
+export const SFX_CATEGORY: Readonly<Record<SfxName, SfxCategory>> = {
+  gun: 'combat',
+  overheat: 'combat',
+  explosionWreck: 'combat',
+  explosionMine: 'combat',
+  impact: 'combat',
+  mineBeep: 'combat',
+  turbo: 'combat',
+  carDamaged: 'combat',
+  mineDropped: 'combat',
+  pickupCash: 'pickups',
+  pickupRepair: 'pickups',
+  pickupMines: 'pickups',
+  pickupTurbo: 'pickups',
+  countdown: 'ui',
+  raceStart: 'ui',
+  lapCompleted: 'ui',
+  uiMove: 'ui',
+  uiConfirm: 'ui',
+  uiBack: 'ui',
+  uiBuy: 'ui',
+  uiError: 'ui',
+};
+
+/** Combat sounds that repeat fast get a random pitch each time, so rapid fire does not sound robotic. */
+export const PITCH_JITTER: ReadonlySet<SfxName> = new Set<SfxName>(['gun', 'impact', 'carDamaged', 'mineDropped', 'explosionMine', 'explosionWreck']);
+export const PITCH_VARIATION = 0.04; // +-4 %
+
+/** Playback rate in [1 - 4 %, 1 + 4 %]; `rng` returns [0, 1). */
+export function pitchRate(rng: () => number = Math.random): number {
+  return 1 + (rng() * 2 - 1) * PITCH_VARIATION;
+}
 
 const SILENT = 0.0001; // exponential ramps cannot reach 0
 const ATTACK = 0.003;
@@ -176,5 +214,11 @@ export function playSfx(ctx: BaseAudioContext, dest: AudioNode, name: SfxName, t
       return notes(shot(0.2).noise(false, 'highpass', 3000, 3000, 0.7, t0, 0.06, 0.8), 'triangle', [1320, 1760], t0 + 0.04, 0.07, 1).voice();
     case 'uiError':
       return shot(0.18).tone('sawtooth', 120, 120, t0, 0.15, 1).voice();
+    case 'lapCompleted':
+      return shot(0.22).tone('sine', E6, E6, t0, 0.35, 1).tone('sine', E6 * 2, E6 * 2, t0, 0.25, 0.35).voice();
+    case 'carDamaged':
+      return shot(0.4).noise(false, 'lowpass', 900, 900, 0.7, t0, 0.07, 1).tone('square', 90, 60, t0, 0.06, 0.5).voice();
+    case 'mineDropped':
+      return shot(0.35).tone('sine', 180, 90, t0, 0.08, 1).noise(false, 'bandpass', 1200, 1200, 2, t0, 0.03, 0.5).voice();
   }
 }

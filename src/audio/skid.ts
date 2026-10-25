@@ -1,7 +1,8 @@
+import { MIX } from './mix';
 import { getNoise } from './noise';
 
-// Skid recipe (WP05): looping noise -> bandpass 900 Hz -> gain (0.12 while drifting, 80 ms ramp) -> pan.
-export const SKID_GAIN = 0.12;
+// Skid recipe (WP05): looping noise -> bandpass 900 Hz -> gain (MIX.skid while drifting, 80 ms ramp) -> pan.
+export const SKID_GAIN = MIX.skid;
 const SKID_FREQ = 900;
 const SKID_Q = 1.2;
 const RAMP_TAU = 0.08 / 3; // setTargetAtTime reaches 95% in 3 time constants

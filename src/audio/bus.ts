@@ -1,3 +1,5 @@
+import { MIX } from './mix';
+
 export const COMPRESSOR_THRESHOLD = -18; // dB
 export const COMPRESSOR_RATIO = 4;
 const VOLUME_RAMP = 0.05; // s
@@ -21,6 +23,8 @@ export function buildBus(ctx: BaseAudioContext): Bus {
   const sfx = ctx.createGain();
   const race = ctx.createGain();
   const ui = ctx.createGain();
+  race.gain.value = MIX.bus.race;
+  ui.gain.value = MIX.bus.ui;
   race.connect(sfx);
   ui.connect(sfx);
   sfx.connect(master);
@@ -44,6 +48,6 @@ export function setBusVolumes(bus: Bus, master: number, sfx: number): void {
 
 export function fadeRace(bus: Bus, on: boolean): number {
   const now = bus.ctx.currentTime;
-  rampTo(bus.race.gain, on ? 1 : 0, now, on ? VOLUME_RAMP : RACE_FADE);
+  rampTo(bus.race.gain, on ? MIX.bus.race : 0, now, on ? VOLUME_RAMP : RACE_FADE);
   return now + RACE_FADE;
 }
