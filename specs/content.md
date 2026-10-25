@@ -21,16 +21,18 @@ Roster from the concept sheet `specs/art/cars-concept-v1.webp` (decided 2026-10-
 
 Mesh specs (procedural placeholders until the art WPs; also the collider size). When WP14 imports the models, each car's `length` x `width` changes to the model's own proportions at the same area (user decision 2026-10-25: the hitbox follows the art), and the model is scaled uniformly to it:
 
+Applied by WP14 (2026-10-26, Blender GLBs in `public/models/cars/<id>.glb`, `mesh.model` set for every car): iceberg 4.9 x 2.1 -> 4.85 x 2.1, titan 5.2 x 2.4 -> 5.1 x 2.45, wraith 5.2 x 2.4 -> 5.3 x 2.35; outlaw, scorch, blaze, viper unchanged; raven kept at 4.2 x 2.0 (the rule gives 4.15 by a 0.1 mm rounding edge, and 4.15 would move five WP12-tuned track tests; the model is identical either way). The table below shows the values in use. Height and the other columns now only shape the procedural fallback.
+
 | id | style | length | width | height | cabinLength | cabinOffset | spoiler | wheelRadius |
 |---|---|---|---|---|---|---|---|---|
 | raven | muscle | 4.2 | 2.0 | 0.7 | 0.45 | -0.05 | true | 0.38 |
 | outlaw | buggy | 3.8 | 2.0 | 0.6 | 0.50 | -0.05 | false | 0.48 |
-| iceberg | wagon | 4.9 | 2.1 | 0.8 | 0.62 | -0.12 | false | 0.40 |
+| iceberg | wagon | 4.85 | 2.1 | 0.8 | 0.62 | -0.12 | false | 0.40 |
 | scorch | muscle | 4.8 | 2.2 | 0.8 | 0.38 | -0.12 | true | 0.42 |
 | blaze | wedge | 4.4 | 2.0 | 0.55 | 0.30 | -0.08 | true | 0.36 |
-| titan | truck | 5.2 | 2.4 | 1.0 | 0.35 | 0.05 | false | 0.52 |
+| titan | truck | 5.1 | 2.45 | 1.0 | 0.35 | 0.05 | false | 0.52 |
 | viper | wedge | 4.5 | 2.0 | 0.55 | 0.30 | -0.10 | true | 0.36 |
-| wraith | boss | 5.2 | 2.4 | 0.9 | 0.40 | -0.08 | true | 0.46 |
+| wraith | boss | 5.3 | 2.35 | 0.9 | 0.40 | -0.08 | true | 0.46 |
 
 Every `mesh.model` is `null` (procedural) until WP14 sets `models/cars/<id>.glb`.
 

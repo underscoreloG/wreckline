@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { buildCarMesh } from '../../../render';
+import { buildCarMesh, preloadCarModels } from '../../../render';
 import type { CarMeshSpec } from '../../../shared/contracts';
 
 const WIDTH = 512;
@@ -38,8 +38,13 @@ export function CarPreview({ spec, color }: { spec: CarMeshSpec; color: string }
 
     const floor = new THREE.Mesh(new THREE.CircleGeometry(size * 0.75, 48), new THREE.MeshStandardMaterial({ color: '#1A1E25', roughness: 0.9 }));
     floor.rotation.x = -Math.PI / 2;
-    const car = buildCarMesh(spec, color);
+    // The turntable spins this group; the car joins it once its model is loaded (procedural fallback on failure).
+    const car = new THREE.Group();
     scene.add(floor, car);
+    let disposed = false;
+    void preloadCarModels([spec]).then(() => {
+      if (!disposed) car.add(buildCarMesh(spec, color));
+    });
 
     let raf = 0;
     let last = performance.now();
@@ -55,6 +60,7 @@ export function CarPreview({ spec, color }: { spec: CarMeshSpec; color: string }
     raf = requestAnimationFrame(frame);
 
     return () => {
+      disposed = true;
       cancelAnimationFrame(raf);
       scene.traverse((o) => {
         const m = o as THREE.Mesh;
