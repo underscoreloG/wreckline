@@ -1,4 +1,6 @@
 import type { TrackTheme, Vec2 } from '../../shared/contracts';
+import { DESERT } from './desert';
+import { DOCKS } from './docks';
 
 /** Every world color and light setting of one track theme (design.md section 1). Data only: applyTheme turns it into scene settings. */
 export interface ThemeDef {
@@ -41,8 +43,7 @@ const SCRAPYARD: ThemeDef = {
   fog: { color: '#1B1E26', density: 0.006 },
 };
 
-/** WP11 registers desert and docks here. */
-export const THEMES: Partial<Record<TrackTheme, ThemeDef>> = { scrapyard: SCRAPYARD };
+export const THEMES: Partial<Record<TrackTheme, ThemeDef>> = { scrapyard: SCRAPYARD, desert: DESERT, docks: DOCKS };
 
 export function themeFor(theme: TrackTheme): ThemeDef {
   const def = THEMES[theme];
