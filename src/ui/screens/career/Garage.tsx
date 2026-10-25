@@ -1,6 +1,7 @@
 import { CARS, getCar } from '../../../content/cars';
 import { computeStats, MAX_UPGRADE_LEVEL, repairCost } from '../../../content/economy';
 import { PLAYER_LIVERY } from '../../../content/liveries';
+import { affordableRepairHp, partialRepairHp } from '../../../meta/shop';
 import type { CarStats, UiState } from '../../../shared/contracts';
 import { Button } from '../../components/Button';
 import { Panel } from '../../components/Panel';
@@ -41,9 +42,21 @@ export function Garage({ state }: { state: UiState }) {
   const car = save ? getCar(save.carDefId) : null;
   const stats = car && save ? computeStats(car, save.upgrades) : null;
   const missing = stats && save ? Math.max(0, stats.maxHp - save.hp) : 0;
+  const quarter = save ? partialRepairHp(save) : 0;
+  const affordable = save ? affordableRepairHp(save) : 0;
+  // REPAIR MAX only when it differs from both FULL and nothing; unaffordable repairs stay enabled (shop refuses with a toast).
+  const showMax = affordable > 0 && affordable < missing;
+  const repairs: { label: string; hp: number; amount: number | 'full' }[] = [
+    { label: 'REPAIR +25%', hp: quarter, amount: quarter },
+    ...(showMax ? [{ label: 'REPAIR MAX', hp: affordable, amount: affordable }] : []),
+    { label: 'REPAIR FULL', hp: missing, amount: 'full' },
+  ];
   const { itemProps } = useMenuFocus(
-    [{ disabled: missing <= 0, onConfirm: () => dispatch({ type: 'repair', amount: 'full' }) }, { onConfirm: () => dispatch({ type: 'back' }) }],
-    2,
+    [
+      ...repairs.map((r) => ({ disabled: missing <= 0, onConfirm: () => dispatch({ type: 'repair', amount: r.amount }) })),
+      { onConfirm: () => dispatch({ type: 'back' }) },
+    ],
+    repairs.length + 1,
   );
   if (!save || !car || !stats) return null;
 
@@ -71,8 +84,10 @@ export function Garage({ state }: { state: UiState }) {
           </div>
         </div>
         <div className="actions">
-          <Button label="REPAIR" note={missing > 0 ? formatCash(repairCost(car, missing)) : 'Full'} primary={missing > 0} {...itemProps(0)} />
-          <Button label="BACK" index={1} {...itemProps(1)} />
+          {repairs.map((r, i) => (
+            <Button key={r.label} label={r.label} note={missing > 0 ? formatCash(repairCost(car, r.hp)) : undefined} primary={missing > 0 && r.amount === 'full'} index={i} {...itemProps(i)} />
+          ))}
+          <Button label="BACK" index={repairs.length} {...itemProps(repairs.length)} />
         </div>
       </Panel>
     </div>

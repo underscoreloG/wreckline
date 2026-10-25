@@ -69,6 +69,38 @@ export function repair(save: SaveGame, amount: number): ShopResult {
   return done(save, { cash: save.cash - cost, hp: save.hp + hp });
 }
 
+/** A stuck player (0 hp, cannot pay a repair to this share of maxHp) is towed back to it for free (content.md section 3). */
+export const TOW_HP_FRACTION = 0.3;
+/** The garage's partial repair step, as a share of maxHp. */
+export const PARTIAL_REPAIR_FRACTION = 0.25;
+
+const missingHp = (save: SaveGame): number => Math.max(0, computeStats(getCar(save.carDefId), save.upgrades).maxHp - save.hp);
+
+/** Free tow: hp 0 and too little cash for a repair to ceil(TOW_HP_FRACTION * maxHp) -> hp set to that, cash unchanged. */
+export function freeTowIfStuck(save: SaveGame): { save: SaveGame; towed: boolean } {
+  if (save.hp > 0) return { save, towed: false };
+  const car = getCar(save.carDefId);
+  const towHp = Math.ceil(TOW_HP_FRACTION * computeStats(car, save.upgrades).maxHp);
+  if (canAfford(save, repairCost(car, towHp))) return { save, towed: false };
+  return { save: { ...save, upgrades: { ...save.upgrades }, rivals: save.rivals.map((r) => ({ ...r })), hp: towHp }, towed: true };
+}
+
+/** Hp a +25% repair adds: ceil(PARTIAL_REPAIR_FRACTION * maxHp), clamped to the missing hp. */
+export function partialRepairHp(save: SaveGame): number {
+  const maxHp = computeStats(getCar(save.carDefId), save.upgrades).maxHp;
+  return Math.min(Math.ceil(PARTIAL_REPAIR_FRACTION * maxHp), missingHp(save));
+}
+
+/** Most hp the current cash pays for, clamped to the missing hp (whole hp unless it covers a full repair). */
+export function affordableRepairHp(save: SaveGame): number {
+  const car = getCar(save.carDefId);
+  const missing = missingHp(save);
+  if (canAfford(save, repairCost(car, missing))) return missing;
+  let hp = Math.floor(missing);
+  while (hp > 0 && !canAfford(save, repairCost(car, hp))) hp--;
+  return hp;
+}
+
 /** Buys up to n mines, clamped to the carry cap. */
 export function buyMines(save: SaveGame, n: number): ShopResult {
   if (!Number.isInteger(n) || n <= 0) return fail('invalid');
