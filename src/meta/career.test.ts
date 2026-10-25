@@ -4,6 +4,7 @@ import { profileForSkill } from '../content/ai';
 import { getCar } from '../content/cars';
 import { computeStats } from '../content/economy';
 import { RIVALS } from '../content/rivals';
+import { TRACKS } from '../content/tracks';
 import { applyRaceResult, buildCareerRaceSetup, generateOffers, ladder, newCareer, rankOf } from './career';
 
 const withPoints = (points: number, rngState = 1): SaveGame => ({ ...newCareer(rngState), points });
@@ -103,7 +104,8 @@ describe('offers (test 2)', () => {
       expect(offers.map((o) => o.trackId)).toEqual([0, 1, 2].map((t) => ids[(racesRun + t) % 3]));
       expect(next.rngState).not.toBe(save.rngState);
     }
-    expect(generateOffers(newCareer(3)).offers.map((o) => o.trackId)).toEqual(['scrapyard', 'scrapyard', 'scrapyard']);
+    const real = Object.keys(TRACKS);
+    expect(generateOffers(newCareer(3)).offers.map((o) => o.trackId)).toEqual([0, 1, 2].map((t) => real[t % real.length]));
   });
 
   it('offer tables match content.md section 11', () => {
