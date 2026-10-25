@@ -1,7 +1,7 @@
 # Wreckline - status
 Phase: 4 for M2 (wave C1 merged; waiting on the user's art and sound steps)   Size: L   Milestone: M1   Updated: 2026-10-25
 Integration pattern: merges of a running wave go into `integ/<wave>` so main stays put while workers run; main fast-forwards after the last merge.
-Next action: v0.6.0 released (WP12 balance pass). Remaining: listening session (user), WP14 car models (waits for RAVEN GLB + 7 sheets), M2 release.
+Next action: WP25 merged on main 2ab119e (not pushed). Remaining: user listens (WP16 sounds + WP25 engines + Mercedes bench), check Blender GLBs (WP13U) then dispatch WP14, M2 release.
 Remote: origin = git@github.com:underscoreloG/wreckline.git (public since 2026-10-25; Pages source = GitHub Actions, set by the user; site will be https://underscorelog.github.io/wreckline/ - not yet deployed).
 Ledger edits stay uncommitted on main while a worker runs (workers check that main did not move).
 
@@ -55,7 +55,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | WP23b | Rain District, Blast Pit | C2 | subagent | opus high | merged | agent afdd68226264e08fa | wp/23b-tracks (1d49285) | rainDistrict 1165 m ref 31.5 (n=28) walls 2.50 wrecks 0.38; blastPit 1608 m ref 41 (n=28) walls 2.44 wrecks 0.38, 17 pickups |
 | WP24 | AI stops pushing wrecks (CCR-7) | C3 | subagent | opus high | merged | agent a8ca5b3ad2aa17e5c | wp/24-ai-wrecks (dc3df99) | one-liner + pass target, crawl <= 3 m/s near a wreck, wreck beats pickup override; shoves > 10 s 10/160 -> 0/160; frostbite ref 32.5; v0.5.1 |
 | WP12 | Balance and polish | C3 | session | opus high | merged | session local_9916c9c8-1108-46ed-ab2e-591a619e5f47 | wp/12-balance (318cbe3) | 533/533; run.mjs 8/8 in target (16 seeds x 4 starts x 10 tracks, 0 timeouts); greedy champion 15/16 in 22-38 races; CCR-8 own commit 8f490be, test fails without fix (brain-checked) |
-| WP25 | Engine voice per car + recorded-engine bench (CCR-9) | C3 | subagent | opus high | running | - | wp/25-engine-voices (worktree ../wreckline-wt/wp25, port 5225) | user: per-car synth now; CC0 search found only 4-cyl/diesel sets (Freesound) |
+| WP25 | Engine voice per car + recorded-engine bench (CCR-9) | C3 | subagent | opus high | merged | agent ab205967f2e015b92 | wp/25-engine-voices (2ab119e) | 545/545; 8 synth profiles within +-2.3 dB of raven, measurably distinct; harness sweeps + Mercedes bench; raceSession.test spy edit outside Owns accepted (needed for typecheck); not heard by anyone yet |
 
 ## Helper agents (not WPs)
 | Task | When | Model | Effort |
@@ -80,6 +80,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | GC / M2 | - |
 
 ## Open
+- From WP25 (for the listening session): TITAN fundamental ~46 Hz with a 23 Hz sub (may vanish on laptop speakers); ICEBERG/TITAN diesel clatter is gated bandpassed noise (centroid high, may read as hiss: tune noiseHz/noise); WRAITH differs from RAVEN mostly by pitch -8% and the 24x whine; the bench guesses Mercedes file-to-slot mapping (user can reassign). Title backdrop has no audio, so it never calls setRaceCars.
 - 2026-10-25 Engine sounds: Pixabay = idle clips only; Freesound CC0 = Mercedes 190E 4-cyl dyno set (pack 9658: 500/2500/6500 rpm on/off load), BMW 120d diesel set (pack 22622), bus partial set (pack 43418); no V8, V10/V12, rotary or supercharged sets. User chose per-car synth (WP25) + a harness bench to A/B the Mercedes set vs BLAZE synth; the user downloads pack 9658 themselves.
 - 2026-10-25 User supplied all 8 sheets (render style, 1264x848) and asked for models via Blender MCP instead of Tripo. RAVEN replaced (old kept as sheet-v2.png, views-v2/). Brain cut views (scratchpad cut_views.py): every SIDE drawn nose-left (flipped), TITAN TOP nose-left (rotated), OUTLAW TOP rotated 180 by eye (verify). Sheet issues for the user: TITAN turret on the cab roof (decision was the bed; covers the roof plate), OUTLAW door graffiti "923" (text), WRAITH view labels (cropped out), BLAZE and VIPER share one body shape (colour/wing only).
 - From WP12 (watch at playtest/GC): Scrapyard and Rain District wrecks 0.23 (floor 0.2); mine hits 2.84 (ceiling 3), Neon Mile 4.45 on its own; greedy cash by race 5 is 10250 in the worst seed vs a 1000 floor (early shop may feel easy, not playtested); a 0.55-level driver needs 31-47 races. content.md updated with WP12 numbers 2026-10-25. Off-sim medians and AI scales live in code (tuning-log WP12 entry).
