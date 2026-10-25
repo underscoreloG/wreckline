@@ -240,3 +240,20 @@ describe('wrecks (CCR-7)', () => {
     expect(moved).toBeLessThan(15);
   });
 });
+
+describe('wrecks (CCR-8)', () => {
+  it('an AI glued to a wreck below crawl speed recovers: rainDistrict seed 14, 0.75 AI in slot 0, finishes before the soak timeout', () => {
+    // On main the 0.75 AI shoved car 2's wreck at 1-2.6 m/s for 80+ s (above STUCK_SPEED, so no recovery) and the race timed out.
+    const setup = soakSetup({ trackId: 'rainDistrict', seed: 14 });
+    const skills = [0.75, 0.55, 0.35, 0.55];
+    setup.entrants.forEach((e, i) => (e.ai = profileForSkill(skills[i] ?? 0.55)));
+    const sim = createSim(setup);
+    const maxTicks = Math.ceil((setup.countdownSeconds + setup.laps * setup.track.referenceLapTime * 3) * SIM_HZ);
+    const none = new Map();
+    for (let t = 0; t < maxTicks && sim.result() === null; t++) sim.step(none);
+    const result = sim.result();
+    sim.dispose();
+    expect(result).not.toBeNull();
+    expect(result!.rows.find((r) => r.car === 0)!.finished).toBe(true);
+  });
+});
