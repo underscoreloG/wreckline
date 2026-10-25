@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1 - AI fix (2026-10-25)
+
+- AI drivers no longer push wrecked cars along the track: they slow down behind a wreck and pass it with room to spare.
+
 ## 0.5.0 - Ten tracks (2026-10-25)
 
 - Four more tracks: Junkyard Sprint (short and violent, a hairpin at each end), Pine Hollow (fast forest sweepers with a blind kink), Rain District (chicanes and a long boulevard), Blast Pit (the longest, a double loop around two pits).
