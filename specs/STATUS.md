@@ -1,7 +1,7 @@
 # Wreckline - status
 Phase: 4 for M2 (wave C1 merged; waiting on the user's art and sound steps)   Size: L   Milestone: M1   Updated: 2026-10-25
 Integration pattern: merges of a running wave go into `integ/<wave>` so main stays put while workers run; main fast-forwards after the last merge.
-Next action: user steps WP13U (car sheets via ChatGPT + Tripo, RAVEN sheet first for a brain spot check: specs/art/prompts/README.md) and WP15U (Pixabay downloads: specs/sfx/README.md). Meanwhile WP10 (career UI) can start on request. WP14/WP16 start when their files land in art-incoming/.
+Next action: user decides release now (0.3.0, career playable but long and with a soft-lock risk) vs after the soft-lock fix; then WP14/WP16 when art-incoming/ fills; WP12 last.
 Remote: origin = git@github.com:underscoreloG/wreckline.git (public since 2026-10-25; Pages source = GitHub Actions, set by the user; site will be https://underscorelog.github.io/wreckline/ - not yet deployed).
 Ledger edits stay uncommitted on main while a worker runs (workers check that main did not move).
 
@@ -40,7 +40,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | WP11 | Tracks 2-3 and themes | C1 | subagent | opus high | merged | agent a8803896755e170a7 | wp/11-tracks-themes (21b31a8) | Dust Bowl 1419 m ref 36 s, walls 2.81, wrecks 0.31; Dockside 1130 m ref 31 s, walls 3.63, wrecks 0.69, shoulder 4 m; draws <= 95 |
 | WP13 | Car art prompt pack | C1 | subagent | opus high | merged | agent a740d6458e7596f60 | wp/13-car-art-prompts (1d22828) | 8 prompts + README + checks.md, grep check all pass; TITAN turret moved to bed (needs user ok) |
 | WP13U | Generate car sheets and models | U1 | user:ChatGPT+Tripo | ChatGPT image + Tripo (user) | todo | - | - | brain spot-checks 1 sheet first |
-| WP10 | Career UI and wiring | C2 | subagent | opus high | todo | - | | |
+| WP10 | Career UI and wiring | C2 | subagent | opus high | merged | agent a4bc84d893a91b3cd | wp/10-career-ui (6e0dd17) | 63 game tests, main 323/323; career flow + save/reload + Dust Bowl race verified; CCR-3 applied |
 | WP14 | Car model import | C2 | subagent | opus high | todo | - | | pin glTF optimizer first; copy art-incoming |
 | WP15 | Sound list (Pixabay picks) | C1 | subagent | sonnet high | merged | agent a0a443f4dc1a2475d | wp/15-sound-list (7020764) | 22 sounds x 3 candidates, 66/66 links 200, all Pixabay Content License; nothing listened to |
 | WP15U | Download the sounds | U1 | user:Pixabay | Pixabay (user's browser) | todo | - | - | user checks each licence |
@@ -71,6 +71,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | GC / M2 | - |
 
 ## Open
+- From WP10: SOFT-LOCK risk: hp 0 and too little cash for a full repair = cannot race (WP09 has partial repair, the UI offers only full). Needs a rule (decision pending with the user). CCR-1 (WP10) SaveGame `wrecks`, `cashEarned` for the champion screen: accepted in principle, deferred (changes the save shape; do with WP12). CCR-3 (WP10) hide RESTART on Pause in career: applied by the brain (Pause.tsx, selectedOffer !== null). At a fresh career the medium offer draws the same 3 rivals as easy (rank 20 rule), for WP12.
 - Wave C1 integration: WP09's test pinned the single-track TRACKS of its branch; with WP11 merged it failed. Brain fixed the assertion on integ (6f49e35) to follow the real list. From WP11: desert keeps WP03's headlight cones in daylight (cosmetic, WP03-area follow-up); Dockside referenceLapTime rests on 17 clean laps.
 - From WP15 (for the user at WP15U): weak picks: raceStart (horns), skid (no true loops: synth likely stays), mineDropped (generic clunk), uiConfirm/uiBack (single clicks), turbo (sci-fi). Some candidates have reverb tails. WP16 spec now reads WP15's import table and the exact licence string.
 - From WP09 (for WP12): career far too long: greedy champion in 2/16 seeds by race 93-99, 0/16 within 60 (target 18-35); all 19 rivals score every race off-screen (~6 pts/race in hard), player stalls at rank 3-5. Cash per race greedy 2307 / safe 1319; race-5 cash target met. careerSim assumes damage 10-50% maxHp per race (not measured). CCR-2 accepted in substance: WP12 may tune the named career constants where they are (RIVAL_LOADOUT, OFF_SIM_*, SKILL_WEIGHT_K, PLAYER_SKILL_MODEL in src/meta/{career,offSim,careerSim}.ts) instead of moving them to content; add them to WP12's owned paths before its brief. `safe` policy never takes the boss by definition.

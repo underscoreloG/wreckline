@@ -7,9 +7,11 @@ import { useUi } from '../uiContext';
 
 export function Pause({ state }: { state: UiState }) {
   const { dispatch } = useUi();
+  // CCR-3: a career race (an offer is selected) cannot be restarted, so RESTART is quick race only.
+  const quick = state.selectedOffer === null;
   const items = [
     { label: 'RESUME', onConfirm: () => dispatch({ type: 'resume' }) },
-    { label: 'RESTART', onConfirm: () => dispatch({ type: 'restartRace' }) },
+    ...(quick ? [{ label: 'RESTART', onConfirm: () => dispatch({ type: 'restartRace' }) }] : []),
     { label: 'SETTINGS', onConfirm: () => dispatch({ type: 'navigate', screen: 'settings' }) },
     { label: 'QUIT TO MENU', onConfirm: () => dispatch({ type: 'quitRace' }) },
   ];
