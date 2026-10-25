@@ -98,7 +98,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
   const storage = safeStorage();
   const input = createInputSource(window);
   const audio = createAudioEngine();
-  const career = createCareerSession(careerStorage());
+  const career = createCareerSession(careerStorage(), (text) => toast(text, 'info')); // CCR-4: tow toast; toast is defined below and only called from command handlers
   const initial: UiState = {
     screen: 'boot',
     previousScreen: null,

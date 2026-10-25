@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0 - Career (2026-10-25)
+
+- Career mode: ladder of 19 rivals plus a boss, three race offers per round (easy, medium, hard; boss at rank 1), payouts, standings, champion screen. Progress saves in the browser.
+- Garage with a turning 3D preview of your car, shop with upgrades, supplies and 3 cars to buy.
+- Two new tracks in the career rotation: Dust Bowl (desert, golden hour) and Dockside (night docks by the water).
+- Damage carries over between career races. Partial repairs (+25%, max affordable, full), and a free tow to 30% if you are wrecked and broke, so a career never gets stuck.
+- No restarts in a career race (pause shows only resume, settings, quit).
+- Known: careers are much longer than intended (balancing comes in a later release).
+
 ## 0.2.1 - Tuning pass 1 (2026-10-25)
 
 - Faster: every car +15% top speed and +20% acceleration (laps ~31 s -> ~27.7 s on Scrapyard).

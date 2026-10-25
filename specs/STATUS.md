@@ -1,7 +1,7 @@
 # Wreckline - status
 Phase: 4 for M2 (wave C1 merged; waiting on the user's art and sound steps)   Size: L   Milestone: M1   Updated: 2026-10-25
 Integration pattern: merges of a running wave go into `integ/<wave>` so main stays put while workers run; main fast-forwards after the last merge.
-Next action: WP18 (soft-lock fix) -> merge -> release v0.3.0 (career playable; changelog notes careers are long until WP12) -> push, check live. Then WP14/WP16 when art-incoming/ fills; WP12 last.
+Next action: v0.3.0 (career) released. Waiting on the user: RAVEN sheet (WP13U), TITAN turret answer, sound downloads (WP15U). Then WP14/WP16, then WP12 balance (careers too long; CCR-1 save fields with it).
 Remote: origin = git@github.com:underscoreloG/wreckline.git (public since 2026-10-25; Pages source = GitHub Actions, set by the user; site will be https://underscorelog.github.io/wreckline/ - not yet deployed).
 Ledger edits stay uncommitted on main while a worker runs (workers check that main did not move).
 
@@ -46,7 +46,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | WP15U | Download the sounds | U1 | user:Pixabay | Pixabay (user's browser) | todo | - | - | user checks each licence |
 | WP16 | Sound import and mix | C2 | subagent | opus high | todo | - | | copy art-incoming/sfx; listening session with user after merge |
 | WP17 | M1 tuning pass 1 (faster, more pickups) | 5 | subagent | opus high | merged | agent afc590ff684ca968e | wp/17-tuning-1 (8033df0) | lap 30.95->27.70 s; walls 1.75->2.94/race; wrecks 0.75->0.25; pickups 8.7->21.9/race; gap 1.25->0.88; released v0.2.1 |
-| WP18 | Career soft-lock fix (free tow, partial repair) | C2 | subagent | opus high | todo | - | wp/18-soft-lock | before v0.3.0 |
+| WP18 | Career soft-lock fix (free tow, partial repair) | C2 | subagent | opus high | merged | agent a8c4fe9a0ce5d36d4 | wp/18-soft-lock (ac38f68) | tow + partial repairs; CCR-4 toast wiring applied by brain; released in v0.3.0 |
 | WP12 | Balance and polish | C3 | session | opus high | todo | - | | |
 
 ## Helper agents (not WPs)
@@ -72,7 +72,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | GC / M2 | - |
 
 ## Open
-- From WP10: SOFT-LOCK risk: hp 0 and too little cash for a full repair = cannot race (WP09 has partial repair, the UI offers only full). Needs a rule (decision pending with the user). CCR-1 (WP10) SaveGame `wrecks`, `cashEarned` for the champion screen: accepted in principle, deferred (changes the save shape; do with WP12). CCR-3 (WP10) hide RESTART on Pause in career: applied by the brain (Pause.tsx, selectedOffer !== null). At a fresh career the medium offer draws the same 3 rivals as easy (rank 20 rule), for WP12.
+- From WP10: Soft-lock fixed by WP18 (free tow + partial repairs), released in v0.3.0. CCR-1 (WP10) SaveGame `wrecks`, `cashEarned` for the champion screen: accepted in principle, deferred (changes the save shape; do with WP12). CCR-3 (WP10) hide RESTART on Pause in career: applied by the brain (Pause.tsx, selectedOffer !== null). At a fresh career the medium offer draws the same 3 rivals as easy (rank 20 rule), for WP12.
 - Wave C1 integration: WP09's test pinned the single-track TRACKS of its branch; with WP11 merged it failed. Brain fixed the assertion on integ (6f49e35) to follow the real list. From WP11: desert keeps WP03's headlight cones in daylight (cosmetic, WP03-area follow-up); Dockside referenceLapTime rests on 17 clean laps.
 - From WP15 (for the user at WP15U): weak picks: raceStart (horns), skid (no true loops: synth likely stays), mineDropped (generic clunk), uiConfirm/uiBack (single clicks), turbo (sci-fi). Some candidates have reverb tails. WP16 spec now reads WP15's import table and the exact licence string.
 - From WP09 (for WP12): career far too long: greedy champion in 2/16 seeds by race 93-99, 0/16 within 60 (target 18-35); all 19 rivals score every race off-screen (~6 pts/race in hard), player stalls at rank 3-5. Cash per race greedy 2307 / safe 1319; race-5 cash target met. careerSim assumes damage 10-50% maxHp per race (not measured). CCR-2 accepted in substance: WP12 may tune the named career constants where they are (RIVAL_LOADOUT, OFF_SIM_*, SKILL_WEIGHT_K, PLAYER_SKILL_MODEL in src/meta/{career,offSim,careerSim}.ts) instead of moving them to content; add them to WP12's owned paths before its brief. `safe` policy never takes the boss by definition.
