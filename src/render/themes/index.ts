@@ -1,6 +1,9 @@
 import type { TrackTheme, Vec2 } from '../../shared/contracts';
+import { CITY } from './city';
 import { DESERT } from './desert';
 import { DOCKS } from './docks';
+import { QUARRY } from './quarry';
+import { SNOW } from './snow';
 
 /** Every world color and light setting of one track theme (design.md section 1). Data only: applyTheme turns it into scene settings. */
 export interface ThemeDef {
@@ -43,7 +46,7 @@ const SCRAPYARD: ThemeDef = {
   fog: { color: '#1B1E26', density: 0.006 },
 };
 
-export const THEMES: Partial<Record<TrackTheme, ThemeDef>> = { scrapyard: SCRAPYARD, desert: DESERT, docks: DOCKS };
+export const THEMES: Partial<Record<TrackTheme, ThemeDef>> = { scrapyard: SCRAPYARD, desert: DESERT, docks: DOCKS, snow: SNOW, city: CITY, quarry: QUARRY };
 
 export function themeFor(theme: TrackTheme): ThemeDef {
   const def = THEMES[theme];

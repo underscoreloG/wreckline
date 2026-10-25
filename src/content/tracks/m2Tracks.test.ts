@@ -5,8 +5,11 @@ import { initPhysics } from '../../sim/index';
 import { runSoak, type SoakStats } from '../../sim/soak';
 import { DOCKSIDE, DOCKSIDE_PROP_RULES, DOCKSIDE_SCATTER } from './dockside';
 import { DUST_BOWL, DUST_BOWL_PROP_RULES, DUST_BOWL_SCATTER } from './dustBowl';
-import { getTrack } from './index';
+import { FROSTBITE, FROSTBITE_PROP_RULES, FROSTBITE_SCATTER } from './frostbite';
+import { getTrack, TRACKS } from './index';
+import { NEON_MILE, NEON_MILE_PROP_RULES, NEON_MILE_SCATTER } from './neonMile';
 import { placeProps, type PropRule, type ScatterRule } from './placeProps';
+import { REDROCK, REDROCK_CRANE_S, REDROCK_PROP_RULES, REDROCK_SCATTER } from './redrock';
 import { SCRAPYARD } from './scrapyard';
 
 beforeAll(async () => {
@@ -26,6 +29,9 @@ interface Case {
 const CASES: Case[] = [
   { def: DUST_BOWL, rules: DUST_BOWL_PROP_RULES, scatter: DUST_BOWL_SCATTER, width: 15, minStraight: 200 },
   { def: DOCKSIDE, rules: DOCKSIDE_PROP_RULES, scatter: DOCKSIDE_SCATTER, width: 13, minStraight: 150 },
+  { def: FROSTBITE, rules: FROSTBITE_PROP_RULES, scatter: FROSTBITE_SCATTER, width: 13, minStraight: 150 },
+  { def: NEON_MILE, rules: NEON_MILE_PROP_RULES, scatter: NEON_MILE_SCATTER, width: 14, minStraight: 150 },
+  { def: REDROCK, rules: REDROCK_PROP_RULES, scatter: REDROCK_SCATTER, width: 16, minStraight: 150 },
 ];
 
 /** Longest run of samples with |curvature| < 1/150 m (a straight), wrapping over the start line. */
@@ -69,10 +75,10 @@ describe.each(CASES)('$def.id', ({ def, rules, scatter, width, minStraight }) =>
     expect(getTrack(def.id)).toBe(def);
   });
 
-  it('pickups: 10-14, every kind at least twice, cash the most common', () => {
+  it('pickups: 10-14 (up to 18 above 1400 m), every kind at least twice, cash the most common', () => {
     const count = (k: string) => def.pickups.filter((p) => p.kind === k).length;
     expect(def.pickups.length).toBeGreaterThanOrEqual(10);
-    expect(def.pickups.length).toBeLessThanOrEqual(14);
+    expect(def.pickups.length).toBeLessThanOrEqual(buildTrackGeometry(def).length > 1400 ? 18 : 14);
     for (const k of ['cash', 'repair', 'mines', 'turbo']) expect(count(k)).toBeGreaterThanOrEqual(2);
     for (const k of ['repair', 'mines', 'turbo']) expect(count('cash')).toBeGreaterThan(count(k));
   });
@@ -108,7 +114,13 @@ describe.each(CASES)('$def.id', ({ def, rules, scatter, width, minStraight }) =>
     const m = laps.length >> 1;
     const median = laps.length % 2 ? laps[m] : (laps[m - 1] + laps[m]) / 2;
     const wrecks = results.reduce((s, r) => s + r.wrecks, 0) / results.length;
-    console.warn(`WP11 ${def.id}: median clean lap (0.55 AI, ${laps.length} laps) ${median.toFixed(2)} s, referenceLapTime ${def.referenceLapTime}, wrecks/race ${wrecks.toFixed(2)}`);
+    const walls = results.reduce((s, r) => s + r.wallImpacts, 0) / results.length;
+    console.warn(
+      `WP11 ${def.id}: median clean lap (0.55 AI, ${laps.length} laps) ${median.toFixed(2)} s, referenceLapTime ${def.referenceLapTime}, wrecks/race ${wrecks.toFixed(2)}, wall impacts/race ${walls.toFixed(2)}, pickups ${def.pickups.length}`,
+    );
+    // WP07 health gate (content.md section 12); wall impacts are report-only.
+    expect(wrecks).toBeGreaterThanOrEqual(0.2);
+    expect(wrecks).toBeLessThanOrEqual(2.0);
     expect(Math.abs(median - def.referenceLapTime)).toBeLessThanOrEqual(0.25);
   });
 });
@@ -124,5 +136,46 @@ describe('theme-specific props', () => {
   it('Dockside: containers, crates, barrels, cones and more light poles than Scrapyard', () => {
     for (const k of ['container', 'crate', 'barrel', 'cone']) expect(count(DOCKSIDE, k)).toBeGreaterThan(0);
     expect(count(DOCKSIDE, 'lightPole')).toBeGreaterThan(count(SCRAPYARD, 'lightPole'));
+  });
+
+  it('Frostbite Pass: snowbanks, pines and sodium light poles', () => {
+    for (const k of ['snowbank', 'pine', 'lightPole']) expect(count(FROSTBITE, k)).toBeGreaterThan(0);
+  });
+
+  it('Neon Mile: buildings, billboards and more light poles than Scrapyard', () => {
+    for (const k of ['building', 'billboard']) expect(count(NEON_MILE, k)).toBeGreaterThan(0);
+    expect(count(NEON_MILE, 'lightPole')).toBeGreaterThan(count(SCRAPYARD, 'lightPole'));
+  });
+
+  it('Redrock Quarry: rocks and one crane outside the hairpin wall whose 27 m jib reaches past the centerline', () => {
+    expect(count(REDROCK, 'rock')).toBeGreaterThan(0);
+    const cranes = REDROCK.props.filter((p) => p.kind === 'crane');
+    expect(cranes).toHaveLength(1);
+    const g = buildTrackGeometry(REDROCK);
+    const pr = g.project(cranes[0].pos);
+    expect(Math.abs(pr.s - REDROCK_CRANE_S)).toBeLessThan(5);
+    expect(Math.abs(pr.lateral)).toBeGreaterThan(REDROCK.width / 2 + REDROCK.shoulder);
+    expect(Math.abs(pr.lateral)).toBeLessThan(27);
+  });
+});
+
+describe('tracks registry (WP22)', () => {
+  it('lists the WP22 tracks after the first three, in unlock order', () => {
+    const ids = Object.keys(TRACKS);
+    expect(ids.slice(0, 6)).toEqual(['scrapyard', 'dustBowl', 'dockside', 'frostbite', 'neonMile', 'redrock']);
+  });
+});
+
+describe('runSoak track option (WP22)', () => {
+  it('soaks an unregistered TrackDef and counts wall impacts', () => {
+    const def = { ...SCRAPYARD, id: 'unregistered' };
+    expect(Object.keys(TRACKS)).not.toContain('unregistered');
+    const r = runSoak({ track: def, seed: 1 });
+    console.warn(`WP22 soak unregistered (Scrapyard layout) seed 1: ${r.endReason}, wallImpacts ${r.wallImpacts}, wrecks ${r.wrecks}`);
+    expect(r.trackId).toBe('unregistered');
+    expect(r.endReason).not.toBe('timeout');
+    expect(r.wallImpacts).toBeGreaterThanOrEqual(0);
+    // Same race as the registered Scrapyard: the track option only swaps the TrackDef.
+    expect(runSoak({ trackId: 'scrapyard', seed: 1 }).wallImpacts).toBe(r.wallImpacts);
   });
 });

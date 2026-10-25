@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { CarMeshSpec, PropKind, PropPlacement, TrackGeometry } from '../shared/contracts';
 import { createRng, type Rng } from '../shared/rng';
 import { buildCarParts } from './carMesh';
-import { boxNoBottom, merge, paint } from './geo';
+import { bar, boxNoBottom, merge, paint } from './geo';
 import type { ThemeDef } from './themes';
 
 // Fixed seed: barrel colors and rock shapes are the same on every boot.
@@ -17,6 +17,33 @@ const ROCK_COLOR = '#5B544C';
 const CACTUS_COLOR = '#4F6B45';
 const BUILDING_COLOR = '#4E4A46';
 const WRECK_COLOR = '#4A3B2C';
+const PINE_GREENS = ['#2E5A3E', '#356646', '#3E7250'] as const;
+const PINE_TRUNK = '#3A2C22';
+const SNOWBANK_COLOR = '#DCE5EC';
+const STEEL_DARK = '#2E3034';
+const CRANE_COLOR = '#9A7E3A';
+const CONCRETE = '#6E6A64';
+/** Billboard: posts at +-BILLBOARD_POST_X along the prop's x (the track tangent), panel tilted back toward the road. */
+const BILLBOARD_POST_X = 3;
+const BILLBOARD_POST_H = 4.2;
+const BILLBOARD_W = 8;
+const BILLBOARD_H = 3;
+const BILLBOARD_TILT = (55 * Math.PI) / 180; // from vertical, so the near-top-down race camera sees the panel
+const BILLBOARD_COLORS = ['#FF2BD6', '#25E0FF'] as const;
+const BILLBOARD_GLOW = 1.6; // HDR factor: above the bloom threshold like lamp bulbs
+/** Crane: square base (fits in propRadius like a building), tower, jib reaching over the road. */
+const CRANE_BASE = 4.9;
+const CRANE_HEIGHT = 22;
+const CRANE_JIB = 26;
+/** Unit normal of the billboard panel in prop space: up and toward -z (the road side, see buildProps). */
+const BILLBOARD_N = new THREE.Vector3(0, Math.sin(BILLBOARD_TILT), -Math.cos(BILLBOARD_TILT));
+const BILLBOARD_CENTER = new THREE.Vector3(0, BILLBOARD_POST_H + 0.6, 0);
+
+/** Billboard panel orientation: XY plane facing +z, turned to face up and toward -z. */
+function billboardPanel(w: number, h: number, depth: number): THREE.BufferGeometry {
+  const g = depth > 0 ? new THREE.BoxGeometry(w, h, depth) : new THREE.PlaneGeometry(w, h);
+  return g.rotateX(-BILLBOARD_TILT).rotateY(Math.PI);
+}
 const WRECK_SPEC: CarMeshSpec = {
   style: 'compact',
   length: 4.2,
@@ -121,9 +148,52 @@ function geometryFor(kind: PropKind, theme: ThemeDef, rng: Rng): THREE.BufferGeo
         paint(boxNoBottom(10, 6, 10).translate(0, 3, 0), BUILDING_COLOR),
         paint(boxNoBottom(10.6, 0.4, 10.6).translate(0, 6.2, 0), '#3A3734'),
       ]);
-    default:
-      // CCR-6 kinds (pine, snowbank, billboard, crane): a neutral block until WP22 models them.
-      return paint(new THREE.BoxGeometry(1.4, 1.4, 1.4).translate(0, 0.7, 0), BUILDING_COLOR);
+    case 'pine':
+      // Three stacked cones on a short trunk; white base color tinted per instance.
+      return merge([
+        paint(new THREE.CylinderGeometry(0.18, 0.24, 1, 6, 1, true).translate(0, 0.5, 0), PINE_TRUNK),
+        paint(new THREE.ConeGeometry(1.6, 2.4, 8, 1, true).translate(0, 2, 0), PINE_GREENS[0]),
+        paint(new THREE.ConeGeometry(1.2, 2.1, 8, 1, true).translate(0, 3.3, 0), PINE_GREENS[1]),
+        paint(new THREE.ConeGeometry(0.8, 1.8, 8, 1, true).translate(0, 4.5, 0), PINE_GREENS[2]),
+      ]);
+    case 'snowbank': {
+      // Low lumpy mound, long along the wall (x = track tangent).
+      const g = new THREE.IcosahedronGeometry(1, 1);
+      const p = g.getAttribute('position');
+      const offsets = new Map<string, number>();
+      for (let i = 0; i < p.count; i++) {
+        const key = `${p.getX(i).toFixed(3)},${p.getY(i).toFixed(3)},${p.getZ(i).toFixed(3)}`;
+        if (!offsets.has(key)) offsets.set(key, rng.range(0.85, 1.1));
+        const k = offsets.get(key) as number;
+        p.setXYZ(i, p.getX(i) * k * 1.6, Math.max(0, p.getY(i) * k * 0.6), p.getZ(i) * k * 1.1);
+      }
+      g.computeVertexNormals();
+      return paint(g, SNOWBANK_COLOR);
+    }
+    case 'billboard': {
+      // Posts and a dark frame; the glowing panel is a second InstancedMesh (buildProps).
+      const parts = [-1, 1].map((sx) => paint(boxNoBottom(0.3, BILLBOARD_POST_H, 0.3).translate(sx * BILLBOARD_POST_X, BILLBOARD_POST_H / 2, 0), STEEL_DARK));
+      parts.push(paint(billboardPanel(BILLBOARD_W + 0.4, BILLBOARD_H + 0.4, 0.2).translate(BILLBOARD_CENTER.x, BILLBOARD_CENTER.y, BILLBOARD_CENTER.z), STEEL_DARK));
+      return merge(parts);
+    }
+    case 'crane': {
+      // Jib along -z (toward the road, see buildProps), counter-jib and weight along +z.
+      const top = CRANE_HEIGHT + 1;
+      return merge([
+        paint(boxNoBottom(CRANE_BASE, 1, CRANE_BASE).translate(0, 0.5, 0), CONCRETE),
+        paint(boxNoBottom(1.8, CRANE_HEIGHT, 1.8).translate(0, 1 + CRANE_HEIGHT / 2, 0), CRANE_COLOR),
+        paint(new THREE.BoxGeometry(2.4, 1.4, 2.4).translate(0, top + 0.2, 0), CRANE_COLOR),
+        paint(new THREE.BoxGeometry(1.6, 1.4, 1.4).translate(1.6, top, -1.2), STEEL_DARK),
+        paint(new THREE.BoxGeometry(1.1, 0.9, CRANE_JIB).translate(0, top + 1.3, -CRANE_JIB / 2 - 1.2), CRANE_COLOR),
+        paint(new THREE.BoxGeometry(1.1, 0.8, 9).translate(0, top + 1.3, 5.6), CRANE_COLOR),
+        paint(new THREE.BoxGeometry(2.4, 2, 2.4).translate(0, top + 0.4, 8.6), CONCRETE),
+        paint(new THREE.BoxGeometry(0.6, 5, 0.6).translate(0, top + 3.6, 0), CRANE_COLOR),
+        paint(bar(new THREE.Vector3(0, top + 6, 0), new THREE.Vector3(0, top + 1.8, -CRANE_JIB + 2), 0.15), STEEL_DARK),
+        paint(bar(new THREE.Vector3(0, top + 6, 0), new THREE.Vector3(0, top + 1.8, 9.5), 0.15), STEEL_DARK),
+        paint(bar(new THREE.Vector3(0, top + 0.8, -18), new THREE.Vector3(0, 13, -18), 0.08), STEEL_DARK),
+        paint(new THREE.BoxGeometry(0.8, 1, 0.8).translate(0, 12.5, -18), STEEL_DARK),
+      ]);
+    }
   }
 }
 
@@ -148,6 +218,14 @@ export function buildProps(track: TrackGeometry, theme: ThemeDef, glow: THREE.Te
     );
     mesh.castShadow = true;
     mesh.receiveShadow = true;
+    const panels =
+      kind === 'billboard'
+        ? new THREE.InstancedMesh(
+            billboardPanel(BILLBOARD_W, BILLBOARD_H, 0).translate(BILLBOARD_CENTER.x, BILLBOARD_CENTER.y, BILLBOARD_CENTER.z).translate(BILLBOARD_N.x * 0.12, BILLBOARD_N.y * 0.12, BILLBOARD_N.z * 0.12),
+            new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 1, 1).multiplyScalar(BILLBOARD_GLOW) }),
+            list.length,
+          )
+        : null;
     const poles = kind === 'lightPole' ? list : [];
     const bulbs = poles.length
       ? new THREE.InstancedMesh(new THREE.BoxGeometry(0.55, 0.06, 0.3), new THREE.MeshBasicMaterial({ color: new THREE.Color(theme.sodiumLight).multiplyScalar(3) }), poles.length)
@@ -172,6 +250,9 @@ export function buildProps(track: TrackGeometry, theme: ThemeDef, glow: THREE.Te
         // Turn the arm toward the nearest road point so the pool lands on the track.
         const pr = track.project(p.pos);
         rot = Math.atan2(pr.sample.pos.y - p.pos.y, pr.sample.pos.x - p.pos.x);
+      } else if (kind === 'billboard' || kind === 'crane') {
+        // Local -z must face the road; local +z is the track's right at rotation = tangent, so flip props on the left.
+        if (track.project(p.pos).lateral < 0) rot += Math.PI;
       }
       q.setFromAxisAngle(yAxis, -rot); // rotation follows the heading convention
       pos.set(p.pos.x, 0, p.pos.y);
@@ -179,7 +260,11 @@ export function buildProps(track: TrackGeometry, theme: ThemeDef, glow: THREE.Te
       mesh.setMatrixAt(i, m4.compose(pos, q, scl));
       if (kind === 'barrel') mesh.setColorAt(i, tint.set(rng.chance(0.5) ? theme.propRust[0] : BARREL_BLUE));
       if (kind === 'container') mesh.setColorAt(i, tint.set(rng.pick(theme.propRust)));
-      if (kind === 'crate') mesh.setColorAt(i, tint.setScalar(rng.range(0.8, 1.1)));
+      if (kind === 'crate' || kind === 'pine') mesh.setColorAt(i, tint.setScalar(rng.range(0.8, 1.1)));
+      if (panels) {
+        panels.setMatrixAt(i, m4.compose(pos, q, scl));
+        panels.setColorAt(i, tint.set(BILLBOARD_COLORS[i % BILLBOARD_COLORS.length]));
+      }
       if (bulbs && pools) {
         const hx = p.pos.x + Math.cos(rot) * ARM_LENGTH * p.scale;
         const hz = p.pos.y + Math.sin(rot) * ARM_LENGTH * p.scale;
@@ -188,6 +273,7 @@ export function buildProps(track: TrackGeometry, theme: ThemeDef, glow: THREE.Te
       }
     });
     group.add(mesh);
+    if (panels) group.add(panels);
     if (bulbs) group.add(bulbs);
     if (pools) group.add(pools);
   }
