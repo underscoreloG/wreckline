@@ -27,7 +27,7 @@ This file is the entry point for every agent. Read it fully, then `specs/contrac
 - Balance pass with headless AI and economy simulations.
 
 ### Out of scope (backlog, do not build)
-Multiplayer, touch controls, music, track editor, replays/ghosts, sponsors/loans, mobile layout, localization, external audio assets, external art except the 8 car models (WP13-WP14, after the fun gate), achievements, leaderboards.
+Multiplayer, touch controls, track editor, replays/ghosts, sponsors/loans, mobile layout, localization, music, external audio except the recorded sound effects of WP15-WP16 (after the fun gate), external art except the 8 car models (WP13-WP14, after the fun gate), achievements, leaderboards.
 
 ---
 
@@ -133,6 +133,9 @@ Query params (dev and prod, handled in `main.tsx`):
 | WP13 | Car art prompt pack | C1 | M1 gate | `specs/art/prompts/**` | opus high | subagent |
 | WP13U | Generate car sheets and models | U1 | WP13 | `art-incoming/cars/**` (gitignored) | external: ChatGPT image generation + Tripo image-to-model, latest in the user's accounts (not pinned) | user:ChatGPT+Tripo |
 | WP14 | Car model import | C2 | WP03, WP13U | `scripts/assets/**`, `public/models/cars/**`, `src/render/carModel.ts` (+ test), `src/render/{carMesh,index,harness}.ts` (taken over from WP03), `mesh.model` values in `src/content/cars.ts` | opus high | subagent |
+| WP15 | Sound list (Pixabay picks) | C1 | M1 gate | `specs/sfx/**` | sonnet high | subagent |
+| WP15U | Download the sounds | U1 | WP15 | `art-incoming/sfx/**` (gitignored) | external: pixabay.com/sound-effects in the user's browser | user:Pixabay |
+| WP16 | Sound import and mix | C2 | WP05, WP15U | `src/audio/**`, `scripts/sfx/**`, `public/sfx/**`, `docs/sfx-sources.md` | opus high | subagent |
 | WP12 | Balance and polish | C3 | WP09-11 merged | values in `src/content/**`, AI scale constants in `src/sim/ai.ts`, expected values in tuning-pinned tests (list in WP12), `scripts/balance/**`, `docs/tuning-log.md` | opus high | session |
 
 WP06 is intentionally unused (reserved). Each WP spec lists exact deliverables, algorithms, numbers and acceptance tests. WP12 runs as a session because feel tuning needs the user's live steering; all others are fresh-context subagents in their own worktree.
@@ -161,9 +164,9 @@ Wave 0: WP00                              -> merge -> gate G0
 Wave A: WP01 | WP02 | WP03 | WP04 | WP05  (5 agents in parallel) -> merge each -> gate GA
 Wave B: WP07 | WP08                        (2 agents in parallel) -> merge -> gate GB = M1 build
 M1 gate: orchestrator verification in the browser pane, then the user playtests. Go / tune / stop.
-Wave C1: WP09 | WP11 | WP13               (3 agents in parallel) -> merge
-Wave U1: WP13U                             (user generates 8 sheets + models with ChatGPT and Tripo)
-Wave C2: WP10 | WP14                       (WP10 needs the career API and the M1 shell; WP14 needs the user's models) -> merge -> art gate (brain: lineup screenshots, fresh critic agent (opus, max effort) vs the concept sheet, then the user)
+Wave C1: WP09 | WP11 | WP13 | WP15        (4 agents in parallel) -> merge
+Wave U1: WP13U | WP15U                     (user: 8 car sheets + models with ChatGPT and Tripo; sound downloads from Pixabay)
+Wave C2: WP10 | WP14 | WP16                (WP10 needs the career API and the M1 shell; WP14 the user's models; WP16 the user's sounds) -> merge -> art gate (brain: lineup screenshots, fresh critic agent (opus, max effort) vs the concept sheet, then the user)
 Wave C3: WP12                              (session with the user, after C1+C2) -> gate GC = M2
 ```
 
@@ -254,6 +257,6 @@ Same pipeline as the football project (Pixel Pitch):
 | `specs/sim-internal.ts` | Mutable sim world shared by WP01, WP02, WP07 (frozen) |
 | `specs/content.md` | Cars, upgrades, weapons, pickups, AI profiles, economy, rivals, tracks (numbers) |
 | `specs/design.md` | Art direction, palette, lighting, camera, UI design system, screen layouts |
-| `specs/wp/WP00-foundation.md` ... `WP14-car-models.md` | One spec per work package |
+| `specs/wp/WP00-foundation.md` ... `WP16-sound-import.md` | One spec per work package |
 | `specs/art/cars-concept-v1.webp` | Car concept sheet: look target for the roster and WP13-WP14 |
 | `specs/STATUS.md` | Orchestrator ledger: phase, decisions, WP states (workers don't need it) |

@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 - M1 vertical slice (unreleased)
+## 0.2.0 - M1 vertical slice (2026-10-25)
 
 - Playable quick race on Scrapyard: 3 laps, the player against 3 AI drivers.
 - Driving with drift, handbrake and turbo; front machine gun with overheat, rear mines.
