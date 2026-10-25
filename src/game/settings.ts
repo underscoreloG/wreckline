@@ -9,6 +9,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
   quality: 'high',
   cameraShake: true,
   showFps: false,
+  quickTrackId: null,
 };
 
 export interface SettingsStorage {
@@ -38,6 +39,7 @@ export function loadSettings(storage: SettingsStorage | null): Settings {
     quality: r.quality === 'low' || r.quality === 'high' ? r.quality : d.quality,
     cameraShake: bool(r.cameraShake, d.cameraShake),
     showFps: bool(r.showFps, d.showFps),
+    quickTrackId: typeof r.quickTrackId === 'string' ? r.quickTrackId : d.quickTrackId,
   };
 }
 

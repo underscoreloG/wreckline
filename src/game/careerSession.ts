@@ -16,6 +16,7 @@ const FAIL_TEXT: Record<ShopFail, string> = {
   max: 'Maxed out',
   owned: 'Already owned',
   invalid: 'Not available',
+  pending: 'Sabotage already bought for another race',
 };
 
 /**

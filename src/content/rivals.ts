@@ -37,5 +37,8 @@ export const BOSS: RivalDef & { trim: string } = { driverId: 'boss', name: 'THE 
 
 export const initialRivalPoints = (skill: number): number => Math.round(skill * 40);
 
-/** Every upgrade line of a rival car is at this level. */
+/** Every upgrade line of a rival car except spikes is at this level (fuel included). */
 export const rivalUpgradeLevel = (skill: number): number => Math.min(5, Math.floor(skill * 5));
+
+/** A rival car's bumper spikes level (CCR-5); the boss (skill 1.1) gets 3. */
+export const rivalSpikesLevel = (skill: number): number => Math.min(3, Math.floor(skill * 3));

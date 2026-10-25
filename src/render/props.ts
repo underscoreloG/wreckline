@@ -27,6 +27,7 @@ const WRECK_SPEC: CarMeshSpec = {
   spoiler: false,
   wheelRadius: 0.38,
   model: null,
+  spikes: 0,
 };
 
 /** The wreck prop: a compact car baked into one vertex-colored geometry, squashed. */
@@ -120,6 +121,9 @@ function geometryFor(kind: PropKind, theme: ThemeDef, rng: Rng): THREE.BufferGeo
         paint(boxNoBottom(10, 6, 10).translate(0, 3, 0), BUILDING_COLOR),
         paint(boxNoBottom(10.6, 0.4, 10.6).translate(0, 6.2, 0), '#3A3734'),
       ]);
+    default:
+      // CCR-6 kinds (pine, snowbank, billboard, crane): a neutral block until WP22 models them.
+      return paint(new THREE.BoxGeometry(1.4, 1.4, 1.4).translate(0, 0.7, 0), BUILDING_COLOR);
   }
 }
 

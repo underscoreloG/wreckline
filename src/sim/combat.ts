@@ -22,6 +22,7 @@ import {
   GUN_SPREAD,
   GUN_UNLOCK_BELOW,
   IMPACT_EVENT_MIN_SPEED,
+  RAM_FRONT_HALF_ANGLE,
   MINE_ARM_TIME,
   MINE_BLAST_RADIUS,
   MINE_COOLDOWN,
@@ -198,14 +199,34 @@ function addCooldown(st: CombatState, a: number, b: number, until: number): void
   st.cdNext = (st.cdNext + 1) % MAX_COOLDOWNS;
 }
 
+const RAM_FRONT_COS = Math.cos(RAM_FRONT_HALF_ANGLE);
+
+/** Front hit (CCR-5): `to` lies within RAM_FRONT_HALF_ANGLE of `from`'s heading. */
+function frontHit(st: CombatState, from: SimCar, to: SimCar): boolean {
+  const dx = st.px[to.id] - st.px[from.id];
+  const dy = st.py[to.id] - st.py[from.id];
+  const d = Math.hypot(dx, dy);
+  const h = st.ph[from.id];
+  return d > 1e-9 && (Math.cos(h) * dx + Math.sin(h) * dy) / d >= RAM_FRONT_COS;
+}
+
 function carVsCar(world: SimWorld, st: CombatState, ia: CarId, ib: CarId): void {
   const a = world.cars[Math.min(ia, ib)];
   const b = world.cars[Math.max(ia, ib)];
   if (!a || !b || onCooldown(st, a.id, b.id, world.time)) return;
   const impA = impactOf(st, a);
   const impB = impactOf(st, b);
-  const dmgA = Math.max(0, impA - CAR_IMPACT_THRESHOLD) * CAR_IMPACT_DAMAGE * Math.sqrt(b.base.mass / a.base.mass);
-  const dmgB = Math.max(0, impB - CAR_IMPACT_THRESHOLD) * CAR_IMPACT_DAMAGE * Math.sqrt(a.base.mass / b.base.mass);
+  let dmgA = Math.max(0, impA - CAR_IMPACT_THRESHOLD) * CAR_IMPACT_DAMAGE * Math.sqrt(b.base.mass / a.base.mass);
+  let dmgB = Math.max(0, impB - CAR_IMPACT_THRESHOLD) * CAR_IMPACT_DAMAGE * Math.sqrt(a.base.mass / b.base.mass);
+  // Bumper spikes: each car's own front hit scales what it deals and what it takes (both in a head-on).
+  if (frontHit(st, a, b)) {
+    dmgB *= a.eff.ramDealtMult;
+    dmgA *= a.eff.ramTakenMult;
+  }
+  if (frontHit(st, b, a)) {
+    dmgA *= b.eff.ramDealtMult;
+    dmgB *= b.eff.ramTakenMult;
+  }
   const pos = { x: (st.px[a.id] + st.px[b.id]) / 2, y: (st.py[a.id] + st.py[b.id]) / 2 };
   const speed = Math.max(impA, impB);
   if (speed >= IMPACT_EVENT_MIN_SPEED) world.out.push({ type: 'impact', a: a.id, b: b.id, speed, pos: { x: pos.x, y: pos.y } });

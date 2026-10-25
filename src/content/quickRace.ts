@@ -20,7 +20,7 @@ export function buildQuickRaceSetup(opts: QuickRaceOptions): RaceSetup {
   const aiCount = opts.aiCount ?? 3;
   if (aiCount < 1 || aiCount > 7) throw new Error(`aiCount ${aiCount} is outside 1..7`);
   const car = getCar(STARTER_CAR_ID);
-  const stats = computeStats(car, { engine: 0, tires: 0, armor: 0, gun: 0 });
+  const stats = computeStats(car, { engine: 0, tires: 0, armor: 0, gun: 0, fuel: 0, spikes: 0 });
   // Extra AIs beyond the named three borrow other rivals' identities so names stay unique.
   const extras = RIVALS.filter((r) => !QUICK_RACE_AI_NAMES.includes(r.name));
 

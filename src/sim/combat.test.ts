@@ -15,7 +15,9 @@ import {
   WALL_IMPACT_THRESHOLD,
   WRECK_EXPLOSION_DAMAGE,
 } from '../content/weapons';
-import type { CarId, InputFrame, Sim, SimEvent } from '../shared/contracts';
+import { computeStats } from '../content/economy';
+import { getCar } from '../content/cars';
+import type { CarId, CarStats, InputFrame, Sim, SimEvent } from '../shared/contracts';
 import { NEUTRAL_INPUT, SIM_HZ } from '../shared/contracts';
 import { createSimWithWorld, initPhysics } from './index';
 import type { SimCar, SimWorld } from './internal';
@@ -29,10 +31,10 @@ const FIRE: InputFrame = { ...NEUTRAL_INPUT, fire: true };
 const DROP: InputFrame = { ...NEUTRAL_INPUT, dropMine: true };
 const TURBO: InputFrame = { ...NEUTRAL_INPUT, turbo: true };
 
-/** Every entrant scripted (WP00 test rule), green light already on, cars parked away from the main straight. */
-function make(): { sim: Sim; world: SimWorld } {
+/** Every entrant scripted (WP00 test rule), green light already on, cars parked away from the main straight. `stats` patches entrants by id. */
+function make(stats: Record<number, Partial<CarStats>> = {}): { sim: Sim; world: SimWorld } {
   const s = buildQuickRaceSetup({ seed: 1, aiCount: 3 });
-  const { sim, world } = createSimWithWorld({ ...s, entrants: s.entrants.map((e) => ({ ...e, ai: null })) });
+  const { sim, world } = createSimWithWorld({ ...s, entrants: s.entrants.map((e) => ({ ...e, ai: null, stats: { ...e.stats, ...stats[e.id] } })) });
   world.phase = 'racing';
   world.countdown = 0;
   world.cars.forEach((c) => park(world, c.id));
@@ -243,6 +245,43 @@ describe('collisions', () => {
     expect(imp.length).toBeGreaterThan(0);
     expect(imp[0]).toMatchObject({ a: 0, b: 1 });
     expect(imp[0]!.speed).toBeGreaterThanOrEqual(4);
+  });
+
+  it('8b. bumper spikes 3: a 25 m/s front hit deals 2.5x to the other car and takes 0.55x itself (CCR-5)', () => {
+    const spiked = computeStats(getCar('raven'), { engine: 0, tires: 0, armor: 0, gun: 0, fuel: 0, spikes: 3 });
+    const hit = (stats: Record<number, Partial<CarStats>>) => {
+      const { sim, world } = make(stats);
+      const a = place(world, 0, 20, 0, 0, 25, 0);
+      place(world, 1, 20 + a.entrant.mesh.length + 0.3, 0, 0);
+      const ev = run(sim, 10);
+      sim.dispose();
+      const sum = (car: CarId) => damageTo(ev, car).reduce((t, d) => t + d.amount, 0);
+      return { toA: sum(0), toB: sum(1) };
+    };
+    const base = hit({});
+    expect(base.toB).toBeGreaterThan(8);
+    // A's front hit: B lies dead ahead. B's is not: A is behind it, so B's spikes change nothing.
+    const front = hit({ 0: { ramDealtMult: spiked.ramDealtMult, ramTakenMult: spiked.ramTakenMult } });
+    expect(front.toB / base.toB).toBeCloseTo(2.5, 6);
+    expect(front.toA / base.toA).toBeCloseTo(0.55, 6);
+    const rearSpikes = hit({ 1: { ramDealtMult: spiked.ramDealtMult, ramTakenMult: spiked.ramTakenMult } });
+    expect(rearSpikes).toEqual(base);
+  });
+
+  it('8c. a side hit applies no spikes multiplier', () => {
+    const spikes = { ramDealtMult: 2.5, ramTakenMult: 0.55 };
+    // A slides sideways (heading +90 deg, moving +x) into B: B is off A's nose by 90 deg, A is off B's nose by 180 deg.
+    const hit = (stats: Record<number, Partial<CarStats>>) => {
+      const { sim, world } = make(stats);
+      const a = place(world, 0, 20, 0, Math.PI / 2, 25, 0);
+      place(world, 1, 20 + a.entrant.mesh.width / 2 + a.entrant.mesh.length / 2 + 0.3, 0, 0);
+      const ev = run(sim, 10);
+      sim.dispose();
+      return ev.filter((e) => e.type === 'carDamaged');
+    };
+    const base = hit({});
+    expect(base.length).toBeGreaterThan(0);
+    expect(hit({ 0: spikes, 1: spikes })).toEqual(base);
   });
 
   it('9. 30 m/s head-on into a wall: damage = impact - 9 (+-15%)', () => {

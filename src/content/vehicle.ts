@@ -1,6 +1,6 @@
 // content.md section 4: multipliers on base stats while the state holds.
 
-export const TURBO_MODS = { maxSpeed: 1.3, accel: 1.6 } as const;
+// Turbo (rocket fuel) multipliers are per car: CarStats.turboSpeedMult / turboAccelMult (CCR-5).
 export const TURBO_DRAIN = 1; // turbo seconds per second
 
 export const OFFROAD_MODS = { maxSpeed: 0.7, accel: 0.8, grip: 0.6 } as const;

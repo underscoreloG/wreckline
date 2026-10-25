@@ -1,4 +1,4 @@
-import { HANDBRAKE_MODS, OFFROAD_DRAG, OFFROAD_MODS, TURBO_MODS, WRECKED_ANGULAR_DAMPING, WRECKED_LINEAR_DAMPING } from '../content/vehicle';
+import { HANDBRAKE_MODS, OFFROAD_DRAG, OFFROAD_MODS, WRECKED_ANGULAR_DAMPING, WRECKED_LINEAR_DAMPING } from '../content/vehicle';
 import type { Vec2 } from '../shared/contracts';
 import { SIM_DT } from '../shared/contracts';
 import { clamp } from '../shared/math';
@@ -49,8 +49,8 @@ export const applyDynamics: SimSystem = (world) => {
     const eff = car.eff;
     const offroad = Math.abs(car.lateral) > halfWidth;
     car.offroad = offroad;
-    eff.maxSpeed = base.maxSpeed * (car.turboActive ? TURBO_MODS.maxSpeed : 1) * (offroad ? OFFROAD_MODS.maxSpeed : 1);
-    eff.accel = base.accel * (car.turboActive ? TURBO_MODS.accel : 1) * (offroad ? OFFROAD_MODS.accel : 1);
+    eff.maxSpeed = base.maxSpeed * (car.turboActive ? eff.turboSpeedMult : 1) * (offroad ? OFFROAD_MODS.maxSpeed : 1);
+    eff.accel = base.accel * (car.turboActive ? eff.turboAccelMult : 1) * (offroad ? OFFROAD_MODS.accel : 1);
     eff.grip = base.grip * (offroad ? OFFROAD_MODS.grip : 1);
     eff.brake = base.brake;
     eff.turnRate = base.turnRate;

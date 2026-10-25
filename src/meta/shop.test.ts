@@ -21,8 +21,17 @@ describe('upgrades (test 4)', () => {
     expect(ok(buyUpgrade(career({ carDefId: 'viper', hp: 120, cash: 1000 }), 'gun')).cash).toBe(280);
   });
 
+  it('spikes stop at 3 (level 4 is max), fuel at 5; both cost their own table', () => {
+    const s = career({ cash: 1e6, upgrades: { engine: 0, tires: 0, armor: 0, gun: 0, fuel: 5, spikes: 3 } });
+    expect(buyUpgrade(s, 'spikes')).toEqual({ ok: false, reason: 'max' });
+    expect(buyUpgrade(s, 'fuel')).toEqual({ ok: false, reason: 'max' });
+    const first = ok(buyUpgrade(career({ cash: 500 }), 'spikes'));
+    expect(first).toMatchObject({ cash: 0, upgrades: { spikes: 1 } });
+    expect(ok(buyUpgrade(career(), 'fuel'))).toMatchObject({ cash: 300, upgrades: { fuel: 1 } });
+  });
+
   it('level 6 returns max', () => {
-    const s = career({ cash: 1e6, upgrades: { engine: 5, tires: 0, armor: 0, gun: 0 } });
+    const s = career({ cash: 1e6, upgrades: { engine: 5, tires: 0, armor: 0, gun: 0, fuel: 0, spikes: 0 } });
     expect(buyUpgrade(s, 'engine')).toEqual({ ok: false, reason: 'max' });
   });
 
@@ -84,8 +93,8 @@ describe('car shop (test 10)', () => {
   });
 
   it('buying trades in 50% of the current car, resets upgrades and fills hp', () => {
-    const fromRaven = ok(buyCar(career({ cash: 6000, upgrades: { engine: 3, tires: 2, armor: 1, gun: 0 }, hp: 20 }), 'scorch'));
-    expect(fromRaven).toMatchObject({ carDefId: 'scorch', cash: 0, hp: 140, upgrades: { engine: 0, tires: 0, armor: 0, gun: 0 } });
+    const fromRaven = ok(buyCar(career({ cash: 6000, upgrades: { engine: 3, tires: 2, armor: 1, gun: 0, fuel: 2, spikes: 1 }, hp: 20 }), 'scorch'));
+    expect(fromRaven).toMatchObject({ carDefId: 'scorch', cash: 0, hp: 140, upgrades: { engine: 0, tires: 0, armor: 0, gun: 0, fuel: 0, spikes: 0 } });
     // Scorch trades in for 3000: 8000 + 3000 - 11000.
     expect(ok(buyCar(career({ carDefId: 'scorch', cash: 8000, hp: 140 }), 'titan'))).toMatchObject({ carDefId: 'titan', cash: 0, hp: 190 });
     expect(buyCar(career({ carDefId: 'scorch', cash: 7999, hp: 140 }), 'titan')).toEqual({ ok: false, reason: 'cash' });
@@ -106,7 +115,7 @@ describe('free tow (WP18)', () => {
     expect(r.towed).toBe(true);
     expect(r.save).toMatchObject({ hp: 30, cash: 0 });
     // armor 1: maxHp 115, 30% = 34.5 -> 35
-    expect(freeTowIfStuck(career({ hp: 0, cash: 0, upgrades: { engine: 0, tires: 0, armor: 1, gun: 0 } })).save.hp).toBe(35);
+    expect(freeTowIfStuck(career({ hp: 0, cash: 0, upgrades: { engine: 0, tires: 0, armor: 1, gun: 0, fuel: 0, spikes: 0 } })).save.hp).toBe(35);
   });
 
   it('enough cash for a 30% repair, or hp left: unchanged', () => {
@@ -129,7 +138,7 @@ describe('partial repair (WP18)', () => {
   it('+25% is ceil(25% maxHp) clamped to the missing hp', () => {
     expect(partialRepairHp(career({ hp: 64 }))).toBe(25);
     expect(partialRepairHp(career({ hp: 90 }))).toBe(10);
-    expect(partialRepairHp(career({ hp: 0, upgrades: { engine: 0, tires: 0, armor: 1, gun: 0 } }))).toBe(29);
+    expect(partialRepairHp(career({ hp: 0, upgrades: { engine: 0, tires: 0, armor: 1, gun: 0, fuel: 0, spikes: 0 } }))).toBe(29);
     expect(partialRepairHp(career())).toBe(0);
   });
 

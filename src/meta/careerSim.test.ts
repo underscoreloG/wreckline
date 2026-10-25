@@ -5,7 +5,7 @@ import { computeStats } from '../content/economy';
 import { generateOffers, newCareer } from './career';
 import { chooseOffer, playerSkill, shopVisit, simulateCareer } from './careerSim';
 
-const maxed = { engine: 5, tires: 5, armor: 5, gun: 5 };
+const maxed = { engine: 5, tires: 5, armor: 5, gun: 5, fuel: 5, spikes: 3 };
 const maxHp = (id: string): number => computeStats(getCar(id), maxed).maxHp;
 
 describe('careerSim', () => {
@@ -36,7 +36,7 @@ describe('careerSim', () => {
   });
 
   it('shop priority: repair, then engine > armor > tires > gun, one level each per visit', () => {
-    expect(shopVisit({ ...newCareer(1), hp: 90, cash: 640 })).toMatchObject({ hp: 100, cash: 0, upgrades: { engine: 1, tires: 0, armor: 1, gun: 0 } });
+    expect(shopVisit({ ...newCareer(1), hp: 90, cash: 640 })).toMatchObject({ hp: 100, cash: 0, upgrades: { engine: 1, tires: 0, armor: 1, gun: 0, fuel: 0, spikes: 0 } });
     // Partial repair when a full one is out of reach.
     expect(shopVisit({ ...newCareer(1), hp: 10, cash: 100 })).toMatchObject({ hp: 35, cash: 0 });
   });

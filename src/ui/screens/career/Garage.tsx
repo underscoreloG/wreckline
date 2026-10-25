@@ -18,7 +18,7 @@ const STATS: readonly { key: keyof CarStats; label: string; fmt: (v: number) => 
   { key: 'gunDps', label: 'Gun', fmt: (v) => `${Math.round(v)} dps` },
 ];
 
-const MAXED = { engine: MAX_UPGRADE_LEVEL, tires: MAX_UPGRADE_LEVEL, armor: MAX_UPGRADE_LEVEL, gun: MAX_UPGRADE_LEVEL };
+const MAXED = { engine: MAX_UPGRADE_LEVEL, tires: MAX_UPGRADE_LEVEL, armor: MAX_UPGRADE_LEVEL, gun: MAX_UPGRADE_LEVEL, fuel: 0, spikes: 0 };
 /** Bar scale per stat: the best fully upgraded car in the roster fills the bar. */
 const SCALE = Object.fromEntries(STATS.map((s) => [s.key, Math.max(...Object.values(CARS).map((c) => computeStats(c, MAXED)[s.key]))])) as Record<keyof CarStats, number>;
 

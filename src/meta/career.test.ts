@@ -40,8 +40,9 @@ const offerOf = (save: SaveGame, tier: RaceOffer['tier']): RaceOffer => {
 describe('newCareer (test 1)', () => {
   it('matches content.md', () => {
     const s = newCareer(1);
-    expect(s).toMatchObject({ version: 1, cash: 600, carDefId: 'raven', hp: 100, mines: 2, turbo: 3, points: 0, racesRun: 0, wins: 0, championWon: false });
-    expect(s.upgrades).toEqual({ engine: 0, tires: 0, armor: 0, gun: 0 });
+    expect(s).toMatchObject({ version: 2, cash: 600, carDefId: 'raven', hp: 100, mines: 2, turbo: 3, points: 0, racesRun: 0, wins: 0, championWon: false });
+    expect(s).toMatchObject({ bestRank: 20, wrecks: 0, cashEarned: 0, sabotage: null });
+    expect(s.upgrades).toEqual({ engine: 0, tires: 0, armor: 0, gun: 0, fuel: 0, spikes: 0 });
     expect(s.rivals).toHaveLength(19);
     for (const [i, r] of s.rivals.entries()) expect(r.points).toBe(Math.round(RIVALS[i].skill * 40));
     expect(rankOf(s)).toBe(20);
@@ -178,7 +179,7 @@ describe('payout (test 3)', () => {
 
 describe('race setup', () => {
   it('player from the save, rivals with skill upgrades, full hp and the rival loadout', () => {
-    const save: SaveGame = { ...withPoints(23), upgrades: { engine: 2, tires: 1, armor: 3, gun: 0 }, hp: 80, mines: 4, turbo: 6 };
+    const save: SaveGame = { ...withPoints(23), upgrades: { engine: 2, tires: 1, armor: 3, gun: 0, fuel: 0, spikes: 0 }, hp: 80, mines: 4, turbo: 6 };
     const offer = offerOf(save, 'medium');
     const setup = buildCareerRaceSetup(save, offer, 42);
     expect(setup).toMatchObject({ seed: 42, laps: 4, countdownSeconds: 3 });
@@ -190,7 +191,9 @@ describe('race setup', () => {
     for (const e of ais) {
       const r = save.rivals.find((x) => x.driverId === e.driverId)!;
       const lv = Math.min(5, Math.floor(r.skill * 5));
-      expect(e.stats).toEqual(computeStats(getCar(r.carDefId), { engine: lv, tires: lv, armor: lv, gun: lv }));
+      const spikes = Math.min(3, Math.floor(r.skill * 3));
+      expect(e.stats).toEqual(computeStats(getCar(r.carDefId), { engine: lv, tires: lv, armor: lv, gun: lv, fuel: lv, spikes }));
+      expect(e.mesh.spikes).toBe(spikes);
       expect(e).toMatchObject({ carDefId: r.carDefId, color: r.color, hp: e.stats.maxHp, mines: 2, turbo: 3 });
     }
   });
@@ -198,7 +201,7 @@ describe('race setup', () => {
   it('the boss drives wraith with +6% maxSpeed', () => {
     const save = withPoints(100);
     const boss = buildCareerRaceSetup(save, offerOf(save, 'boss'), 1).entrants.find((e) => e.driverId === 'boss')!;
-    const base = computeStats(getCar('wraith'), { engine: 5, tires: 5, armor: 5, gun: 5 });
+    const base = computeStats(getCar('wraith'), { engine: 5, tires: 5, armor: 5, gun: 5, fuel: 0, spikes: 0 });
     expect(boss).toMatchObject({ name: 'THE WARDEN', carDefId: 'wraith' });
     expect(boss.stats.maxSpeed).toBeCloseTo(base.maxSpeed * 1.06, 9);
   });
