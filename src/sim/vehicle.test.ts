@@ -110,7 +110,7 @@ describe('applyDynamics', () => {
     sim.dispose();
   });
 
-  it('2. 0-100 km/h in 2.0-3.2 s', () => {
+  it('2. 0-100 km/h in 1.6-2.7 s', () => {
     const { sim, world } = racing('straight');
     place(world, 0, STRAIGHT_START(world), -3);
     let ticks = 0;
@@ -119,8 +119,8 @@ describe('applyDynamics', () => {
       ticks++;
     }
     const t = ticks * SIM_DT;
-    expect(t).toBeGreaterThanOrEqual(2.0);
-    expect(t).toBeLessThanOrEqual(3.2);
+    expect(t).toBeGreaterThanOrEqual(1.6); // tuning pass 1 (accel x1.2): ~1.78 s, was 2.0-3.2 at ~2.17 s
+    expect(t).toBeLessThanOrEqual(2.7);
     sim.dispose();
   });
 
@@ -204,9 +204,9 @@ describe('applyDynamics', () => {
     sim.dispose();
   });
 
-  it('9b. feel: plain full steer at 65% of top speed grips (no drift)', () => {
+  it('9b. feel: plain full steer at 60% of top speed grips (no drift)', () => {
     const { sim, world } = racing('straight');
-    place(world, 0, STRAIGHT_START(world), -3, RAVEN.maxSpeed * 0.65);
+    place(world, 0, STRAIGHT_START(world), -3, RAVEN.maxSpeed * 0.6); // tuning pass 1: DRIFT_THRESHOLD is absolute, full steer flags a drift from ~25 m/s (64% of 39.1); was 65% of 34
     let drifted = false;
     for (let t = 0; t < 0.4 * SIM_HZ; t++) {
       sim.step(drive({ ...NEUTRAL_INPUT, throttle: 1, steer: 1 }));

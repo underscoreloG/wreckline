@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { CarState, PickupKind, RaceSnapshot, SimEvent, TrackGeometry, Vec2 } from '../shared/contracts';
+import { PLAYER_CAR_ID } from '../shared/contracts';
 import { createRng } from '../shared/rng';
 import type { CarParts } from './carMesh';
 import { merge, paint } from './geo';
@@ -27,6 +28,20 @@ const SMOKE_COLUMN = 3; // s after an explosion
 const DRIFT_MIN_SPEED = 3;
 const DAMAGE_SMOKE_BELOW = 0.4;
 const FIRE_BELOW = 0.15;
+// Speed streaks on the player's turbo (design.md section 3, tuning pass 1).
+const STREAK_CAP = 30; // alive at once: the design's 20-30 lines
+const STREAK_RATE = 100; // per s: rate * life = 25 alive on average
+const STREAK_LIFE = 0.25; // s
+const STREAK_WIDTH = 0.05; // m
+const STREAK_LEN_MIN = 4; // m
+const STREAK_LEN_MAX = 8; // m
+const STREAK_RING_MIN = 6; // m from the car
+const STREAK_RING_MAX = 20; // m
+const STREAK_Y = 0.6; // m above the ground
+/** Streaks drift forward at this fraction of the car velocity: the car outruns them, so they rush backward on screen. */
+const STREAK_DRIFT = 0.15;
+const STREAK_GLOW = 2.2; // HDR white so bloom picks the thin lines up
+const STREAK_MIN_SPEED = 3; // m/s, below this there is no direction to align with
 
 /** One car's rendered pose for this frame plus its latest state. */
 export interface CarFrame {
@@ -145,6 +160,8 @@ export class Fx {
   private readonly rng = createRng(FX_SEED);
   private readonly smoke = new Particles(SMOKE_CAP, false);
   private readonly glow = new Particles(GLOW_CAP, true);
+  private readonly streaks = new Particles(STREAK_CAP, true, true);
+  private streakEmit = 0;
   private readonly skids = new Skidmarks();
   private readonly tracerPos = new Float32Array(TRACER_CAP * 6);
   private readonly tracerCol = new Float32Array(TRACER_CAP * 6);
@@ -224,6 +241,7 @@ export class Fx {
       this.skids.mesh,
       this.smoke.mesh,
       this.glow.mesh,
+      this.streaks.mesh,
       this.tracers,
       ...[this.flashInst, this.ringInst, this.scorchInst, this.debrisInst, this.muzzleInst, this.groundFlashInst, this.turboInst, this.headInst, this.mineInst, this.ledInst, this.ledGlowInst, this.ringPickupInst, ...Object.values(this.pickupInst)].map((i) => i.mesh),
     );
@@ -420,6 +438,22 @@ export class Fx {
           this.glow.spawn(tx, ex.y, tz, Math.cos(c.heading) * back, 0.3, Math.sin(c.heading) * back, 0.25, 0.5, 0.15, 0.6, 1.1, 3, 1, 0, 2, 0, 0);
         }
       }
+      // headlightCones mirrors quality === 'high' (index.ts setQuality), the streaks' quality gate.
+      if (i === PLAYER_CAR_ID && this.headlightCones && s.turboActive && !s.wrecked && speed > STREAK_MIN_SPEED) {
+        this.streakEmit += dt * STREAK_RATE;
+        const vs = Math.hypot(s.vel.x, s.vel.y);
+        while (this.streakEmit >= 1) {
+          this.streakEmit--;
+          const a = rng.next() * Math.PI * 2;
+          const r = rng.range(STREAK_RING_MIN, STREAK_RING_MAX);
+          const k = STREAK_DRIFT;
+          // Particles draws a streak of length size + |v| * stretch along v (view space; the view is near top-down).
+          const stretch = rng.range(STREAK_LEN_MIN, STREAK_LEN_MAX) / Math.max(vs * k, 1e-3);
+          this.streaks.spawn(c.x + Math.cos(a) * r, STREAK_Y, c.z + Math.sin(a) * r, s.vel.x * k, 0, s.vel.y * k, STREAK_LIFE, STREAK_WIDTH, STREAK_WIDTH, STREAK_GLOW, STREAK_GLOW, STREAK_GLOW, 1, 1, 0, 0, stretch);
+        }
+      } else if (i === PLAYER_CAR_ID) {
+        this.streakEmit = 0;
+      }
       if (this.headlightCones && !s.wrecked) {
         this.local(c, c.parts.nose.x, 0);
         this.headInst.push(this.lx, 0.06, this.lz, yaw(rotY), 1, 1, 1);
@@ -452,6 +486,7 @@ export class Fx {
     this.updateMines(snap);
     this.smoke.update(dt);
     this.glow.update(dt);
+    this.streaks.update(dt);
   }
 
   private updateTimed(dt: number): void {

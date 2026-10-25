@@ -9,7 +9,7 @@ describe('cars', () => {
   it('has the 8 cars with procedural meshes', () => {
     expect(Object.keys(CARS)).toEqual(['raven', 'outlaw', 'iceberg', 'scorch', 'blaze', 'titan', 'viper', 'wraith']);
     for (const c of Object.values(CARS)) expect(c.mesh.model).toBeNull();
-    expect(getCar('raven').base.maxSpeed).toBe(34);
+    expect(getCar('raven').base.maxSpeed).toBe(39.1);
     expect(() => getCar('nope')).toThrow();
   });
 
@@ -25,8 +25,8 @@ describe('economy', () => {
 
   it('computeStats with all 5 matches hand-computed raven values', () => {
     const s = computeStats(getCar('raven'), max);
-    expect(s.maxSpeed).toBeCloseTo(34 * 1.2762815625, 9);
-    expect(s.accel).toBeCloseTo(13 * 1.3382255776, 9);
+    expect(s.maxSpeed).toBeCloseTo(39.1 * 1.2762815625, 9);
+    expect(s.accel).toBeCloseTo(15.6 * 1.3382255776, 9);
     expect(s.grip).toBeCloseTo(0.78 * 1.2166529024, 9);
     expect(s.turnRate).toBeCloseTo(2.7 * 1.2166529024, 9);
     expect(s.maxHp).toBe(201);
