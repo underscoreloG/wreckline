@@ -40,7 +40,7 @@ const BASE: TrackDef = {
   width: 13,
   shoulder: 4,
   checkpointSpacing: 40,
-  referenceLapTime: 33,
+  referenceLapTime: 32.5, // WP24 re-soak after the CCR-7 AI wreck fix: 0.55 AI median clean lap 32.74 s (was 33 from 32.78 s)
   centerline: roundedLoop(FROSTBITE_CORNERS, { x: 250, y: 130 }),
   pickups: [
     { kind: 'cash', s: 40, lateral: -3 },
