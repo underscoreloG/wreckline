@@ -5,7 +5,7 @@ import { mountInputHarness } from './input/harness';
 import { mountRenderHarness } from './render/harness';
 import { mountUiHarness } from './ui/harness';
 
-// Query-param routing (SPEC.md section 4). WP08 takes this file over in wave B.
+// Query-param routing (SPEC.md section 4). The game itself mounts the UI: it owns input and audio (rule 5).
 const params = new URLSearchParams(window.location.search);
 const root = document.getElementById('app');
 if (!root) throw new Error('missing #app');
