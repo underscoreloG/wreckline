@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0 - Rocket fuel, spikes, sabotage, 6 tracks, real sounds (2026-10-25)
+
+- Rocket fuel: the boost is now called rocket fuel and can be upgraded in the shop (5 levels: up to +15% boost speed, +25% boost acceleration).
+- Bumper spikes: new upgrade line (3 levels). Ramming with your front deals up to 2.5x damage and you take less.
+- Sabotage: before a career race, pay a mechanic (30% of the winner's prize) to damage the leading rival in that race by 25-49%.
+- Rivals now carry rocket fuel and spikes upgrades by skill.
+- Three new tracks with new looks: Frostbite Pass (snow), Neon Mile (rainy city), Redrock Quarry. Career unlocks tracks as you climb the ladder; quick race has a track picker.
+- Recorded sound effects (Pixabay, free licence) replace most synth sounds; the engine stays synthesised.
+- Champion screen shows wrecks and cash earned. Old saves load automatically.
+
 ## 0.3.1 - Instant results (2026-10-25)
 
 - Results appear 1.5 s after you finish or wreck. The rest of the race is fast-forwarded in the background, so positions and times are exactly what they would have been if you had waited.
