@@ -11,7 +11,7 @@ const BINDINGS: readonly [string, string[], string[], string][] = [
   ['Steer', ['←', '→'], ['Left stick', 'D-pad'], ','],
   ['Fire gun', ['S'], ['A'], ''],
   ['Drop mine', ['D'], ['X'], ''],
-  ['Turbo', ['A'], ['Y', 'RB'], 'or'],
+  ['Rocket fuel', ['A'], ['Y', 'RB'], 'or'],
   ['Handbrake', ['Space'], ['B'], ''],
   ['Pause', ['Esc'], ['Start'], ''],
 ];

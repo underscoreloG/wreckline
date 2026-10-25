@@ -1,8 +1,9 @@
+import { useMemo } from 'react';
 import { CARS, getCar } from '../../../content/cars';
 import { computeStats, MAX_UPGRADE_LEVEL, repairCost } from '../../../content/economy';
 import { PLAYER_LIVERY } from '../../../content/liveries';
 import { affordableRepairHp, partialRepairHp } from '../../../meta/shop';
-import type { CarStats, UiState } from '../../../shared/contracts';
+import type { CarMeshSpec, CarStats, UiState } from '../../../shared/contracts';
 import { Button } from '../../components/Button';
 import { Panel } from '../../components/Panel';
 import { useMenuFocus } from '../../hooks/useMenuFocus';
@@ -58,7 +59,10 @@ export function Garage({ state }: { state: UiState }) {
     ],
     repairs.length + 1,
   );
-  if (!save || !car || !stats) return null;
+  // Bought bumper spikes show on the turntable; memoized so a re-render does not rebuild the preview renderer.
+  const spikes = save?.upgrades.spikes ?? 0;
+  const mesh = useMemo<CarMeshSpec | null>(() => (car ? { ...car.mesh, spikes } : null), [car, spikes]);
+  if (!save || !car || !stats || !mesh) return null;
 
   return (
     <div className="screen scrim">
@@ -66,7 +70,7 @@ export function Garage({ state }: { state: UiState }) {
         <h2 className="screen-title display">Garage</h2>
         <p className="screen-sub muted display">{car.name}</p>
         <div className="garage-body">
-          <CarPreview spec={car.mesh} color={PLAYER_LIVERY} />
+          <CarPreview spec={mesh} color={PLAYER_LIVERY} />
           <div className="garage-stats">
             {STATS.map((s) => (
               <StatBar key={s.key} label={s.label} base={car.base[s.key]} value={stats[s.key]} max={SCALE[s.key]} text={s.fmt(stats[s.key])} />
@@ -79,7 +83,7 @@ export function Garage({ state }: { state: UiState }) {
               </span>
             </div>
             <p className="garage-supplies muted num">
-              {save.mines} mines · {save.turbo.toFixed(1)} s turbo
+              {save.mines} mines · {save.turbo.toFixed(1)} s rocket fuel
             </p>
           </div>
         </div>

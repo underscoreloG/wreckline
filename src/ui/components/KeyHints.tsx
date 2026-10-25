@@ -4,14 +4,14 @@ import { Keycap } from './Keycap';
 const KEYBOARD: readonly [string, string][] = [
   ['S', 'FIRE'],
   ['D', 'MINE'],
-  ['A', 'TURBO'],
+  ['A', 'ROCKET FUEL'],
   ['SPACE', 'HANDBRAKE'],
   ['ESC', 'PAUSE'],
 ];
 const GAMEPAD: readonly [string, string][] = [
   ['A', 'FIRE'],
   ['X', 'MINE'],
-  ['Y', 'TURBO'],
+  ['Y', 'ROCKET FUEL'],
   ['B', 'HANDBRAKE'],
   ['START', 'PAUSE'],
 ];

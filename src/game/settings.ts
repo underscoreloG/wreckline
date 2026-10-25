@@ -43,6 +43,11 @@ export function loadSettings(storage: SettingsStorage | null): Settings {
   };
 }
 
+/** The stored quick race track when it still exists, else the first of `trackIds` (null and unknown ids included). */
+export function quickTrackOrFirst(id: string | null, trackIds: readonly string[]): string | undefined {
+  return id !== null && trackIds.includes(id) ? id : trackIds[0];
+}
+
 export function saveSettings(storage: SettingsStorage | null, s: Settings): void {
   try {
     storage?.setItem(SETTINGS_KEY, JSON.stringify(s));

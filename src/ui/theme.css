@@ -486,6 +486,34 @@ html {
   margin-left: auto;
 }
 
+/* The one compact row under START: quick race TRACK picker or career SABOTAGE. */
+.prerace-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.tile.prerace-row {
+  gap: 0.75rem;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.875rem;
+}
+
+.tile.prerace-row:disabled {
+  cursor: default;
+}
+
+.prerace-row-value {
+  flex: 1;
+  text-align: center;
+}
+
+.prerace-poor,
+.prerace-hit {
+  color: var(--danger);
+}
+
 /* ------------------------------------------------------------ pause */
 
 .pause-screen {

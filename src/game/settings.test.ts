@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SETTINGS, loadSettings, saveSettings, SETTINGS_KEY, type SettingsStorage } from './settings';
+import { DEFAULT_SETTINGS, loadSettings, quickTrackOrFirst, saveSettings, SETTINGS_KEY, type SettingsStorage } from './settings';
 
 const memory = (init: Record<string, string> = {}): SettingsStorage & { data: Record<string, string> } => {
   const data = { ...init };
@@ -39,5 +39,14 @@ describe('settings', () => {
     };
     expect(loadSettings(broken)).toEqual(DEFAULT_SETTINGS);
     expect(() => saveSettings(broken, DEFAULT_SETTINGS)).not.toThrow();
+  });
+
+  it('quick race track: the stored id when it exists, else the first track (null and unknown ids)', () => {
+    const ids = ['a', 'b', 'c'];
+    expect(quickTrackOrFirst('b', ids)).toBe('b');
+    expect(quickTrackOrFirst(null, ids)).toBe('a');
+    expect(quickTrackOrFirst('gone', ids)).toBe('a');
+    const st = memory({ [SETTINGS_KEY]: JSON.stringify({ ...DEFAULT_SETTINGS, quickTrackId: 'gone' }) });
+    expect(loadSettings(st).quickTrackId).toBe('gone');
   });
 });

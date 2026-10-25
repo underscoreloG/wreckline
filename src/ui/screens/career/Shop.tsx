@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { getCar } from '../../../content/cars';
-import { computeStats, MAX_UPGRADE_LEVEL, MINE_PRICE, repairCost, SHOP_MINES_CAP, SHOP_TURBO_CAP, TURBO_PRICE_PER_SECOND, UPGRADE_EFFECTS } from '../../../content/economy';
+import { computeStats, MAX_LEVEL, MINE_PRICE, repairCost, SHOP_MINES_CAP, SHOP_TURBO_CAP, TURBO_PRICE_PER_SECOND, UPGRADE_ADDS, UPGRADE_EFFECTS } from '../../../content/economy';
 import { nextUpgradeCost, shopCars, tradeInValue } from '../../../meta/shop';
 import type { CarStats, GameCommand, SaveGame, UiState, UpgradeKind } from '../../../shared/contracts';
 import { Button } from '../../components/Button';
@@ -21,11 +21,23 @@ const STAT_TEXT: Partial<Record<keyof CarStats, string>> = {
   turnRate: 'turning',
   maxHp: 'armor',
   gunDps: 'gun damage',
+  turboSpeedMult: 'fuel speed',
+  turboAccelMult: 'fuel thrust',
+  ramDealtMult: 'ram damage',
+  ramTakenMult: 'ram damage taken',
 };
 
-/** "+5% top speed, +6% accel" from the content table, so WP12 tuning shows up here as is. */
+/** Shop names (content.md naming note); the code ids stay fuel / spikes. */
+const UPGRADE_TITLE: Partial<Record<UpgradeKind, string>> = { fuel: 'Rocket fuel', spikes: 'Bumper spikes' };
+
+const pct = (k: number): string => `${k < 0 ? '-' : '+'}${Math.round(Math.abs(k) * 100)}%`;
+
+/** "+5% top speed, +6% accel" from the content tables (multiplicative, then additive), so WP12 tuning shows up here as is. */
 const deltaText = (kind: UpgradeKind): string =>
-  (Object.entries(UPGRADE_EFFECTS[kind]) as [keyof CarStats, number][]).map(([stat, mult]) => `+${Math.round((mult - 1) * 100)}% ${STAT_TEXT[stat] ?? stat}`).join(', ');
+  [
+    ...(Object.entries(UPGRADE_EFFECTS[kind]) as [keyof CarStats, number][]).map(([stat, mult]) => `${pct(mult - 1)} ${STAT_TEXT[stat] ?? stat}`),
+    ...(Object.entries(UPGRADE_ADDS[kind]) as [keyof CarStats, number][]).map(([stat, step]) => `${pct(step)} ${STAT_TEXT[stat] ?? stat}`),
+  ].join(', ');
 
 interface Offer {
   key: string;
@@ -41,7 +53,7 @@ function offersFor(tab: Tab, save: SaveGame): Offer[] {
   if (tab === 'upgrades') {
     return (Object.keys(UPGRADE_EFFECTS) as UpgradeKind[]).map((kind) => ({
       key: kind,
-      title: kind,
+      title: UPGRADE_TITLE[kind] ?? kind,
       detail: deltaText(kind),
       cost: nextUpgradeCost(save, kind),
       extra: String(save.upgrades[kind]),
@@ -53,7 +65,7 @@ function offersFor(tab: Tab, save: SaveGame): Offer[] {
     return [
       { key: 'repair', title: 'Repair', detail: `${Math.round(save.hp)} / ${computeStats(car, save.upgrades).maxHp} hp`, cost: missing > 0 ? repairCost(car, missing) : null, cmd: { type: 'repair', amount: 'full' } },
       { key: 'mines', title: 'Mine x1', detail: `${save.mines} / ${SHOP_MINES_CAP} carried`, cost: save.mines < SHOP_MINES_CAP ? MINE_PRICE : null, cmd: { type: 'buyMines', count: 1 } },
-      { key: 'turbo', title: 'Turbo +1 s', detail: `${save.turbo.toFixed(1)} / ${SHOP_TURBO_CAP} s carried`, cost: save.turbo < SHOP_TURBO_CAP ? Math.ceil(Math.min(1, SHOP_TURBO_CAP - save.turbo) * TURBO_PRICE_PER_SECOND) : null, cmd: { type: 'buyTurbo', seconds: 1 } },
+      { key: 'turbo', title: 'Rocket fuel +1 s', detail: `${save.turbo.toFixed(1)} / ${SHOP_TURBO_CAP} s carried`, cost: save.turbo < SHOP_TURBO_CAP ? Math.ceil(Math.min(1, SHOP_TURBO_CAP - save.turbo) * TURBO_PRICE_PER_SECOND) : null, cmd: { type: 'buyTurbo', seconds: 1 } },
     ];
   }
   const tradeIn = tradeInValue(save);
@@ -70,10 +82,10 @@ function offersFor(tab: Tab, save: SaveGame): Offer[] {
   });
 }
 
-function Pips({ level }: { level: number }) {
+function Pips({ level, max }: { level: number; max: number }) {
   return (
     <span className="pips">
-      {Array.from({ length: MAX_UPGRADE_LEVEL }, (_, i) => (
+      {Array.from({ length: max }, (_, i) => (
         <span key={i} className={`pip${i < level ? ' on' : ''}`} />
       ))}
     </span>
@@ -100,7 +112,7 @@ function TabList({ tab, save, setTab }: { tab: Tab; save: SaveGame; setTab: (t: 
                 <span className="tile-detail muted">{o.detail}</span>
                 {tab === 'cars' && o.extra && <span className="tile-detail muted">{o.extra}</span>}
               </span>
-              {tab === 'upgrades' && <Pips level={Number(o.extra)} />}
+              {tab === 'upgrades' && <Pips level={Number(o.extra)} max={MAX_LEVEL[o.key as UpgradeKind]} />}
               <span className={`tile-cost num display${poor ? ' poor' : ''}`}>{o.cost === null ? (tab === 'upgrades' ? 'MAX' : 'FULL') : formatCash(o.cost)}</span>
             </Tile>
           );

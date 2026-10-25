@@ -120,7 +120,7 @@ function careerSave(screen: Screen): SaveGame {
     wins: 3,
     rivals: s.rivals.map((r, i) => ({ ...r, points: r.points + (i % 4) * 3 })),
   };
-  if (screen === 'champion') return { ...mid, cash: 18640, points: 96, racesRun: 31, wins: 14, championWon: true };
+  if (screen === 'champion') return { ...mid, cash: 18640, points: 96, racesRun: 31, wins: 14, wrecks: 23, cashEarned: 61250, championWon: true };
   // Low cash so the garage shows all three repairs: +25% unaffordable, MAX partial, FULL.
   return screen === 'garage' ? { ...mid, cash: 90 } : mid;
 }

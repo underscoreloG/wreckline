@@ -1,7 +1,7 @@
 import { formatKmh } from '../format';
 
-// Display scale only: a stock Raven tops out near 125 km/h, upgrades plus turbo reach ~200.
-const MAX_KMH = 200;
+// Display scale only: a stock Raven tops out near 140 km/h; rocket fuel 5 + engine 5 on a viper reaches ~341.
+const MAX_KMH = 360;
 // 240-degree arc, open at the bottom, in a 100x80 box.
 const ARC = 'M 17.09 69 A 38 38 0 1 1 82.91 69';
 

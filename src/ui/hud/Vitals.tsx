@@ -19,7 +19,7 @@ export function Vitals({ hp, maxHp, turbo, turboActive, mines, gunHeat, gunOverh
         <span className="v">{Math.ceil(hp)}</span>
       </div>
       <div className={`vital-row${turboActive ? ' turbo-active' : ''}`}>
-        <span className="k">TURBO</span>
+        <span className="k">FUEL</span>
         <div className="bar">
           <div className={`bar-fill turbo-fill${turboActive ? ' active' : ''}`} style={{ width: pct(turbo / MAX_TURBO_CARRIED) }} />
         </div>
