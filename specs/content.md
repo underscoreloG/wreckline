@@ -13,8 +13,8 @@ Roster from the concept sheet `specs/art/cars-concept-v1.webp` (decided 2026-10-
 | `iceberg` | Iceberg | false | 0 | 1 | 36.8 | 14.4 | 22 | 2.4 | 0.76 | 1500 | 135 | 22 |
 | `scorch` | Scorch | true | 6000 | 2 | 42.6 | 18 | 25 | 2.5 | 0.80 | 1400 | 140 | 26 |
 | `blaze` | Blaze | false | 0 | 2 | 46 | 19.2 | 27 | 2.8 | 0.84 | 1150 | 110 | 26 |
-| `titan` | Titan | true | 11000 | 2 | 40.3 | 15.6 | 26 | 2.2 | 0.80 | 1900 | 190 | 32 |
-| `viper` | Viper | true | 16000 | 3 | 49.5 | 20.4 | 28 | 2.9 | 0.88 | 1200 | 120 | 30 |
+| `titan` | Titan | true | 9000 | 2 | 40.3 | 15.6 | 26 | 2.2 | 0.80 | 1900 | 190 | 32 |
+| `viper` | Viper | true | 12000 | 3 | 49.5 | 20.4 | 28 | 2.9 | 0.88 | 1200 | 120 | 30 |
 | `wraith` | Wraith (boss only) | false | 0 | 3 | 51.8 | 21.6 | 30 | 2.9 | 0.90 | 1700 | 220 | 34 |
 
 `price` is the shop price for `forSale` cars and the trade-in base for every car (starter and rival-only cars trade in for 0). Tuning pass 1 (2026-10-25, user: "a little bit too slow"): every maxSpeed x1.15 and accel x1.20 from the first values (raven was 34 / 13).
@@ -66,7 +66,7 @@ Cost to buy level L (1..5): `[300, 700, 1500, 3000, 6000][L-1] * tierMult`, `tie
 | free tow (user decision 2026-10-25) | when the car has 0 hp and the player cannot afford a repair to 30% of maxHp, it is repaired to `ceil(0.3 * maxHp)` for free, with the message "Towed: free repair to 30%". Checked after every race result, every shop action and on career load, so a career can never get stuck | - |
 | mine | 60 each | 8 carried |
 | rocket fuel (turbo) | 40 per second | 10 s carried |
-| sabotage | `round(0.3 * offer.prizes[0])`: easy 180, medium 360, hard 750, boss 3000 | once per race |
+| sabotage | `round(0.3 * offer.prizes[0])`: easy 270, medium 540, hard 1125, boss 3000 | once per race |
 | car | table price, `forSale` cars only; trade-in gives 50% of the current car's price; upgrades are lost; new car starts at full hp | - |
 
 Starting career: cash 600, car `raven`, upgrades all 0, hp 100, mines 2, turbo 3 s.
@@ -103,7 +103,7 @@ Mines:
 | position | 1.0 m behind the rear bumper |
 | arm time | 0.6 s (the owner can't trigger it before it arms) |
 | trigger | any car center within 2.0 m + half car width of an armed mine |
-| damage | 40 at the center, linear falloff to 20 at 4.0 m blast radius; 0 beyond |
+| damage | 50 at the center, linear falloff to 25 at 4.0 m blast radius; 0 beyond |
 | impulse | each hit car: velocity change of 8 m/s away from the mine, angVel += +-3 rad/s (sign from rng) |
 | lifetime | 45 s, max 24 on track (oldest removed silently) |
 
@@ -157,7 +157,7 @@ Pickup radius 2.2 m + half car width. Respawn after 8 s (tuning pass 1; was 12 s
 | 1.0 | 0.97 | 0.3 | 5 | 0.75 | 0.70 | 0.90 | 0.00 |
 | 1.1 | 1.00 | 0.2 | 4 | 0.90 | 0.85 | 1.00 | 0.00 |
 
-reactionTicks rounds to an integer. The boss also gets +6% maxSpeed on top of `wraith` stats.
+reactionTicks rounds to an integer. The boss runs plain `wraith` stats (WP12: the +6% maxSpeed bonus was removed, `BOSS_MAX_SPEED_MULT` 1, user decision "Beatable boss").
 
 Rubber banding is mild and only in easy and medium races (user decision 2026-10-23: hard and boss never cheat). In `hard` and `boss` career races every AI profile gets `rubberBand: 0` after `profileForSkill` (WP09 applies it when building the RaceSetup). M1 quick race uses the table as is.
 
@@ -201,15 +201,15 @@ Livery use: with procedural placeholder cars (M1) the whole body takes the liver
 | r19 | BANSHEE | #FF3355 | viper | 0.96 |
 | boss | THE WARDEN | #1A1A1A with #FF3355 trim | wraith | 1.10 |
 
-Rivals' upgrade levels: `floor(skill * 5)` on every line, capped at 5, except spikes `floor(skill * 3)`, capped at 3. The boss: fuel 5, spikes 3.
+Rivals' upgrade levels: `floor(skill * 2)` on every line (fuel included), capped at 5, except spikes `floor(skill * 3)`, capped at 3. The boss (skill 1.1): every line 2, spikes 3. (WP12, user decision "Beatable boss": was `floor(skill * 5)`, boss fuel 5.)
 
 ## 11. Career economy (M2, used by WP09)
 
 | tier | laps | rivals drawn from | prizes (1st..4th) | points (1st..4th) | cash pickup value | wreck bonus |
 |---|---|---|---|---|---|---|
-| easy | 3 | 3 rivals with the lowest skill among ranks below the player (or the bottom 6 if fewer) | 600, 350, 150, 0 | 3, 2, 1, 0 | 100 | 250 |
-| medium | 4 | 3 rivals within +-3 ranks of the player | 1200, 700, 300, 0 | 6, 4, 2, 1 | 200 | 375 |
-| hard | 5 | 3 rivals from the top 6 ranks | 2500, 1400, 600, 100 | 10, 6, 3, 1 | 400 | 625 |
+| easy | 3 | 3 rivals with the lowest skill among ranks below the player (or the bottom 6 if fewer) | 900, 530, 230, 0 | 3, 2, 1, 0 | 100 | 250 |
+| medium | 4 | 3 rivals within +-5 ranks of the player | 1800, 1050, 450, 0 | 6, 4, 2, 1 | 200 | 375 |
+| hard | 5 | 3 rivals from the top 6 ranks | 3750, 2100, 900, 150 | 10, 6, 3, 1 | 400 | 625 |
 | boss | 5 | the boss + 2 rivals from the top 3 | 10000, 0, 0, 0 | 0 | 0 | 0 |
 
 - The boss offer replaces the hard offer while the player is rank 1. Winning it sets `championWon`.

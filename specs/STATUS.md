@@ -1,7 +1,7 @@
 # Wreckline - status
 Phase: 4 for M2 (wave C1 merged; waiting on the user's art and sound steps)   Size: L   Milestone: M1   Updated: 2026-10-25
 Integration pattern: merges of a running wave go into `integ/<wave>` so main stays put while workers run; main fast-forwards after the last merge.
-Next action: v0.5.1 released (AI wreck fix). Remaining: listening session (user), WP14 car models (waits for RAVEN GLB + 7 sheets), WP12 balance over 10 tracks, M2 release.
+Next action: WP12 merged on main 318cbe3 (not pushed, no release yet). Remaining: listening session (user), WP14 car models (waits for RAVEN GLB + 7 sheets), M2 release.
 Remote: origin = git@github.com:underscoreloG/wreckline.git (public since 2026-10-25; Pages source = GitHub Actions, set by the user; site will be https://underscorelog.github.io/wreckline/ - not yet deployed).
 Ledger edits stay uncommitted on main while a worker runs (workers check that main did not move).
 
@@ -54,7 +54,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | WP23a | Junkyard Sprint, Pine Hollow | C2 | subagent | opus high | merged | agent affbffcf6260e8584 | wp/23a-tracks (7fd20c2) | junkyardSprint 834 m ref 23 walls 2.75 wrecks 0.50; pineHollow 1397 m ref 36.5 walls 2.00 wrecks 0.81 |
 | WP23b | Rain District, Blast Pit | C2 | subagent | opus high | merged | agent afdd68226264e08fa | wp/23b-tracks (1d49285) | rainDistrict 1165 m ref 31.5 (n=28) walls 2.50 wrecks 0.38; blastPit 1608 m ref 41 (n=28) walls 2.44 wrecks 0.38, 17 pickups |
 | WP24 | AI stops pushing wrecks (CCR-7) | C3 | subagent | opus high | merged | agent a8ca5b3ad2aa17e5c | wp/24-ai-wrecks (dc3df99) | one-liner + pass target, crawl <= 3 m/s near a wreck, wreck beats pickup override; shoves > 10 s 10/160 -> 0/160; frostbite ref 32.5; v0.5.1 |
-| WP12 | Balance and polish | C3 | session | opus high | todo | - | | |
+| WP12 | Balance and polish | C3 | session | opus high | merged | session local_9916c9c8-1108-46ed-ab2e-591a619e5f47 | wp/12-balance (318cbe3) | 533/533; run.mjs 8/8 in target (16 seeds x 4 starts x 10 tracks, 0 timeouts); greedy champion 15/16 in 22-38 races; CCR-8 own commit 8f490be, test fails without fix (brain-checked) |
 
 ## Helper agents (not WPs)
 | Task | When | Model | Effort |
@@ -79,6 +79,8 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | GC / M2 | - |
 
 ## Open
+- From WP12 (watch at playtest/GC): Scrapyard and Rain District wrecks 0.23 (floor 0.2); mine hits 2.84 (ceiling 3), Neon Mile 4.45 on its own; greedy cash by race 5 is 10250 in the worst seed vs a 1000 floor (early shop may feel easy, not playtested); a 0.55-level driver needs 31-47 races. content.md updated with WP12 numbers 2026-10-25. Off-sim medians and AI scales live in code (tuning-log WP12 entry).
+- CCR-8 FIXED by WP12 (8f490be, merged 318cbe3). Was: AI crawling behind a wreck (WRECK_CRAWL 3 m/s > STUCK_SPEED 1.5) stays in contact and shoves it 30-80 s without recovery. Fix: count "glued to a wreck" as stuck. Own commit + regression test + main-values re-soak logged before the retune. Repro rainDistrict seed 14, 0.75 AI slot 0.
 - From WP24 (for WP12): Frostbite (-0.24 s) and Junkyard Sprint (-0.21 s) medians sit at the edge of the 0.25 s referenceLapTime tolerance; after a far-side pass of a wreck the avoid offset can reach ~14 m and decays at 2 m/s (AI off-line a few seconds); live-car avoidance still picks its side from the racing line, not the blocker's position.
 - CCR-7 FIXED by WP24 (v0.5.1). Was: AI avoidance skips cars that are not slower, so an AI can shove a wreck at ~6 m/s on full throttle for 70+ s (stuck detector misses it, speed > 1.5). Fix in src/sim/ai.ts avoidance: `if (!o.wrecked && speed - oSpeed <= AVOID_SLOWER) continue;`. Changes every soak number, so it goes with a re-soak (WP12, or a small WP before it). WP23a/b picked starts that avoid it (2 of 6 Pine Hollow starts hit it).
 - Integration C3: WP23b's test compared Blast Pit with every registered track, which failed once Blast Pit itself was registered; brain fixed the test to skip itself (22a7670).
