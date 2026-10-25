@@ -22,7 +22,7 @@ Before you start:
 
 1. **Sheet (ChatGPT).** New chat, attach the concept sheet, paste the whole `text` block from `<id>.md` as-is, send. Download the result as PNG.
 2. **Check the sheet** against "Reject and regenerate if" below. A small miss (roof decal, one stray label): ask in the same chat "Same image, only change: <the fix>". A big miss (wrong car, wrong layout, perspective views): regenerate in a new chat.
-3. **Model (Tripo, image to model).** Crop the FRONT, SIDE and REAR views out of the sheet into 3 separate PNGs (Preview: drag a rectangle around one view with some grey margin, Tools > Crop, File > Export as PNG; repeat per view). In Tripo, start a multi-view image-to-model job: FRONT in the front slot, REAR in the back slot, SIDE in the side slot. The SIDE view shows the car's right flank (nose pointing right): if the model comes back with the nose and tail swapped, put SIDE in the other side slot and regenerate.
+3. **Model (Tripo, image to model).** Since 2026-10-25 the brain cuts the views for you: drop `sheet.png` and tell the brain; it writes `art-incoming/cars/<id>/views/{front,side,rear,top,hero}.png`, flipping SIDE to nose-right and turning TOP to nose-up when the sheet got those wrong (so do not regenerate a sheet for orientation alone). Use those files in Tripo. (Manual fallback: crop the FRONT, SIDE and REAR views out of the sheet into 3 separate PNGs (Preview: drag a rectangle around one view with some grey margin, Tools > Crop, File > Export as PNG; repeat per view.) In Tripo, start a multi-view image-to-model job: FRONT in the front slot, REAR in the back slot, SIDE in the side slot. The SIDE view shows the car's right flank (nose pointing right): if the model comes back with the nose and tail swapped, put SIDE in the other side slot and regenerate.
 4. **Export GLB.** Check the model in Tripo's viewer against "Reject and regenerate if", then export as GLB.
 5. **Drop the files** in the main project checkout (`/Users/kevin/Downloads/Claude/wreckline`, not a worktree), exactly here (the folder is gitignored, WP14 reads from it):
    - `art-incoming/cars/<id>/sheet.png`
@@ -47,7 +47,7 @@ Tripo's option names change between versions (not checked against the current UI
 Sheet (step 2):
 - Any text, label, number, watermark or real brand logo in the image.
 - A view is missing, cropped, or in perspective (only the hero view may have perspective).
-- SIDE has the nose pointing left, or TOP has the nose pointing anywhere but up.
+- SIDE has the nose pointing left, or TOP has the nose pointing anywhere but up: no longer a reason to regenerate, the brain fixes it when cutting the views.
 - The views are not at the same scale (the car's length differs between SIDE and TOP).
 - The background is not plain flat grey: gradient, floor, ground shadow, reflections.
 - The roof has decals, stripes, a skull or flames (TITAN: turret on the cab roof).

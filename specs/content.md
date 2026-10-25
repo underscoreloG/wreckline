@@ -19,7 +19,7 @@ Roster from the concept sheet `specs/art/cars-concept-v1.webp` (decided 2026-10-
 
 `price` is the shop price for `forSale` cars and the trade-in base for every car (starter and rival-only cars trade in for 0). Tuning pass 1 (2026-10-25, user: "a little bit too slow"): every maxSpeed x1.15 and accel x1.20 from the first values (raven was 34 / 13).
 
-Mesh specs (procedural placeholders until the art WPs; also the collider size, so imported models are scaled to `length` x `width`):
+Mesh specs (procedural placeholders until the art WPs; also the collider size). When WP14 imports the models, each car's `length` x `width` changes to the model's own proportions at the same area (user decision 2026-10-25: the hitbox follows the art), and the model is scaled uniformly to it:
 
 | id | style | length | width | height | cabinLength | cabinOffset | spoiler | wheelRadius |
 |---|---|---|---|---|---|---|---|---|
