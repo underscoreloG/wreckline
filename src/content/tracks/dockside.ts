@@ -125,10 +125,12 @@ const BASE: TrackDef = {
   props: [],
 };
 
-// 'left' is the outside of this clockwise loop: on the water straight (s 214-403) it is the quay edge,
-// so only light poles stand there (lateral ~13 m; the water starts 16 m out, see render/themes/docks.ts).
+// 'left' is the outside of this clockwise loop. From T3 to T4 (s 160-470) the left side is the quay edge:
+// the water starts 1.5 m beyond the wall (render/themes/docks.ts), so no prop stands there.
 export const DOCKSIDE_PROP_RULES: readonly PropRule[] = [
-  { sFrom: 0, sTo: 'length', every: 40, side: 'alternate', offset: 2.5, kind: 'lightPole', scale: 1 },
+  { sFrom: 0, sTo: 160, every: 40, side: 'alternate', offset: 2.5, kind: 'lightPole', scale: 1 },
+  { sFrom: 180, sTo: 470, every: 40, side: 'right', offset: 2.5, kind: 'lightPole', scale: 1 },
+  { sFrom: 480, sTo: 'length', every: 40, side: 'alternate', offset: 2.5, kind: 'lightPole', scale: 1 },
   { sFrom: 0, sTo: 160, every: 9, side: 'both', offset: 2, kind: 'barrel', scale: 1 },
   { sFrom: 55, sTo: 140, every: 6, side: 'both', offset: 1.5, kind: 'cone', scale: 1 },
   { sFrom: 220, sTo: 400, every: 12, side: 'right', offset: 2, kind: 'crate', scale: [0.8, 1.2] },
