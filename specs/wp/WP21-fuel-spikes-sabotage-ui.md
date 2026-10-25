@@ -10,6 +10,7 @@ Dispatch: subagent (opus, effort high).
 - Pre-race (career only): one compact row: `SABOTAGE  <NAME>  $<price>`; confirm buys it (toast "Sabotaged: <NAME> -<pct>%", error toast "Not enough cash" / "Already sabotaged"); once bought the row shows the result instead. Hidden in quick race.
 - `buySabotage` command wired through careerSession (persist after purchase).
 - HUD: the turbo bar label reads `FUEL`; controls screen reads "Rocket fuel". No other HUD change (the user dislikes clutter).
+- Quick race track picker (user decision 2026-10-25): the quick race pre-race screen gets a TRACK row (left/right) over every track in `TRACKS` with its name and the existing SVG `TrackOutline`; the setup uses the chosen id; the last choice is remembered in settings storage. Career pre-race keeps showing the offer's track. Career hub shows "New track: <name>" once when `newlyUnlocked` reports one.
 - Behind the results screen the race session stops rendering and updating audio (WP19 found the loop still calls `audio.update` there, which can restart engine sounds after `stopRace`).
 - Champion screen: show career `wrecks` and `cashEarned` (CCR-1 fields now exist).
 - Car mesh: `spec.spikes` 1/2/3 adds 2/4/6 short cone spikes along the front bumper (dark metal, flat shaded); styles that already carry spikes (`boss`) add none. Triangle budget per car rises to < 420; draw calls per car unchanged (spikes merged into the body geometry).

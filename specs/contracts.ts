@@ -117,7 +117,12 @@ export type PropKind =
   | 'cone'
   | 'rock'
   | 'cactus'
-  | 'building';
+  | 'building'
+  // CCR-6 (2026-10-25): props for the snow, city and quarry themes
+  | 'pine'
+  | 'snowbank'
+  | 'billboard'
+  | 'crane';
 
 export interface PropPlacement {
   kind: PropKind;
@@ -126,7 +131,7 @@ export interface PropPlacement {
   scale: number; // 1 = default size
 }
 
-export type TrackTheme = 'scrapyard' | 'desert' | 'docks';
+export type TrackTheme = 'scrapyard' | 'desert' | 'docks' | 'snow' | 'city' | 'quarry'; // CCR-6 adds the last three
 
 export interface TrackDef {
   id: string;
@@ -451,7 +456,7 @@ export interface RivalState {
 }
 
 export interface SaveGame {
-  version: 2; // v1 saves migrate on load: new upgrade kinds 0, wrecks 0, cashEarned 0, sabotage null (CCR-5)
+  version: 2; // v1 saves migrate on load: new upgrade kinds 0, wrecks 0, cashEarned 0, sabotage null (CCR-5), bestRank = current rank (CCR-6)
   cash: number;
   carDefId: string;
   upgrades: UpgradeLevels;
@@ -463,6 +468,7 @@ export interface SaveGame {
   wins: number;
   rivals: RivalState[]; // 19 rivals, the boss is not in this list
   championWon: boolean;
+  bestRank: number; // best (lowest) rank ever reached, 20 at start; drives track unlocks (CCR-6)
   wrecks: number; // career total of wrecks caused by the player (CCR-1)
   cashEarned: number; // career total of payouts (CCR-1)
   /** Sabotage bought for the current round's offer, applied when that offer's race starts, cleared after it (CCR-5). */

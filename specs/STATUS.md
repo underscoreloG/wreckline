@@ -1,7 +1,7 @@
 # Wreckline - status
 Phase: 4 for M2 (wave C1 merged; waiting on the user's art and sound steps)   Size: L   Milestone: M1   Updated: 2026-10-25
 Integration pattern: merges of a running wave go into `integ/<wave>` so main stays put while workers run; main fast-forwards after the last merge.
-Next action: fresh-context review of CCR-5 + WP20/WP21 specs, fix, then dispatch WP20 (core) and after it WP21 (UI). User steps still open: RAVEN sheet (WP13U), TITAN turret answer, sound downloads (WP15U). WP14/WP16 after the files land; WP12 balance last.
+Next action: fresh-context review of CCR-5/CCR-6 and WP20-WP23 specs (opus max), fix, then WP20 -> (WP21 | WP22) -> (WP23a | WP23b). User steps still open: RAVEN sheet, TITAN turret answer, sound downloads. WP14/WP16 after files land (WP14 after WP21); WP12 last, over all 10 tracks.
 Remote: origin = git@github.com:underscoreloG/wreckline.git (public since 2026-10-25; Pages source = GitHub Actions, set by the user; site will be https://underscorelog.github.io/wreckline/ - not yet deployed).
 Ledger edits stay uncommitted on main while a worker runs (workers check that main did not move).
 
@@ -50,13 +50,16 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | WP19 | Instant results after the player finishes | C2 | subagent | opus high | merged | agent a12b5e40d94dfc639 | wp/19-instant-results (764c1da) | results 90 ticks after finish/wreck, deep-equal to waiting; fast-forward <= 810 ticks on 16 seeds; v0.3.1 |
 | WP20 | Rocket fuel, spikes, sabotage: contract, sim, content, career logic | C2 | subagent | opus high | todo | - | | after WP19; applies CCR-5 |
 | WP21 | Rocket fuel, spikes, sabotage: screens, HUD, visuals | C2 | subagent | opus high | todo | - | | after WP20; before WP14 |
+| WP22 | Snow, city, quarry themes, new props, 3 tracks | C2 | subagent | opus high | todo | - | | after WP20, parallel with WP21 |
+| WP23a | Junkyard Sprint, Pine Hollow | C2 | subagent | opus high | todo | - | | after WP22 |
+| WP23b | Rain District, Blast Pit | C2 | subagent | opus high | todo | - | | after WP22; brain registers TRACKS lines |
 | WP12 | Balance and polish | C3 | session | opus high | todo | - | | |
 
 ## Helper agents (not WPs)
 | Task | When | Model | Effort |
 |---|---|---|---|
 | Brain (this session) | all phases | opus | high (max while dispatching reviewers) |
-| Spec reviewer + recheck | Phase 3, and after any large spec change | opus | max |
+| Spec reviewer + recheck | Phase 3, and after any large spec change (next: CCR-5/6, WP20-23) | opus | max |
 | Art critic (WP14 art gate) | after wave C2 | opus | max |
 | glTF optimizer version pin (npm) | before WP14 | haiku | high |
 | Fact lookups during briefs | as needed | sonnet | high |
@@ -92,6 +95,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 - Minor review items still open (`specs/REVIEW-2026-10-23.md`): 23 (finished cars coast and stay hittable), 24 (aim target and impact speed wording), 25 (names/colors past 3 AIs, TRACKS shape), 27 (sound check, fps checks need a visible pane), 28 (handbrake flag, audio car stats, layout map), 30 (easy-rival fallback wording), 31 (doc drift: GC seeds, placeProps args, WP12 probe runner).
 - Before WP14: pin a glTF optimizer version on npm into SPEC.md section 2.
 - From WP08: App is mounted by src/game/index.ts (rule 5: main.tsx may not create input/audio), accepted. Any keydown/pointerdown unlocks audio. Results delay counts 150 sim ticks. Title backdrop restarts its fake race every ~7 min (wrecked-car reset visuals unchecked). Pages workflow runs on push to main.
+- 2026-10-25 Tracks (user: "around 10 total", grilled): 7 new layouts; 3 new themes snow/city/quarry (+1 more scrapyard track), visual only; career unlocks 3 at start + 1 per 2 ranks (bestRank, all 10 by rank 6); quick race track picker shows all 10. CCR-6 (TrackTheme, PropKind, SaveGame.bestRank) rides with CCR-5 in WP20. WP22 themes/props/3 tracks, WP23a/b 4 tracks.
 - 2026-10-25 New features (user request + grill): Bumper Spikes = upgrade line 0-3 (front ram damage +50%/level dealt, -15%/level taken); Sabotage = 30% of 1st prize, once per race, target the rival with most points (boss in boss race), random 25-49% damage at the start, any race incl. boss, rivals never sabotage; Rocket Fuel = the boost renamed in UI, upgrade line 0-5 (+4% speed, +8% accel per level); rivals get spikes floor(skill*3), fuel floor(skill*5). CCR-5 contract change (+ CCR-1 save fields) -> WP20 core, WP21 UI.
 - 2026-10-25 User on v0.3.0, verbatim: "waiting for the ai to finish the race to go to the main menu is kinda annoying". Fix: results 1.5 s after the player finishes or wrecks, the rest of the race fast-forwarded headlessly so results stay identical (WP19).
 - 2026-10-25 Soft-lock rule: free tow to ceil(30% maxHp) when hp 0 and the player cannot afford 30%; garage adds +25% and MAX partial repairs (WP18). Release v0.3.0 (career) after WP18.

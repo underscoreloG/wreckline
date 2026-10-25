@@ -136,6 +136,14 @@ Query params (dev and prod, handled in `main.tsx`):
 | WP15 | Sound list (Pixabay picks) | C1 | M1 gate | `specs/sfx/**` | sonnet high | subagent |
 | WP15U | Download the sounds | U1 | WP15 | `art-incoming/sfx/**` (gitignored) | external: pixabay.com/sound-effects in the user's browser | user:Pixabay |
 | WP16 | Sound import and mix | C2 | WP05, WP15U | `src/audio/**`, `scripts/sfx/**`, `public/sfx/**`, `docs/sfx-sources.md` | opus high | subagent |
+| WP17 | M1 tuning pass 1 | 5 | M1 | values in `src/content/**`, camera/fx, pinned test values | opus high | subagent |
+| WP18 | Career soft-lock fix | C2 | WP10 | `src/meta/shop.ts`, `src/game/careerSession.ts`, `Garage.tsx` (+ tests) | opus high | subagent |
+| WP19 | Instant results | C2 | WP08 | `src/game/**` | opus high | subagent |
+| WP20 | Rocket fuel, spikes, sabotage, unlocks: core | C2 | WP19 | `src/shared/contracts.ts` (CCR-5, CCR-6), `src/content/**` except tracks, `src/sim/{vehicle,combat}.ts`, `src/meta/**` | opus high | subagent |
+| WP21 | Rocket fuel, spikes, sabotage, track picker: UI | C2 | WP20 | `src/ui/**`, `src/game/**`, `src/render/carMesh.ts` | opus high | subagent |
+| WP22 | Snow, city, quarry themes, new props, 3 tracks | C2 | WP20 | `src/render/themes/**`, `src/render/props.ts`, prop radii/colliders, 3 track files, `tracks/index.ts` | opus high | subagent |
+| WP23a | Junkyard Sprint, Pine Hollow | C2 | WP22 | 2 track files + test | opus high | subagent |
+| WP23b | Rain District, Blast Pit | C2 | WP22 | 2 track files + test | opus high | subagent |
 | WP12 | Balance and polish | C3 | WP09-11 merged | values in `src/content/**`, AI scale constants in `src/sim/ai.ts`, expected values in tuning-pinned tests (list in WP12), `scripts/balance/**`, `docs/tuning-log.md` | opus high | session |
 
 WP06 is intentionally unused (reserved). Each WP spec lists exact deliverables, algorithms, numbers and acceptance tests. WP12 runs as a session because feel tuning needs the user's live steering; all others are fresh-context subagents in their own worktree.
@@ -167,6 +175,7 @@ M1 gate: orchestrator verification in the browser pane, then the user playtests.
 Wave C1: WP09 | WP11 | WP13 | WP15        (4 agents in parallel) -> merge
 Wave U1: WP13U | WP15U                     (user: 8 car sheets + models with ChatGPT and Tripo; sound downloads from Pixabay)
 Wave C2: WP10 | WP14 | WP16                (WP10 needs the career API and the M1 shell; WP14 the user's models; WP16 the user's sounds) -> merge -> art gate (brain: lineup screenshots, fresh critic agent (opus, max effort) vs the concept sheet, then the user)
+Wave C2b: WP20 (core) -> WP21 (UI) | WP22 (themes, props, 3 tracks) -> WP23a | WP23b (4 tracks; brain registers them in TRACKS at merge)
 Wave C3: WP12                              (session with the user, after C1+C2) -> gate GC = M2
 ```
 
@@ -257,6 +266,6 @@ Same pipeline as the football project (Pixel Pitch):
 | `specs/sim-internal.ts` | Mutable sim world shared by WP01, WP02, WP07 (frozen) |
 | `specs/content.md` | Cars, upgrades, weapons, pickups, AI profiles, economy, rivals, tracks (numbers) |
 | `specs/design.md` | Art direction, palette, lighting, camera, UI design system, screen layouts |
-| `specs/wp/WP00-foundation.md` ... `WP16-sound-import.md` | One spec per work package |
+| `specs/wp/WP00-foundation.md` ... `WP23-four-more-tracks.md` | One spec per work package |
 | `specs/art/cars-concept-v1.webp` | Car concept sheet: look target for the roster and WP13-WP14 |
 | `specs/STATUS.md` | Orchestrator ledger: phase, decisions, WP states (workers don't need it) |
