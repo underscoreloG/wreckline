@@ -10,4 +10,4 @@ export const MAX_TURBO_CARRIED = 10;
 
 /** Collect radius is this plus half the car width. */
 export const PICKUP_RADIUS = 2.2;
-export const PICKUP_RESPAWN_SECONDS = 12;
+export const PICKUP_RESPAWN_SECONDS = 8; // tuning pass 1, was 12

@@ -50,9 +50,12 @@ export class Particles {
   private readonly aColor: THREE.InstancedBufferAttribute;
   private readonly aVel: THREE.InstancedBufferAttribute;
   private static readonly F = 18;
+  /** true: alpha rises from 0 to a0 at mid-life and falls back to 0 (a1 unused), for speed streaks. */
+  private readonly fadeInOut: boolean;
 
-  constructor(capacity: number, additive: boolean) {
+  constructor(capacity: number, additive: boolean, fadeInOut = false) {
     this.cap = capacity;
+    this.fadeInOut = fadeInOut;
     this.st = new Float32Array(capacity * Particles.F);
     const geo = new THREE.PlaneGeometry(1, 1);
     geo.deleteAttribute('normal');
@@ -147,7 +150,7 @@ export class Particles {
       col[q] = s[o + 10];
       col[q + 1] = s[o + 11];
       col[q + 2] = s[o + 12];
-      col[q + 3] = s[o + 13] + (s[o + 14] - s[o + 13]) * t;
+      col[q + 3] = this.fadeInOut ? s[o + 13] * 4 * t * (1 - t) : s[o + 13] + (s[o + 14] - s[o + 13]) * t;
       vel[q] = s[o + 3];
       vel[q + 1] = s[o + 4];
       vel[q + 2] = s[o + 5];

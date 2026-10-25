@@ -45,7 +45,16 @@ describe('render: camera', () => {
     cam.update(SIM_DT, { ...input, phase: 'countdown', countdown: 3 });
     expect(cam.height).toBeCloseTo(90, 3);
     cam.update(SIM_DT, { ...input, phase: 'countdown', countdown: 0 });
-    expect(cam.height).toBeCloseTo(52, 3);
+    expect(cam.height).toBeCloseTo(46, 3);
+  });
+
+  it('height is 46 m at rest and settles at 62 m at maxSpeed (0.4 s time constant)', () => {
+    const cam = new FollowCamera();
+    cam.update(SIM_DT, input);
+    expect(cam.height).toBeCloseTo(46, 3);
+    expect(cam.camera.position.y).toBeCloseTo(46, 3);
+    for (let i = 0; i < 4 * 60; i++) cam.update(SIM_DT, { ...input, speed: input.maxSpeed });
+    expect(cam.height).toBeCloseTo(62, 2);
   });
 
   it('camera sits south of the target, tilted ~18 deg', () => {

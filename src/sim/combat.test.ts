@@ -289,7 +289,7 @@ describe('wrecks', () => {
 });
 
 describe('pickups', () => {
-  it('11. cash is collected once, inactive 12 s, respawns; a full-hp car does not take repair', () => {
+  it('11. cash is collected once, inactive 8 s, respawns; a full-hp car does not take repair', () => {
     const { sim, world } = make();
     const cash = world.pickups.find((p) => p.kind === 'cash')!;
     const car = place(world, 0, cash.pos.x, cash.pos.y, 0);

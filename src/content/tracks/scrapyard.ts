@@ -8,7 +8,7 @@ const BASE: TrackDef = {
   width: 14,
   shoulder: 2,
   checkpointSpacing: 40,
-  referenceLapTime: 31, // WP07 measured the 0.55 AI median clean lap: 30.95 s (2026-10-25)
+  referenceLapTime: 27.5, // WP17 measured the 0.55 AI median clean lap after tuning pass 1: 27.70 s over 16 soak seeds (was 31 from WP07's 30.95 s)
   centerline: [
     { x: 0, y: 0 },
     { x: 120, y: 0 },
@@ -28,12 +28,19 @@ const BASE: TrackDef = {
     { x: -90, y: 70 },
     { x: -50, y: 20 },
   ],
+  // 12 since tuning pass 1 (user: "more bonuses"): cash 4, mines 3, turbo 3, repair 2.
   pickups: [
+    { kind: 'mines', s: 70, lateral: -3 },
     { kind: 'cash', s: 150, lateral: -3 },
+    { kind: 'turbo', s: 230, lateral: 3 },
     { kind: 'mines', s: 300, lateral: 3 },
+    { kind: 'repair', s: 360, lateral: -4 },
     { kind: 'cash', s: 420, lateral: 4 },
+    { kind: 'mines', s: 520, lateral: -2 },
     { kind: 'repair', s: 600, lateral: 0 },
+    { kind: 'cash', s: 700, lateral: -3 },
     { kind: 'cash', s: 820, lateral: 0 },
+    { kind: 'turbo', s: 880, lateral: 3 },
     { kind: 'turbo', s: 950, lateral: -2 },
   ],
   props: [],
