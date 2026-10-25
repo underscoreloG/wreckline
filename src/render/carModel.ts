@@ -7,14 +7,14 @@ import type { CarMeshSpec } from '../shared/contracts';
  * y = 0, plus the roof plate boxes in `manifest.json`. A model that fails to load stays procedural (buildCarMesh).
  */
 
-/** Roof plate box in the car frame (+x forward, origin at the ground center); `trim` = light edge for dark bodies. */
+/** Roof plate box in the car frame (+x forward, origin at the ground center); `decal` = its center x and size when not the plate's. */
 export interface RoofPlateBox {
   x: number;
   z: number;
   length: number;
   width: number;
   y: number;
-  trim?: boolean;
+  decal?: { x: number; size: number };
 }
 
 /** Fetchers, injectable so tests run without a network or a GPU. */

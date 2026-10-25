@@ -59,7 +59,7 @@ describe('render: car models', () => {
     expect(ma.material).toBe(mb.material);
   });
 
-  it('imported car: the model, its own tintable body material, the roof plate sized and placed from the manifest', async () => {
+  it('imported car: the model, its own tintable body material, the roof plate (with its light edge trim) sized and placed from the manifest', async () => {
     await preloadCarModels([SPEC], loader());
     const parts = buildCarParts(SPEC, '#2EA8FF');
     expect(parts.wheels).toHaveLength(0);
@@ -67,20 +67,28 @@ describe('render: car models', () => {
     const plate = parts.group.getObjectByName('roofPlate') as THREE.Mesh;
     plate.geometry.computeBoundingBox();
     const bb = plate.geometry.boundingBox!;
-    expect(bb.max.x - bb.min.x).toBeCloseTo(BOX.length * 0.95, 5);
-    expect(bb.max.z - bb.min.z).toBeCloseTo(BOX.width * 0.95, 5);
+    expect(bb.max.x - bb.min.x).toBeCloseTo(BOX.length * 0.95 + 0.2, 5);
+    expect(bb.max.z - bb.min.z).toBeCloseTo(BOX.width * 0.95 + 0.2, 5);
     expect((bb.max.x + bb.min.x) / 2).toBeCloseTo(BOX.x, 5);
     expect((bb.max.z + bb.min.z) / 2).toBeCloseTo(BOX.z, 5);
-    expect(bb.min.y).toBeCloseTo(BOX.y, 5);
+    expect(bb.min.y).toBeCloseTo(BOX.y - 0.005, 5); // the trim, 1 cm under the plate center line, dips 5 mm into the roof
     expect(getRoofPlate(SPEC)).toEqual(BOX);
   });
 
-  it('dark bodies: the trim widens the plate by its edge on each side', async () => {
-    await preloadCarModels([SPEC], loader({ ...BOX, trim: true }));
-    const plate = buildCarParts(SPEC, '#FF5A1F').group.getObjectByName('roofPlate') as THREE.Mesh;
-    plate.geometry.computeBoundingBox();
-    const bb = plate.geometry.boundingBox!;
-    expect(bb.max.x - bb.min.x).toBeCloseTo(BOX.length * 0.95 + 0.2, 5);
+  it('the manifest can move and size the decal (TITAN: clear of the turret barrel)', async () => {
+    await preloadCarModels([SPEC], loader({ ...BOX, decal: { x: 0.3, size: 0.5 } }));
+    const geo = (buildCarParts(SPEC, '#2EA8FF').group.getObjectByName('roofPlate') as THREE.Mesh).geometry;
+    // The decal is the only geometry above the plate top (y + 0.02 center + 0.02 half height).
+    const pos = geo.getAttribute('position');
+    let x0 = Infinity;
+    let x1 = -Infinity;
+    for (let i = 0; i < pos.count; i++) {
+      if (pos.getY(i) < BOX.y + 0.044) continue;
+      x0 = Math.min(x0, pos.getX(i));
+      x1 = Math.max(x1, pos.getX(i));
+    }
+    expect((x0 + x1) / 2).toBeCloseTo(0.3, 5);
+    expect(x1 - x0).toBeLessThanOrEqual(0.5 + 1e-6);
   });
 
   it('bumper spikes go onto the model front as one extra mesh', async () => {

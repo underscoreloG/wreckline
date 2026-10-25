@@ -23,7 +23,6 @@ const CELL = 0.025; // m, top-down height map resolution
 const FLAT_TOL = 0.07; // m, a plateau holds cells within this of its highest cell (the lofted roofs have a ~6 cm crown)
 /** Collider area length x width from content.md section 1 before WP14: the hitbox rule keeps it (cars.ts holds the rounded result). */
 const AREA = { raven: 4.2 * 2.0, outlaw: 3.8 * 2.0, iceberg: 4.9 * 2.1, scorch: 4.8 * 2.2, blaze: 4.4 * 2.0, titan: 5.2 * 2.4, viper: 4.5 * 2.0, wraith: 5.2 * 2.4 };
-const DARK_BODY = ['raven', 'wraith']; // design.md "Car art": light edge trim on the roof plate
 
 /**
  * Nose direction in the input file and how it was decided. Every input came from one Blender session that built
@@ -43,13 +42,18 @@ const NOSE_YAW = { '+x': 0, '-x': Math.PI, '+z': Math.PI / 2, '-z': -Math.PI / 2
 
 /**
  * Roof plate boxes set by hand, in input-file coordinates (x long, y up, z wide), where the detector cannot work:
- * OUTLAW's open cage has no panel (box on the top rails), ICEBERG's rack would hide a plate on the roof panel,
- * and TITAN's turret barrel splits the cab roof, so the detector keeps only the part in front of the barrel tip.
+ * OUTLAW's open cage has no panel (box on the top rails); ICEBERG's plate sits on the rack top, inside its outer
+ * rails so they still read; TITAN's turret barrel splits the cab roof (the detector keeps only the part in front of
+ * the barrel tip), so the plate covers the cab roof and its decal moves ahead of the barrel tip (x -0.24) plus
+ * ~0.1 m of camera-tilt parallax; VIPER's top sections are flat across the whole body width (z +-0.84 at y 1.272,
+ * where BLAZE's roof tapers off past +-0.3), which the detector rightly measures as 1.7 m but reads wider than the
+ * painted cabin, so it takes BLAZE's plate width on the same body.
  */
 const MANUAL_PLATE = {
   outlaw: { x0: -0.78, x1: 0.35, z0: -0.52, z1: 0.52, y: 1.64, why: 'cage top rails (model-notes)' },
-  iceberg: { x0: -1.86, x1: 0.28, z0: -0.67, z1: 0.67, y: 1.885, why: 'roof rack top (model-notes)' },
-  titan: { x0: -1.0, x1: 0.63, z0: -0.61, z1: 0.61, y: 1.84, why: 'whole cab roof under the barrel (flat roof vertices)' },
+  iceberg: { x0: -1.49, x1: -0.09, z0: -0.4, z1: 0.4, y: 1.885, why: 'rack top inside its rails (model-notes)' },
+  titan: { x0: -1.0, x1: 0.63, z0: -0.61, z1: 0.61, y: 1.84, decal: { x: 0.2, size: 0.75 }, why: 'whole cab roof, decal ahead of the barrel' },
+  viper: { x0: -0.97, x1: 0.2, z0: -0.6, z1: 0.6, y: 1.272, why: "detected roof length, BLAZE's 1.2 m width" },
 };
 
 const round = (v) => Math.round(v / ROUND) * ROUND;
@@ -246,9 +250,10 @@ for (const id of ids) {
       length: fixed(s * (manual.x1 - manual.x0)),
       width: fixed(s * (manual.z1 - manual.z0)),
       y: fixed(s * (manual.y - b.min[1])),
+      ...(manual.decal ? { decal: { x: fixed(s * (manual.decal.x - cx)), size: fixed(s * manual.decal.size) } } : {}),
     };
   } else plate = detectPlate(map);
-  manifest[id] = { ...plate, ...(DARK_BODY.includes(id) ? { trim: true } : {}) };
+  manifest[id] = plate;
 
   const file = path.join(OUT, `${id}.glb`);
   await io.write(file, doc);

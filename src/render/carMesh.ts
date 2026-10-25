@@ -37,7 +37,7 @@ const SPIKE_HEIGHT = 0.25; // fraction of body height above the body bottom
 const SPIKE_SPREAD = 0.8; // fraction of width the row covers
 const MUSCLE_BUMPER = 0.12; // the muscle push bar sticks out this far past the nose
 const PLATE_FILL = 0.95; // plate size as a fraction of its roof box
-const PLATE_TRIM = 0.1; // m, light edge around the plate on dark bodies (design.md "Car art")
+const PLATE_TRIM = 0.1; // m, light edge around imported plates so one never blends into a same-colour body (design.md "Car art")
 
 /** Side profiles, x in -0.5..0.5 of length (front = +x), y in 0..1 of height. Listed CCW: bottom edge, then the top from nose to tail. */
 const PROFILES: Record<CarMeshStyle, readonly (readonly [number, number])[]> = {
@@ -137,10 +137,19 @@ export interface CarParts {
 }
 
 /** Roof plate: livery color with one bold darker decal (kind from the color), optional light edge trim, its own mesh. */
-function plateGeometry(x: number, y: number, z: number, length: number, width: number, color: string, trim: boolean): THREE.BufferGeometry {
+function plateGeometry(
+  x: number,
+  y: number,
+  z: number,
+  length: number,
+  width: number,
+  color: string,
+  trim: boolean,
+  mark = { x, size: Math.min(length, width) * 0.75 },
+): THREE.BufferGeometry {
   const parts = [
     paint(at(boxNoBottom(length, 0.04, width), x, y, z), color),
-    paint(at(decal(hashString(color) % 3, Math.min(length, width) * 0.75), x, y + 0.025, z), shade(color, DECAL_SHADE)),
+    paint(at(decal(hashString(color) % 3, mark.size), mark.x, y + 0.025, z), shade(color, DECAL_SHADE)),
   ];
   if (trim) parts.push(paint(at(boxNoBottom(length + 2 * PLATE_TRIM, 0.03, width + 2 * PLATE_TRIM), x, y - 0.01, z), STEEL));
   return merge(parts);
@@ -161,7 +170,7 @@ function importedParts(spec: CarMeshSpec, color: string, model: THREE.Group, box
   });
   const bounds = new THREE.Box3().setFromObject(model);
   const plateMaterial = new THREE.MeshStandardMaterial({ ...flat, roughness: 0.55, metalness: 0.1 });
-  const plate = new THREE.Mesh(plateGeometry(box.x, box.y + 0.02, box.z, box.length * PLATE_FILL, box.width * PLATE_FILL, color, !!box.trim), plateMaterial);
+  const plate = new THREE.Mesh(plateGeometry(box.x, box.y + 0.02, box.z, box.length * PLATE_FILL, box.width * PLATE_FILL, color, true, box.decal), plateMaterial);
   plate.name = 'roofPlate';
   model.add(plate);
   const spikes = buildSpikesGeometry(spec);
