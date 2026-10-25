@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0 - Balance pass (2026-10-25)
+
+- Shorter career: a strong player can become champion in roughly 20-35 races instead of 90+.
+- Rivals carry lighter upgrades, and THE WARDEN no longer gets a speed bonus over a stock Wraith: the boss is beatable with a well-upgraded Viper.
+- Race prizes up 50% (sabotage prices follow); Titan now 9000, Viper 12000.
+- Mines hit harder (50 at the centre, 25 at the edge); AI drivers fire a little more and drop fewer mines.
+- Medium races draw rivals from a wider rank window, so they no longer match the easy race at career start.
+- AI drivers stuck nose-to-nose with a wreck now back off and steer round it.
+
 ## 0.5.1 - AI fix (2026-10-25)
 
 - AI drivers no longer push wrecked cars along the track: they slow down behind a wreck and pass it with room to spare.

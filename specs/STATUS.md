@@ -1,7 +1,7 @@
 # Wreckline - status
 Phase: 4 for M2 (wave C1 merged; waiting on the user's art and sound steps)   Size: L   Milestone: M1   Updated: 2026-10-25
 Integration pattern: merges of a running wave go into `integ/<wave>` so main stays put while workers run; main fast-forwards after the last merge.
-Next action: WP12 merged on main 318cbe3 (not pushed, no release yet). Remaining: listening session (user), WP14 car models (waits for RAVEN GLB + 7 sheets), M2 release.
+Next action: v0.6.0 released (WP12 balance pass). Remaining: listening session (user), WP14 car models (waits for RAVEN GLB + 7 sheets), M2 release.
 Remote: origin = git@github.com:underscoreloG/wreckline.git (public since 2026-10-25; Pages source = GitHub Actions, set by the user; site will be https://underscorelog.github.io/wreckline/ - not yet deployed).
 Ledger edits stay uncommitted on main while a worker runs (workers check that main did not move).
 
