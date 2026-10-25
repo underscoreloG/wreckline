@@ -33,7 +33,7 @@ Water: `ThemeDef.water` is `{ color: string; point: Vec2; normal: Vec2 } | null`
 
 Look target: `specs/art/cars-concept-v1.webp` (8 cars: RAVEN, BLAZE, TITAN, VIPER, OUTLAW, SCORCH, ICEBERG, WRAITH). Grungy low-poly bodies with rust, chipped paint, bull bars, spikes and pixel-crisp decals. M1 races with the procedural placeholders of WP03; WP13 and WP14 bring the real models after a "yes" at the fun gate.
 
-Readability rules (the race camera is 52-64 m up with FOV 34, so a car is ~135 px long at 1080p, measured by WP03; the earlier ~40 px estimate was wrong):
+Readability rules (the race camera is 46-62 m up with FOV 34 (tuning pass 1), so a car is ~150 px long at 1080p at rest (WP03 measured ~135 px at 52 m); the earlier ~40 px estimate was wrong):
 - Each car is told apart by **silhouette** from above (buggy cage, wagon roof rack, truck bed and turret, wedge wing, boss spikes) and by its **roof plate** in the driver's livery color with one bold decal (content.md section 9).
 - Grunge, small decals and skulls are for the garage, shop and results screens, where cars are seen up close. Nothing gameplay-relevant depends on them.
 - Body paint stays as in the concept; it must still contrast with the dark world palette (no car body darker than `#2A2622` over more than half its top area without a lighter trim line: RAVEN and WRAITH get a light edge trim on the roof plate).
@@ -58,7 +58,7 @@ Readability rules (the race camera is 52-64 m up with FOV 34, so a car is ~135 p
 
 - Perspective, FOV 34 deg, near 1, far 600. Fixed world orientation (north-up), never rotates with the car.
 - Position = `target + (0, height, height * 0.32)` looking at `target`. That tilts the view about 18 deg so car sides and walls read in 3D.
-- `height` = 52 m at rest, rising linearly to 64 m at the player's `eff.maxSpeed`, smoothed with a 0.4 s time constant.
+- `height` = 46 m at rest, rising linearly to 62 m at the player's `eff.maxSpeed`, smoothed with a 0.4 s time constant (tuning pass 1, was 52-64: closer at low speed and a bigger pull-back at speed sell the pace).
 - `target` = player pos + player velocity * 0.35 s, clamped to 14 m from the car, smoothed by a critically damped spring (smooth time 0.18 s).
 - Shake: trauma model. Trauma += 0.25 for player impact >= 8 m/s, 0.4 for a nearby mine (< 12 m), 0.6 for a wreck explosion < 15 m. Trauma decays at 1.6/s. Offset = trauma^2 * 1.2 m * value noise (x, z). Disabled when `cameraShake` is off.
 - During countdown: start from height 90 and ease to the normal height over the 3 s countdown.
@@ -77,7 +77,7 @@ Readability rules (the race camera is 52-64 m up with FOV 34, so a car is ~135 p
 | tracers | `gunShot` | thin additive line from->to, 60 ms fade, color `#FFE08A` |
 | mine | `MineState` | dark disc + red LED blinking at 2 Hz unarmed, 5 Hz armed |
 | explosion | `mineExploded`, `carWrecked` | flash sphere (0.1 s), fireball particles, dark smoke column (3 s), debris chunks, ground scorch decal (stays for the race), shockwave ring |
-| turbo | `turboActive` | blue-white flame cones at the exhaust + subtle FOV +3 deg for the player |
+| turbo | `turboActive` | blue-white flame cones at the exhaust + subtle FOV +3 deg for the player + speed streaks: 20-30 thin additive white lines (0.05 m wide, 4-8 m long, 0.25 s life) spawned in a ring 6-20 m around the player car, aligned with its velocity, fading in and out (player only, quality high only) |
 | pickups | active `PickupState` | floating rotating icon mesh (cash: green box with $ shape, repair: white wrench-like cross, mines: red disc stack, turbo: blue canister), emissive, bob 0.3 m at 1 Hz, ground glow ring |
 | wreck | `wrecked` | car material darkened to 20% brightness, wheels detached slightly (tilted), smoke column until race end |
 

@@ -8,16 +8,16 @@ Roster from the concept sheet `specs/art/cars-concept-v1.webp` (decided 2026-10-
 
 | id | name | forSale | price | tier | maxSpeed | accel | brake | turnRate | grip | mass | maxHp | gunDps |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `raven` | Raven (starter) | false | 0 | 1 | 34 | 13 | 24 | 2.7 | 0.78 | 1100 | 100 | 22 |
-| `outlaw` | Outlaw | false | 0 | 1 | 33 | 15 | 24 | 3.1 | 0.80 | 850 | 80 | 20 |
-| `iceberg` | Iceberg | false | 0 | 1 | 32 | 12 | 22 | 2.4 | 0.76 | 1500 | 135 | 22 |
-| `scorch` | Scorch | true | 6000 | 2 | 37 | 15 | 25 | 2.5 | 0.80 | 1400 | 140 | 26 |
-| `blaze` | Blaze | false | 0 | 2 | 40 | 16 | 27 | 2.8 | 0.84 | 1150 | 110 | 26 |
-| `titan` | Titan | true | 11000 | 2 | 35 | 13 | 26 | 2.2 | 0.80 | 1900 | 190 | 32 |
-| `viper` | Viper | true | 16000 | 3 | 43 | 17 | 28 | 2.9 | 0.88 | 1200 | 120 | 30 |
-| `wraith` | Wraith (boss only) | false | 0 | 3 | 45 | 18 | 30 | 2.9 | 0.90 | 1700 | 220 | 34 |
+| `raven` | Raven (starter) | false | 0 | 1 | 39.1 | 15.6 | 24 | 2.7 | 0.78 | 1100 | 100 | 22 |
+| `outlaw` | Outlaw | false | 0 | 1 | 38 | 18 | 24 | 3.1 | 0.80 | 850 | 80 | 20 |
+| `iceberg` | Iceberg | false | 0 | 1 | 36.8 | 14.4 | 22 | 2.4 | 0.76 | 1500 | 135 | 22 |
+| `scorch` | Scorch | true | 6000 | 2 | 42.6 | 18 | 25 | 2.5 | 0.80 | 1400 | 140 | 26 |
+| `blaze` | Blaze | false | 0 | 2 | 46 | 19.2 | 27 | 2.8 | 0.84 | 1150 | 110 | 26 |
+| `titan` | Titan | true | 11000 | 2 | 40.3 | 15.6 | 26 | 2.2 | 0.80 | 1900 | 190 | 32 |
+| `viper` | Viper | true | 16000 | 3 | 49.5 | 20.4 | 28 | 2.9 | 0.88 | 1200 | 120 | 30 |
+| `wraith` | Wraith (boss only) | false | 0 | 3 | 51.8 | 21.6 | 30 | 2.9 | 0.90 | 1700 | 220 | 34 |
 
-`price` is the shop price for `forSale` cars and the trade-in base for every car (starter and rival-only cars trade in for 0). Raven, Viper and Wraith keep the numbers of the former rattler, viper and warden, so M1 balance is unchanged.
+`price` is the shop price for `forSale` cars and the trade-in base for every car (starter and rival-only cars trade in for 0). Tuning pass 1 (2026-10-25, user: "a little bit too slow"): every maxSpeed x1.15 and accel x1.20 from the first values (raven was 34 / 13).
 
 Mesh specs (procedural placeholders until the art WPs; also the collider size, so imported models are scaled to `length` x `width`):
 
@@ -121,7 +121,7 @@ Wrecks:
 | mines | +2 | 8 |
 | turbo | +2 s | 10 s |
 
-Pickup radius 2.2 m + half car width. Respawn after 12 s. A full car (at cap) does not collect, the pickup stays.
+Pickup radius 2.2 m + half car width. Respawn after 8 s (tuning pass 1; was 12 s). A full car (at cap) does not collect, the pickup stays.
 
 ## 7. Race rules (used by WP01)
 
@@ -213,7 +213,7 @@ Verified with the prototype validator: length ~1049 m, min radius ~16.6 m (at s 
 
 ```ts
 id: 'scrapyard', name: 'Scrapyard', theme: 'scrapyard',
-width: 14, shoulder: 2, checkpointSpacing: 40, referenceLapTime: 31, // WP07 measured the 0.55 AI median clean lap: 30.95 s (2026-10-25)
+width: 14, shoulder: 2, checkpointSpacing: 40, referenceLapTime: 31, // WP07 measured 30.95 s; WP17 re-measures after tuning pass 1 and sets it
 centerline: [
   { x: 0, y: 0 }, { x: 120, y: 0 }, { x: 180, y: 20 }, { x: 205, y: 70 },
   { x: 190, y: 130 }, { x: 140, y: 150 }, { x: 110, y: 190 }, { x: 130, y: 240 },
@@ -221,10 +221,13 @@ centerline: [
   { x: 0, y: 170 }, { x: -60, y: 180 }, { x: -100, y: 140 }, { x: -90, y: 70 },
   { x: -50, y: 20 },
 ],
-pickups: [
-  { kind: 'cash', s: 150, lateral: -3 }, { kind: 'mines', s: 300, lateral: 3 },
-  { kind: 'cash', s: 420, lateral: 4 }, { kind: 'repair', s: 600, lateral: 0 },
-  { kind: 'cash', s: 820, lateral: 0 }, { kind: 'turbo', s: 950, lateral: -2 },
+pickups: [ // 12 since tuning pass 1 (user: "more bonuses"): cash 4, mines 3, turbo 3, repair 2
+  { kind: 'mines', s: 70, lateral: -3 }, { kind: 'cash', s: 150, lateral: -3 },
+  { kind: 'turbo', s: 230, lateral: 3 }, { kind: 'mines', s: 300, lateral: 3 },
+  { kind: 'repair', s: 360, lateral: -4 }, { kind: 'cash', s: 420, lateral: 4 },
+  { kind: 'mines', s: 520, lateral: -2 }, { kind: 'repair', s: 600, lateral: 0 },
+  { kind: 'cash', s: 700, lateral: -3 }, { kind: 'cash', s: 820, lateral: 0 },
+  { kind: 'turbo', s: 880, lateral: 3 }, { kind: 'turbo', s: 950, lateral: -2 },
 ],
 ```
 
