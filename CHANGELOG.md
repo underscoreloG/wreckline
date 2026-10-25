@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0 - Real cars, dressed tracks (2026-10-26)
+
+- All 8 cars are real 3D models now, in races and in the garage turntable, each with its own look; the roof plate in the driver's colour has a light edge so it always stands out.
+- Tracks get dressed per theme: longer kerbs, barriers, varied ground and road wear, a start grid, light pools under lamps, flags, grandstands, steam vents and neon. Visual only: driving and balance are unchanged.
+- Each car has its own engine sound, from RAVEN's V8 burble to VIPER's scream and WRAITH's supercharger whine.
+- Headlights are two soft beams per car, and only on dark tracks.
+- Boost feels faster: a short exhaust flame, a camera kick, motion blur at the screen edges and dust or snow rushing past, instead of the white glowing streaks.
+
 ## 0.6.0 - Balance pass (2026-10-25)
 
 - Shorter career: a strong player can become champion in roughly 20-35 races instead of 90+.
