@@ -53,7 +53,7 @@ Readability rules (the race camera is 46-62 m up with FOV 34 (tuning pass 1), so
 | HemisphereLight | sky `#5A6A8A`, ground `#2A2622`, intensity 0.55 | same |
 | DirectionalLight (key, warm dusk) | `#FFC48A`, 1.6, from (-0.6, -1, 0.35) direction, 2048 shadow map following the player, PCFSoft, shadow box 120 m | no shadows |
 | Lamp pools | additive radial-gradient quad on the ground under each lightPole + small emissive bulb sprite. No real point lights. | same |
-| Headlights | 2 emissive quads per car + one additive cone quad on the ground, 14 m long | quad only |
+| Headlights | 2 emissive quads per car + two soft additive beams on the ground, one per lamp, 13 m long, smooth fade in length and width (WP26); dark themes only (scrapyard, docks, snow, city), none on desert and quarry | quad only |
 | Tail lights | emissive, intensity x3 when `braking` | same |
 | Fog | `FogExp2('#1B1E26', 0.006)` | same |
 | Tone mapping | `ToneMappingEffect` AGX (via postprocessing), exposure 1.0 | renderer `ACESFilmicToneMapping`, no composer |
@@ -85,7 +85,7 @@ Readability rules (the race camera is 46-62 m up with FOV 34 (tuning pass 1), so
 | tracers | `gunShot` | thin additive line from->to, 60 ms fade, color `#FFE08A` |
 | mine | `MineState` | dark disc + red LED blinking at 2 Hz unarmed, 5 Hz armed |
 | explosion | `mineExploded`, `carWrecked` | flash sphere (0.1 s), fireball particles, dark smoke column (3 s), debris chunks, ground scorch decal (stays for the race), shockwave ring |
-| turbo | `turboActive` | blue-white flame cones at the exhaust + subtle FOV +3 deg for the player + speed streaks: 20-30 thin additive white lines (0.05 m wide, 4-8 m long, 0.25 s life) spawned in a ring 6-20 m around the player car, aligned with its velocity, fading in and out (player only, quality high only) |
+| turbo | `turboActive` | (WP26, user feedback 2026-10-25) short flickering exhaust flame on every boosting car, hot core to orange tip, the only boost element that may bloom. Player only: camera kick (FOV +7 deg in 0.15 s, holds +4 deg, eases back after turbo end) with a light shake that obeys the camera shake setting; edge blur in the post stack masked to the screen edges, strength following speed, 0.2 s fade (quality high only); low ground-level particles streaming backwards past the car in the theme colour (dust, spray, snow, grit), no bloom. Tuning constants in `src/render/{fx,camera,post}.ts` and `docs/tuning-log.md` |
 | pickups | active `PickupState` | floating rotating icon mesh (cash: green box with $ shape, repair: white wrench-like cross, mines: red disc stack, turbo: blue canister), emissive, bob 0.3 m at 1 Hz, ground glow ring |
 | wreck | `wrecked` | car material darkened to 20% brightness, wheels detached slightly (tilted), smoke column until race end |
 
