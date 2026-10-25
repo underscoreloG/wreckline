@@ -5,10 +5,12 @@ import { getCar } from '../content/cars';
 import { QUICK_RACE_CASH_VALUE } from '../content/economy';
 import { buildQuickRaceSetup } from '../content/quickRace';
 import { createInputSource } from '../input';
-import type { GameStore, InputFrame, RaceResult, RaceSetup, Renderer, UiState, Vec2 } from '../shared/contracts';
+import type { KeyValueStore } from '../meta/save';
+import type { GameCommand, GameStore, InputFrame, RaceResult, RaceSetup, Renderer, UiState, Vec2 } from '../shared/contracts';
 import { buildTrackGeometry } from '../shared/trackGeometry';
 import { initPhysics } from '../sim';
 import { App } from '../ui/App';
+import { createCareerSession, dnfResult } from './careerSession';
 import { installDebug } from './debug';
 import { createLoop } from './loop';
 import { transition, type Effect, type MachineInput } from './machine';
@@ -37,6 +39,24 @@ function safeStorage(): SettingsStorage | null {
   } catch {
     return null;
   }
+}
+
+/** The career save goes through the meta storage adapter (meta never touches the global itself). */
+function careerStorage(): KeyValueStore {
+  let ls: Storage | null = null;
+  try {
+    ls = window.localStorage;
+  } catch {
+    ls = null;
+  }
+  return {
+    get: (k) => ls?.getItem(k) ?? null,
+    set: (k, v) => {
+      if (!ls) throw new Error('localStorage unavailable');
+      ls.setItem(k, v);
+    },
+    remove: (k) => ls?.removeItem(k),
+  };
 }
 
 const intParam = (params: URLSearchParams, key: string): number | undefined => {
@@ -78,6 +98,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
   const storage = safeStorage();
   const input = createInputSource(window);
   const audio = createAudioEngine();
+  const career = createCareerSession(careerStorage());
   const initial: UiState = {
     screen: 'boot',
     previousScreen: null,
@@ -87,7 +108,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
     race: null,
     hud: null,
     results: null,
-    save: null,
+    save: career.save,
     offers: null,
     selectedOffer: null,
     lastPayout: null,
@@ -102,27 +123,88 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
   let backdropGen = 0;
   let override: Partial<InputFrame> | null = null;
   let debugDriven = false;
+  let mode: 'quick' | 'career' = 'quick';
+  let justChampion = false;
+  let toastId = 0;
 
-  const store = createGameStore(initial, (cmd) => {
+  const toast = (text: string, kind: NonNullable<UiState['toast']>['kind']): void => store.set({ toast: { id: ++toastId, text, kind } });
+  const fail = (text: string): void => {
+    audio.ui('error');
+    toast(text, 'error');
+  };
+  /** Publishes the career save and offers, and reports a refused write. */
+  const publishCareer = (): void => {
+    store.set({ save: career.save, offers: career.offers });
+    if (!career.lastWriteOk) toast('Could not save: browser storage is full or blocked', 'error');
+  };
+
+  const onCommand = (cmd: GameCommand): void => {
+    const screen = store.getState().screen;
     switch (cmd.type) {
       case 'setSetting':
         applySettings(cmd.patch);
         return;
       case 'newCareer':
+        if (screen !== 'title' && screen !== 'champion') return;
+        career.newCareer(randomSeed());
+        mode = 'career';
+        publishCareer();
+        break;
       case 'continueCareer':
-      case 'selectOffer':
+        if (screen !== 'title') return;
+        if (!career.continueCareer()) return fail('No saved career found');
+        mode = 'career';
+        publishCareer();
+        break;
+      case 'navigate':
+        if (screen === 'career' && cmd.screen === 'raceSelect') {
+          career.ensureOffers();
+          publishCareer();
+        }
+        break;
+      case 'selectOffer': {
+        if (screen !== 'raceSelect') return;
+        const r = career.selectOffer(cmd.offerId, randomSeed());
+        if (!r.ok) return fail(r.error);
+        setup = r.setup;
+        store.set({ race: raceInfo(setup), hud: null, results: null, selectedOffer: cmd.offerId, lastPayout: null });
+        break;
+      }
       case 'buyUpgrade':
       case 'buyCar':
       case 'repair':
       case 'buyMines':
-      case 'buyTurbo':
-        // Allowed deferral: career commands are M1 no-ops, WP10 wires them.
-        console.warn(`[game] ${cmd.type} is not available in M1`);
+      case 'buyTurbo': {
+        if (mode !== 'career' || (screen !== 'shop' && screen !== 'garage')) return;
+        const r = career.shop(cmd);
+        if (!r.ok) return fail(r.error);
+        audio.ui('buy');
+        publishCareer();
         return;
-      default:
+      }
+      case 'restartRace':
+        if (mode === 'career' && (screen === 'paused' || screen === 'results')) return fail('No restarts in career');
+        break;
+      case 'quitRace':
+        if (mode === 'career' && screen === 'paused' && session) {
+          const { payout } = career.finishRace(dnfResult(session.setup, session.snapshot(), session.tally, session.sim.result()));
+          publishCareer();
+          store.set({ selectedOffer: null, lastPayout: null });
+          toast(payout.total > 0 ? `DNF - earned $${payout.total}` : 'DNF', 'info');
+        }
+        break;
+      case 'continueFromResults':
         run(cmd);
+        justChampion = false;
+        if (mode === 'career') store.set({ offers: career.offers, selectedOffer: null, lastPayout: null });
+        return;
+      case 'startQuickRace':
+        mode = 'quick';
+        break;
     }
-  });
+    run(cmd);
+  };
+  const store = createGameStore(initial, onCommand);
 
   const activeRenderer = (): Renderer | null => session?.renderer ?? backdrop?.renderer ?? null;
 
@@ -192,7 +274,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
         break;
       case 'buildSetup':
         setup = quickSetup(randomSeed());
-        store.set({ race: raceInfo(setup), hud: null, results: null });
+        store.set({ race: raceInfo(setup), hud: null, results: null, lastPayout: null, selectedOffer: null });
         break;
       case 'startSession':
         if (setup) startSession(setup).catch(report);
@@ -218,14 +300,20 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
         break;
       case 'showResults': {
         const r = session?.sim.result() ?? null;
-        store.set({ results: r && quickRaceResult(r) });
+        if (mode === 'career' && r) {
+          const { payout, champion } = career.finishRace(r);
+          justChampion = champion;
+          // Offers stay in the UI state until CONTINUE: the results PRIZE column reads the selected offer.
+          store.set({ results: r, lastPayout: payout, save: career.save });
+          if (!career.lastWriteOk) toast('Could not save: browser storage is full or blocked', 'error');
+        } else store.set({ results: r && quickRaceResult(r) });
         break;
       }
     }
   };
 
   const run = (mi: MachineInput): void => {
-    const t = transition(store.getState(), mi);
+    const t = transition({ ...store.getState(), career: mode === 'career', champion: justChampion }, mi);
     if (!t) return;
     store.set({ screen: t.screen, previousScreen: t.previousScreen });
     for (const e of t.effects) apply(e);

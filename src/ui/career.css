@@ -1,0 +1,526 @@
+/* M2 career screens (WP10), built on the WP04 tokens and primitives in theme.css. */
+
+.cash {
+  color: var(--cash);
+}
+
+.cash-flash {
+  display: inline-block;
+  animation: cash-flash 600ms var(--ease-out);
+}
+
+@keyframes cash-flash {
+  0% {
+    transform: scale(1.12);
+    text-shadow: 0 0 14px var(--cash);
+  }
+}
+
+.eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.btn.primary .btn-note {
+  color: var(--accent-ink);
+}
+
+.warn-text {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.actions.center {
+  justify-content: center;
+}
+
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.head-cash {
+  font-size: 1.25rem;
+}
+
+.menu-prompt {
+  margin: 0 0 0.25rem;
+  font-size: 0.875rem;
+}
+
+/* ------------------------------------------------------------ tiles (shop, offers) */
+
+.tile {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition:
+    transform var(--t-fast) var(--ease-out),
+    outline-color var(--t-fast) var(--ease-out),
+    background-color var(--t-fast) var(--ease-out);
+}
+
+.tile.focused {
+  outline-color: var(--accent);
+  background: rgba(255, 255, 255, 0.06);
+  transform: scale(1.02);
+}
+
+.tile.dim {
+  color: var(--muted);
+}
+
+.tile-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.tile-title {
+  font-size: 1rem;
+}
+
+.tile-detail {
+  font-size: 0.75rem;
+}
+
+.tile-cost {
+  min-width: 5.5rem;
+  text-align: right;
+  color: var(--cash);
+}
+
+.tile-cost.poor {
+  color: var(--danger);
+}
+
+.tile.dim .tile-cost:not(.poor) {
+  color: var(--muted);
+}
+
+.pips {
+  display: flex;
+  gap: 4px;
+}
+
+.pip {
+  width: 0.9rem;
+  height: 0.45rem;
+  border-radius: 2px;
+  background: var(--line-strong);
+}
+
+.pip.on {
+  background: var(--accent);
+}
+
+/* ------------------------------------------------------------ hub */
+
+.hub {
+  display: flex;
+  align-items: center;
+  gap: 2.5rem;
+}
+
+.hub-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 21rem;
+  padding: 1.5rem 1.75rem;
+}
+
+.hub-car {
+  margin: 0;
+  font-size: 1.75rem;
+  line-height: 1.1;
+}
+
+.hub-cash {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.kv-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.3rem 1.25rem;
+  margin-top: 0.4rem;
+  font-size: 0.875rem;
+}
+
+.hub-hp,
+.stat-row {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr 5.5rem;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.hub-hp {
+  grid-template-columns: auto 1fr auto;
+  margin-top: 0.4rem;
+}
+
+.hub-menu {
+  width: 16rem;
+}
+
+/* ------------------------------------------------------------ garage */
+
+.garage-panel {
+  width: min(62rem, 100%);
+}
+
+.garage-body {
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+}
+
+.car-preview {
+  flex: none;
+  width: min(512px, 55%);
+  height: auto;
+  aspect-ratio: 512 / 320;
+  border-radius: var(--radius-control);
+  background: radial-gradient(ellipse at 50% 60%, #222831 0%, #12151a 70%);
+}
+
+.garage-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  flex: 1;
+}
+
+.stat-row .num {
+  text-align: right;
+}
+
+.stat-base {
+  background: var(--muted);
+}
+
+/* Upgraded value drawn under the base bar: the accent tail is what the upgrades add. */
+.stat-up {
+  background: var(--accent);
+}
+
+.hp-row {
+  margin-top: 0.3rem;
+}
+
+.garage-supplies {
+  margin: 0;
+  font-size: 0.75rem;
+}
+
+/* ------------------------------------------------------------ shop */
+
+.shop-panel {
+  width: min(44rem, 100%);
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: -0.5rem;
+}
+
+.tab {
+  padding: 0.35rem 0.8rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.tab.on {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.shop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+/* ------------------------------------------------------------ race select */
+
+.race-select-panel {
+  width: min(64rem, 100%);
+}
+
+.offers {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.offer {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.6rem;
+  padding: 0 1rem 1rem;
+  overflow: hidden;
+}
+
+/* Tier color strip along the top edge (design.md). */
+.offer::before {
+  content: '';
+  display: block;
+  height: 5px;
+  margin: 0 -1rem 0.2rem;
+  background: var(--tier);
+}
+
+.tier-easy {
+  --tier: var(--cash);
+}
+
+.tier-medium {
+  --tier: var(--warning);
+}
+
+.tier-hard {
+  --tier: var(--danger);
+}
+
+.tier-boss {
+  --tier: #000;
+  border-color: var(--danger);
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.offer-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+}
+
+.offer-tier {
+  color: var(--tier);
+}
+
+.tier-boss .offer-tier {
+  color: var(--danger);
+}
+
+.offer-track {
+  font-size: 1.25rem;
+}
+
+.offer-outline {
+  display: block;
+  height: 6.5rem;
+}
+
+.offer-outline .track-outline {
+  width: 100%;
+  height: 100%;
+}
+
+.offer-rivals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.875rem;
+}
+
+.offer-rival {
+  display: grid;
+  grid-template-columns: auto 2.6rem 1fr;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.prize-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.75rem;
+}
+
+.prize-row {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr auto;
+}
+
+/* ------------------------------------------------------------ standings */
+
+.standings-panel {
+  width: min(36rem, 100%);
+  gap: 0.75rem;
+}
+
+.standings-table {
+  display: block;
+  overflow: auto;
+  min-height: 0;
+  font-size: 0.8rem;
+}
+
+.standings-table td {
+  padding: 0.18rem 0.75rem;
+}
+
+.boss-row td {
+  color: var(--muted);
+  border-top: 0;
+}
+
+.boss-swatch {
+  background: #1a1a1a;
+  box-shadow: inset 0 0 0 2px var(--danger);
+}
+
+/* ------------------------------------------------------------ results payout */
+
+.payout {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: flex-end;
+  align-items: baseline;
+  font-size: 0.875rem;
+}
+
+.payout-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+}
+
+.payout-item .muted {
+  font-size: 0.75rem;
+}
+
+.payout-item.total .cash {
+  font-size: 1.25rem;
+}
+
+/* ------------------------------------------------------------ champion */
+
+.champion-panel {
+  /* Above the confetti layer (absolutely positioned, so it would paint over a static panel). */
+  position: relative;
+  z-index: 1;
+  align-items: center;
+  width: min(34rem, 100%);
+  text-align: center;
+}
+
+.champion-title {
+  margin: -0.5rem 0 0;
+  font-size: 4rem;
+  line-height: 1;
+  color: var(--accent);
+}
+
+.champion-stats {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: 2rem;
+}
+
+.champion-stats > span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+}
+
+.champion-stats b {
+  font-size: 1.75rem;
+}
+
+.confetti {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.confetti span {
+  position: absolute;
+  top: -1rem;
+  width: 0.5rem;
+  height: 0.9rem;
+  border-radius: 1px;
+  opacity: 0.9;
+  animation: confetti-fall linear infinite;
+}
+
+@keyframes confetti-fall {
+  to {
+    transform: translate(var(--drift), 110vh) rotate(720deg);
+  }
+}
+
+/* ------------------------------------------------------------ toast */
+
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: 2.5rem;
+  transform: translateX(-50%);
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--line-strong);
+  background: var(--panel-solid);
+  font-size: 0.875rem;
+  font-weight: 600;
+  animation: item-in var(--t-med) var(--ease-out) both;
+}
+
+.toast.error {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.toast.cash {
+  border-color: var(--cash);
+  color: var(--cash);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confetti {
+    display: none;
+  }
+
+  .cash-flash,
+  .toast {
+    animation: none;
+  }
+
+  .tile {
+    transition: none;
+  }
+}

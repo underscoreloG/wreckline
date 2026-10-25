@@ -7,9 +7,9 @@ import { App } from './App';
 import type { FakeStore } from './fakeStore';
 import { createFakeStore } from './fakeStore';
 import type { HudFixture } from './fixtures';
-import { fixtureHud, fixtureState } from './fixtures';
+import { CAREER_SCREENS, fixtureHud, fixtureState } from './fixtures';
 
-const SCREENS: readonly Screen[] = ['boot', 'title', 'controls', 'settings', 'preRace', 'race', 'paused', 'results'];
+const SCREENS: readonly Screen[] = ['boot', 'title', 'controls', 'settings', 'preRace', 'race', 'paused', 'results', ...CAREER_SCREENS];
 const HUDS: readonly HudFixture[] = ['countdown', 'mid', 'critical'];
 
 const bar: CSSProperties = {
@@ -60,12 +60,13 @@ function Switcher({ store }: { store: FakeStore }) {
   );
 }
 
-/** `?harness=ui&screen=<Screen>[&hud=countdown|mid|critical]`, fake store at window.__harness.store. */
+/** `?harness=ui&screen=<Screen>[&hud=countdown|mid|critical][&career=1]`, fake store at window.__harness.store. */
 export function mountUiHarness(root: HTMLElement): void {
   const params = new URLSearchParams(window.location.search);
   const screen = (SCREENS as readonly string[]).includes(params.get('screen') ?? '') ? (params.get('screen') as Screen) : 'title';
   const hud = (HUDS as readonly string[]).includes(params.get('hud') ?? '') ? (params.get('hud') as HudFixture) : 'mid';
-  const store = createFakeStore(fixtureState(screen, hud));
+  const career = params.get('career') === '1' || CAREER_SCREENS.includes(screen);
+  const store = createFakeStore(fixtureState(screen, hud, career));
   const input = createInputSource(window);
   const nav = (cb: Parameters<typeof input.onNav>[0]) => input.onNav(cb);
   window.__harness = { store };

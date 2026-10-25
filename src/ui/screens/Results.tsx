@@ -6,6 +6,8 @@ import type { MenuItem } from '../hooks/useMenuFocus';
 import { useMenuFocus } from '../hooks/useMenuFocus';
 import { formatTime, ordinal } from '../format';
 import { useUi } from '../uiContext';
+import { formatCash } from './career/parts';
+import { Payout } from './career/Payout';
 
 function timeCell(r: RaceResultRow) {
   if (r.finished && r.totalTime !== null) return formatTime(r.totalTime);
@@ -14,8 +16,9 @@ function timeCell(r: RaceResultRow) {
 
 export function Results({ state }: { state: UiState }) {
   const { dispatch } = useUi();
-  // Restart is quick race only: a career race cannot be re-rolled.
-  const quick = state.save === null;
+  // Restart is quick race only: a career race cannot be re-rolled. A career result always comes with its payout.
+  const quick = state.lastPayout === null;
+  const offer = quick ? null : (state.offers?.find((o) => o.id === state.selectedOffer) ?? null);
   const items: MenuItem[] = [{ onConfirm: () => dispatch({ type: 'continueFromResults' }) }];
   if (quick) items.push({ onConfirm: () => dispatch({ type: 'restartRace' }) });
   const { itemProps } = useMenuFocus(items, items.length);
@@ -35,6 +38,7 @@ export function Results({ state }: { state: UiState }) {
               <th className="right">BEST LAP</th>
               <th className="right">TIME</th>
               <th className="right">WRECKS</th>
+              {offer && <th className="right">PRIZE</th>}
             </tr>
           </thead>
           <tbody>
@@ -50,10 +54,12 @@ export function Results({ state }: { state: UiState }) {
                 <td className="right">{r.bestLap === null ? '-' : formatTime(r.bestLap)}</td>
                 <td className="right">{timeCell(r)}</td>
                 <td className="right">{r.wrecksCaused}</td>
+                {offer && <td className="right cash">{formatCash(r.finished ? (offer.prizes[r.position - 1] ?? 0) : 0)}</td>}
               </tr>
             ))}
           </tbody>
         </table>
+        {state.lastPayout && <Payout payout={state.lastPayout} />}
         <div className="actions">
           <Button label="CONTINUE" primary {...itemProps(0)} />
           {quick && <Button label="RESTART" index={1} {...itemProps(1)} />}
