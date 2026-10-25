@@ -36,6 +36,14 @@ const AVOID_SLOWER = 1; // m/s
 const AVOID_MAX = 3.5; // m
 const AVOID_RATE = 4; // m/s
 const AVOID_DECAY = 2; // m/s
+/** CCR-7: a wreck ahead (whatever its speed: a pushed wreck moves with the pusher) is passed at least this far from its centre, */
+const WRECK_CLEAR = 3.5; // m
+/** on the side the AI is on (shoulder allowed, this far from the wall) unless the wreck leaves less than WRECK_ROOM there. */
+const WRECK_WALL_MARGIN = 2; // m
+const WRECK_ROOM = 2.5; // m
+/** Within this range in the avoidance cone the AI crawls, so it does not shove the wreck while steering round. */
+const WRECK_CRAWL_RANGE = 8; // m
+const WRECK_CRAWL = 3; // m/s
 // 5. handbrake
 const HAIRPIN_K = 1 / 18;
 const HANDBRAKE_OVERSPEED = 6; // m/s
@@ -193,6 +201,7 @@ export function createAiDriver(world: SimWorld, car: CarId, profile: AiProfile):
   const curvature = lineCurvature(line);
   const track = world.track;
   const lim = lineLimit(track);
+  const wreckLim = track.def.width / 2 + track.def.shoulder - WRECK_WALL_MARGIN;
   const pickupSpawns = world.setup.track.pickups;
   const aggression = profile.aggression * AGGRESSION_SCALE;
   const mineUse = profile.mineUse * MINE_USE_SCALE;
@@ -256,6 +265,8 @@ export function createAiDriver(world: SimWorld, car: CarId, profile: AiProfile):
       const base = lineAt(track, line.offsets, sT) + profile.lineNoise * Math.sin(w.time * NOISE_FREQ + car * NOISE_PHASE);
 
       let blocked = false;
+      let wreckAhead = false;
+      let wreckLat = 0;
       let nearest = AVOID_RANGE;
       for (const o of w.cars) {
         if (o.id === car) continue;
@@ -265,11 +276,20 @@ export function createAiDriver(world: SimWorld, car: CarId, profile: AiProfile):
         if (d > nearest || d < 1e-6) continue;
         if ((dx * fx + dy * fy) / d < Math.cos(AVOID_CONE)) continue;
         const oSpeed = c.vx[o.id] * fx + c.vy[o.id] * fy;
-        if (speed - oSpeed <= AVOID_SLOWER) continue;
+        if (!o.wrecked && speed - oSpeed <= AVOID_SLOWER) continue; // CCR-7: a wreck being pushed moves at the pusher's speed
         nearest = d;
         blocked = true;
+        wreckAhead = o.wrecked;
+        wreckLat = o.lateral;
       }
-      if (blocked) {
+      if (blocked && wreckAhead) {
+        if (avoidDir === 0) {
+          avoidDir = me.lateral >= wreckLat ? 1 : -1; // the side the AI is on, kept until the pass is done...
+          if (wreckLim - avoidDir * wreckLat < WRECK_ROOM) avoidDir = -avoidDir; // ...unless there is no room
+        }
+        const goal = avoidDir > 0 ? Math.max(0, wreckLat + WRECK_CLEAR - base) : Math.min(0, wreckLat - WRECK_CLEAR - base); // never toward it
+        avoid = avoid < goal ? Math.min(goal, avoid + AVOID_RATE * dt) : Math.max(goal, avoid - AVOID_RATE * dt);
+      } else if (blocked) {
         if (avoidDir === 0) avoidDir = base <= 0 ? 1 : -1; // toward the side with more room
         avoid = clamp(avoid + avoidDir * AVOID_RATE * dt, -AVOID_MAX, AVOID_MAX);
       } else if (avoid !== 0) {
@@ -280,7 +300,7 @@ export function createAiDriver(world: SimWorld, car: CarId, profile: AiProfile):
       let lat = base + avoid;
       let bestPickup = PICKUP_RANGE;
       for (const p of w.pickups) {
-        if (!p.active) continue;
+        if (!p.active || wreckAhead) continue; // a wreck in the way wins over a pickup
         const spawn = pickupSpawns[p.id];
         if (!spawn || Math.abs(spawn.lateral) > lim) continue;
         const needed =
@@ -291,7 +311,7 @@ export function createAiDriver(world: SimWorld, car: CarId, profile: AiProfile):
         bestPickup = ahead;
         lat = spawn.lateral;
       }
-      lat = clamp(lat, -lim, lim);
+      lat = wreckAhead ? clamp(lat, -wreckLim, wreckLim) : clamp(lat, -lim, lim);
       const smp = track.sampleAtInto(sample, sT);
       const a = angleWrap(Math.atan2(smp.pos.y + smp.right.y * lat - y, smp.pos.x + smp.right.x * lat - x) - h);
 
@@ -320,6 +340,7 @@ export function createAiDriver(world: SimWorld, car: CarId, profile: AiProfile):
       let vTarget = vLine < vMax ? vLine * profile.cornerSpeedFactor : vMax;
       const player = w.cars[PLAYER_CAR_ID];
       if (player && car !== PLAYER_CAR_ID) vTarget *= 1 + clamp((player.progress - me.progress) / RUBBER_RANGE, -1, 1) * profile.rubberBand;
+      if (wreckAhead && nearest < WRECK_CRAWL_RANGE) vTarget = Math.min(vTarget, WRECK_CRAWL);
       pedals(f, vTarget - speed);
 
       // 5. handbrake in hairpins only

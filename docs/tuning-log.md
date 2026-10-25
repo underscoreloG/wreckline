@@ -48,3 +48,46 @@ Not changed: brake, handling constants in `vehicle.ts`, AI scale constants (`AGG
 - Pickups collected went 8.7 -> 21.9 per race (x2.5), more than "a little bit more". If it feels like too much, go back to a 12 s respawn first (keeps the 12 placements).
 - Wall impacts +68%, hard ones x4.7 (0.19 -> 0.88 per race), but without more stuck cars or wrecks.
 - `DRIFT_THRESHOLD` (vehicle.ts) is an absolute 3.5 m/s lateral speed, so plain full steer now flags `drifting` (smoke, skid marks; no dynamics change) from ~25 m/s, which the cars now reach. Test 9b moved from 65% to 60% of top speed.
+
+## 2026-10-25 - AI stops pushing wrecks (WP24, CCR-7)
+
+WP23a saw the 0.75 AI shove a wreck at 6.4 m/s on full throttle for 70+ s on Pine Hollow. Cause: avoidance (`src/sim/ai.ts`) skipped any car not slower than the AI, and a pushed wreck moves at the pusher's speed; the stuck detector missed it (speed > 1.5 m/s).
+
+### Changed (AI behaviour, `src/sim/ai.ts`; no scale constant changed)
+
+| Rule | Before | After | Why |
+|---|---|---|---|
+| Who blocks | cars ahead > 1 m/s slower | same, plus any wreck in the cone whatever its speed | the CCR-7 one-liner |
+| Avoid target for a wreck | racing line +-3.5 m, side picked from the line | at least `WRECK_CLEAR` 3.5 m from the wreck, on the side the AI is on (shoulder allowed up to 2 m from the wall), the other side only if < 2.5 m of room; never toward the wreck | with the one-liner alone the AI steered 3.5 m off its line and dragged the wreck along |
+| Speed near a wreck | no change | crawl at <= 3 m/s while a wreck is within 8 m in the cone | full throttle against a wreck shoves it whatever the steering |
+| Pickups | override the target lateral | ignored while a wreck blocks | a needed pickup behind a wreck sent the AI straight into it (Pine Hollow seed 5) |
+| `src/content/tracks/frostbite.ts` `referenceLapTime` | 33 | 32.5 | re-soaked median 32.74 s, 0.26 s off 33 (test tolerance 0.25), rounded to 0.5 s |
+
+Regression test (`ai.test.ts`, stadium straight, wreck on the 0.75 AI's line 30 m ahead, AI at 20 m/s): on main the AI shoves it 82.6 m in 10 s and never passes; with only the one-liner the same; with the full fix it passes after 2.97 s and the wreck moves 9.8 m. A 144-case scratch sweep (skills 0.35/0.55/0.75, 5-30 m/s, wreck 10/30 m ahead, offset -1.5/0/+1.5 m, square or turned 1.2 rad): main 88 ok, one-liner 79, one-liner + crawl only 109, one-liner + wreck target only 102, full fix 144.
+
+### Before / after (headless `runSoak`, 10 tracks x 3 laps, seeds 1-16, AI 0.35/0.55/0.75 + autoplay 0.55)
+
+"Before" was measured on the WP24 branch (main 83e2c69 code) with the same seeds. Shove = metres a wreck travels more than 3 s after wrecking (scratch metric, per race), with the longest continuous shove at > 2 m/s.
+
+| Track | 0.55 median clean lap (s) | Wall impacts / race | Wrecks / race | Shove m / race (longest) | End reasons (all = allFinished, p15 = playerFinished15s, pW = playerWrecked) |
+|---|---|---|---|---|---|
+| scrapyard | 27.68 -> 27.67 | 2.94 -> 2.94 | 0.25 -> 0.38 | 5.5 -> 2 (6 -> 1.7 s) | all 16 -> all 15, pW 1 |
+| dustBowl | 36.13 -> 36.13 | 2.81 -> 2.88 | 0.31 -> 0.31 | 0.3 -> 0.1 (0.7 -> 0.4 s) | all 14, pW 2 -> all 13, p15 1, pW 2 |
+| dockside | 30.78 -> 30.78 | 3.63 -> 3.81 | 0.69 -> 0.63 | 0.8 -> 0.7 (0.8 -> 0.8 s) | all 10, p15 2, pW 4 -> all 11, p15 1, pW 4 |
+| frostbite | 32.78 -> 32.74 | 0.69 -> 0.56 | 1.19 -> 1.13 | 52 -> 3.1 (33.3 -> 1.1 s) | all 10, p15 5, pW 1 -> all 14, p15 1, pW 1 |
+| neonMile | 39.15 -> 39.18 | 2.63 -> 2.63 | 0.50 -> 0.56 | 30 -> 3.9 (25.5 -> 1.5 s) | all 12, p15 4 -> all 14, p15 1, pW 1 |
+| redrock | 34.82 -> 34.85 | 2.88 -> 2.88 | 0.69 -> 0.63 | 17.8 -> 3.4 (38.7 -> 1.3 s) | all 13, pW 3 -> all 13, pW 3 |
+| junkyardSprint | 22.79 -> 22.79 | 2.75 -> 2.75 | 0.50 -> 0.50 | 0.2 -> 1.1 (0.6 -> 3.2 s) | all 13, p15 1, pW 2 -> all 12, p15 2, pW 2 |
+| pineHollow | 36.42 -> 36.42 | 2.00 -> 1.94 | 0.81 -> 0.88 | 36.4 -> 4.3 (44.7 -> 3.7 s) | all 12, p15 2, pW 2 -> all 14, pW 2 |
+| rainDistrict | 31.60 -> 31.60 | 2.50 -> 2.50 | 0.38 -> 0.38 | 2.5 -> 1.5 (6.2 -> 1.9 s) | all 16 -> all 16 |
+| blastPit | 41.15 -> 41.17 | 2.44 -> 2.25 | 0.38 -> 0.44 | 0 -> 0.7 (0 -> 1.1 s) | all 13, pW 3 -> all 13, pW 3 |
+
+WP07 gates after: no timeout, every early end has all live cars on the last lap, max stuck episodes 0 on every track, wrecks 0.31-1.13 per race (gate 0.2-2.0). Races with a shove over 10 s: 10 of 160 before (frostbite 4, neonMile 3, pineHollow 2, redrock 1), 0 after. Fewer races end on playerFinished15s (14 -> 6): before, a shoving AI often held the field up until the 15 s rule.
+
+Old Pine Hollow starts: WP23a's first start is not recorded, so 24 start points round the loop (seed 8, same pickups) were scanned: before, 5 of them had a wreck shoved for 8.6-42.3 s (106-288 m); after, the longest shove at any of them is 6.4 s. The 12 starts x 16 seeds scan had no gate failure before or after.
+
+### Notes for WP12
+
+- Frostbite and Junkyard Sprint sit 0.24 / 0.21 s off their reference: any pace change will push them out of the 0.25 s tolerance.
+- After passing a wreck on the far side of its line the AI's avoid offset can be large (up to ~14 m) and decays at 2 m/s, so it can run off-line for a few seconds after the pass.
+- The general (non-wreck) avoidance still picks its side from the racing line, not from where the blocking car is.

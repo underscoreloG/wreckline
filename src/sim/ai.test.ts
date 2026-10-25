@@ -1,10 +1,11 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { profileForSkill } from '../content/ai';
 import { buildQuickRaceSetup } from '../content/quickRace';
 import { getTrack } from '../content/tracks';
 import type { TrackDef, Vec2 } from '../shared/contracts';
 import { NEUTRAL_INPUT, SIM_HZ } from '../shared/contracts';
 import { angleWrap, clamp } from '../shared/math';
-import { buildTrackGeometry } from '../shared/trackGeometry';
+import { buildTrackGeometry, createTrackSample } from '../shared/trackGeometry';
 import { createSim, createSimWithWorld, initPhysics } from './index';
 import { buildRacingLine, LAT_ACCEL_PER_GRIP, lineCurvature, lineLimit } from './racingLine';
 import { runSoak, type SoakStats, soakSetup } from './soak';
@@ -184,5 +185,58 @@ describe('determinism and perf', () => {
     console.warn(`WP07 perf: ${ticks} ticks, ${ms.toFixed(4)} ms per tick`);
     expect(ticks).toBeGreaterThan(3000);
     expect(ms).toBeLessThan(0.5);
+  });
+});
+
+/** A 400 m x 100 m stadium (two 400 m straights, r 50 ends), clockwise on screen, s 0 at the start of the bottom straight. */
+function stadiumTrack(): TrackDef {
+  const pts: Vec2[] = [];
+  for (let x = 0; x < 400; x += 10) pts.push({ x, y: 0 });
+  for (let d = -90; d < 90; d += 10) pts.push({ x: 400 + 50 * Math.cos((d * Math.PI) / 180), y: 50 + 50 * Math.sin((d * Math.PI) / 180) });
+  for (let x = 400; x > 0; x -= 10) pts.push({ x, y: 100 });
+  for (let d = 90; d < 270; d += 10) pts.push({ x: 50 * Math.cos((d * Math.PI) / 180), y: 50 + 50 * Math.sin((d * Math.PI) / 180) });
+  return { id: 'ai-stadium', name: 'stadium', theme: 'scrapyard', centerline: pts, width: 14, shoulder: 4, checkpointSpacing: 40, pickups: [], props: [], referenceLapTime: 40 };
+}
+
+describe('wrecks (CCR-7)', () => {
+  it('an AI at speed passes a wreck on its racing line 30 m ahead within 10 s, and moves the wreck < 15 m', () => {
+    // Car 0 is the 0.75 AI (the car WP23a saw pushing a wreck), car 1 the wreck; car 1 is not the player so no end-by-rule.
+    const s = buildQuickRaceSetup({ seed: 1, aiCount: 1 });
+    const setup = { ...s, track: stadiumTrack(), entrants: s.entrants.map((e) => ({ ...e, ai: e.id === 0 ? profileForSkill(0.75) : null })) };
+    const { sim, world } = createSimWithWorld(setup);
+    world.phase = 'racing';
+    world.countdown = 0;
+    const [ai, wreck] = world.cars;
+    const line = buildRacingLine(world.track, ai.base.grip, ai.base.brake);
+    const n = line.offsets.length;
+    const place = (car: typeof ai, sAt: number, speed: number): Vec2 => {
+      const smp = world.track.sampleAtInto(createTrackSample(), sAt);
+      const lat = line.offsets[Math.round((sAt / world.track.length) * n) % n];
+      const pos = { x: smp.pos.x + smp.right.x * lat, y: smp.pos.y + smp.right.y * lat };
+      const h = Math.atan2(smp.tangent.y, smp.tangent.x);
+      car.body.setTranslation(pos, true);
+      car.body.setRotation(h, true);
+      car.body.setLinvel({ x: Math.cos(h) * speed, y: Math.sin(h) * speed }, true);
+      car.trackS = sAt; // the AI reads last tick's projection
+      car.lateral = lat;
+      return pos;
+    };
+    place(ai, 100, 20);
+    const wreckStart = place(wreck, 130, 0);
+    wreck.hp = 0;
+    wreck.wrecked = true;
+    wreck.wreckedAt = 0;
+
+    const none = new Map();
+    let passedAt = -1;
+    for (let t = 0; t < 10 * SIM_HZ && passedAt < 0; t++) {
+      sim.step(none);
+      if (ai.trackS - wreck.trackS > 5) passedAt = t / SIM_HZ;
+    }
+    const w = wreck.body.translation();
+    const moved = Math.hypot(w.x - wreckStart.x, w.y - wreckStart.y);
+    sim.dispose();
+    expect(passedAt).toBeGreaterThan(0);
+    expect(moved).toBeLessThan(15);
   });
 });
