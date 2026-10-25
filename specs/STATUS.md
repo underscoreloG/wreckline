@@ -1,7 +1,7 @@
 # Wreckline - status
 Phase: 4 for M2 (wave C1 merged; waiting on the user's art and sound steps)   Size: L   Milestone: M1   Updated: 2026-10-25
 Integration pattern: merges of a running wave go into `integ/<wave>` so main stays put while workers run; main fast-forwards after the last merge.
-Next action: WP25 merged on main 2ab119e (not pushed). Remaining: user listens (WP16 sounds + WP25 engines + Mercedes bench), check Blender GLBs (WP13U) then dispatch WP14, M2 release.
+Next action: WP25 merged 2ab119e, WP13U models done (not pushed). Remaining: user listening session (sounds, 8 engines, Mercedes bench); WP14 (pin glTF optimizer, update spec for Blender GLBs, dispatch, art gate); GC + M2 release.
 Remote: origin = git@github.com:underscoreloG/wreckline.git (public since 2026-10-25; Pages source = GitHub Actions, set by the user; site will be https://underscorelog.github.io/wreckline/ - not yet deployed).
 Ledger edits stay uncommitted on main while a worker runs (workers check that main did not move).
 
@@ -39,7 +39,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | WP09 | Career logic | C1 | subagent | opus high | merged | agent a7f0fde9b242efb9a | wp/09-career-logic (9279d4d) | 34 meta tests; integ 250/250; careerSim: greedy champion 2/16 by race 100 (target 18-35) -> WP12 |
 | WP11 | Tracks 2-3 and themes | C1 | subagent | opus high | merged | agent a8803896755e170a7 | wp/11-tracks-themes (21b31a8) | Dust Bowl 1419 m ref 36 s, walls 2.81, wrecks 0.31; Dockside 1130 m ref 31 s, walls 3.63, wrecks 0.69, shoulder 4 m; draws <= 95 |
 | WP13 | Car art prompt pack | C1 | subagent | opus high | merged | agent a740d6458e7596f60 | wp/13-car-art-prompts (1d22828) | 8 prompts + README + checks.md, grep check all pass; TITAN turret moved to bed (needs user ok) |
-| WP13U | Generate car sheets and models | U1 | session (Blender MCP) | opus high | running: 8 sheets in (2026-10-25), views cut by brain; models via a Blender MCP session instead of Tripo (user) | - | - | RAVEN first, user approves before the other 7 |
+| WP13U | Generate car sheets and models | U1 | session (Blender MCP) | opus high | done 2026-10-25: 8 GLBs in art-incoming/cars/<id>/ (brain-measured: 1 mesh, 1 material, 1892-2264 tris, minY 0, JPEG textures, 1.75 MB total), model-notes.md per car | session local_00600580-edc9-460d-aa47-1472251de38f | - | user approved RAVEN; open for WP14: OUTLAW plate on open cage (box in notes), ICEBERG plate on rack top ~1.885 m, WRAITH 5.36 m long with spikes (accepted); nose direction not re-checked by brain |
 | WP10 | Career UI and wiring | C2 | subagent | opus high | merged | agent a4bc84d893a91b3cd | wp/10-career-ui (6e0dd17) | 63 game tests, main 323/323; career flow + save/reload + Dust Bowl race verified; CCR-3 applied |
 | WP14 | Car model import | C2 | subagent | opus high | todo | - | | pin glTF optimizer first; copy art-incoming |
 | WP15 | Sound list (Pixabay picks) | C1 | subagent | sonnet high | merged | agent a0a443f4dc1a2475d | wp/15-sound-list (7020764) | 22 sounds x 3 candidates, 66/66 links 200, all Pixabay Content License; nothing listened to |
