@@ -55,6 +55,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | WP23b | Rain District, Blast Pit | C2 | subagent | opus high | merged | agent afdd68226264e08fa | wp/23b-tracks (1d49285) | rainDistrict 1165 m ref 31.5 (n=28) walls 2.50 wrecks 0.38; blastPit 1608 m ref 41 (n=28) walls 2.44 wrecks 0.38, 17 pickups |
 | WP24 | AI stops pushing wrecks (CCR-7) | C3 | subagent | opus high | merged | agent a8ca5b3ad2aa17e5c | wp/24-ai-wrecks (dc3df99) | one-liner + pass target, crawl <= 3 m/s near a wreck, wreck beats pickup override; shoves > 10 s 10/160 -> 0/160; frostbite ref 32.5; v0.5.1 |
 | WP12 | Balance and polish | C3 | session | opus high | merged | session local_9916c9c8-1108-46ed-ab2e-591a619e5f47 | wp/12-balance (318cbe3) | 533/533; run.mjs 8/8 in target (16 seeds x 4 starts x 10 tracks, 0 timeouts); greedy champion 15/16 in 22-38 races; CCR-8 own commit 8f490be, test fails without fix (brain-checked) |
+| WP25 | Engine voice per car + recorded-engine bench (CCR-9) | C3 | subagent | opus high | running | - | wp/25-engine-voices (worktree ../wreckline-wt/wp25, port 5225) | user: per-car synth now; CC0 search found only 4-cyl/diesel sets (Freesound) |
 
 ## Helper agents (not WPs)
 | Task | When | Model | Effort |
@@ -79,6 +80,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | GC / M2 | - |
 
 ## Open
+- 2026-10-25 Engine sounds: Pixabay = idle clips only; Freesound CC0 = Mercedes 190E 4-cyl dyno set (pack 9658: 500/2500/6500 rpm on/off load), BMW 120d diesel set (pack 22622), bus partial set (pack 43418); no V8, V10/V12, rotary or supercharged sets. User chose per-car synth (WP25) + a harness bench to A/B the Mercedes set vs BLAZE synth; the user downloads pack 9658 themselves.
 - 2026-10-25 User supplied all 8 sheets (render style, 1264x848) and asked for models via Blender MCP instead of Tripo. RAVEN replaced (old kept as sheet-v2.png, views-v2/). Brain cut views (scratchpad cut_views.py): every SIDE drawn nose-left (flipped), TITAN TOP nose-left (rotated), OUTLAW TOP rotated 180 by eye (verify). Sheet issues for the user: TITAN turret on the cab roof (decision was the bed; covers the roof plate), OUTLAW door graffiti "923" (text), WRAITH view labels (cropped out), BLAZE and VIPER share one body shape (colour/wing only).
 - From WP12 (watch at playtest/GC): Scrapyard and Rain District wrecks 0.23 (floor 0.2); mine hits 2.84 (ceiling 3), Neon Mile 4.45 on its own; greedy cash by race 5 is 10250 in the worst seed vs a 1000 floor (early shop may feel easy, not playtested); a 0.55-level driver needs 31-47 races. content.md updated with WP12 numbers 2026-10-25. Off-sim medians and AI scales live in code (tuning-log WP12 entry).
 - CCR-8 FIXED by WP12 (8f490be, merged 318cbe3). Was: AI crawling behind a wreck (WRECK_CRAWL 3 m/s > STUCK_SPEED 1.5) stays in contact and shoves it 30-80 s without recovery. Fix: count "glued to a wreck" as stuck. Own commit + regression test + main-values re-soak logged before the retune. Repro rainDistrict seed 14, 0.75 AI slot 0.
