@@ -46,7 +46,7 @@ const BASE: TrackDef = {
   width: 16,
   shoulder: 4,
   checkpointSpacing: 40,
-  referenceLapTime: 41,
+  referenceLapTime: 41.5, // WP12: soak median 41.47 s after the AI retune
   centerline: roundedLoop(BLAST_PIT_CORNERS, { x: 440, y: 140 }),
   pickups: [
     { kind: 'cash', s: 38, lateral: -3 },

@@ -1,9 +1,9 @@
-import type { RaceOffer, RaceResult, RaceResultRow, SaveGame, UpgradeKind } from '../shared/contracts';
+import type { RaceOffer, RaceResult, RaceResultRow, SaveGame, UpgradeKind, UpgradeLevels } from '../shared/contracts';
 import { PLAYER_CAR_ID } from '../shared/contracts';
 import { createRng, hashString, type Rng } from '../shared/rng';
 import { carsForSale, getCar } from '../content/cars';
 import { computeStats, REPAIR_COST_PER_HP, TIER_MULT } from '../content/economy';
-import { BOSS } from '../content/rivals';
+import { BOSS, rivalSpikesLevel, rivalUpgradeLevel } from '../content/rivals';
 import { applyRaceResult, generateOffers, newCareer, PLAYER_DRIVER_ID, PLAYER_NAME, rankOf } from './career';
 import { finishOrder, skillWeight } from './offSim';
 import { buyCar, buyUpgrade, repair, tradeInValue } from './shop';
@@ -37,35 +37,76 @@ export const DEFAULT_RESULTS_MODEL: ResultsModel = { cashPerLap: 0.6, wreckChanc
 export interface CareerSimOptions {
   maxRaces?: number;
   model?: ResultsModel;
+  /** Player driver skill (default PLAYER_DRIVER_SKILL), for sensitivity runs. */
+  driverSkill?: number;
+  /** Called after each race with the save after it and the offer raced (probe traces). */
+  trace?: (save: SaveGame, offer: RaceOffer) => void;
 }
 
 export const CAREER_SIM_MAX_RACES = 60;
-/** Effective player skill = base + perUpgrade * avgUpgradeLevel + perTier * carTier (WP09). */
-export const PLAYER_SKILL_MODEL = { base: 0.35, perUpgrade: 0.1, perTier: 0.15 } as const;
+/**
+ * Strength model (WP12, replaces WP09's 0.35 + 0.1 * avgUpgrade + 0.15 * tier, which ignored fuel, spikes and the rivals' own cars):
+ * strength = driver value + car value + sum of level values, in skill units, for the player and every rival alike.
+ * Measured with scripts/balance/calibrate.probe.mjs: one car with the variant against three stock 0.55 ravens, 4 tracks x 16 seeds
+ * x 4 grid slots; its average place converted to a log-weight (Plackett-Luce) and divided by SKILL_WEIGHT_K, which matches the
+ * driver-skill slope (skill 0.15 -> 1.1 spans 3.8 log units). Spikes measured 0: the AI never rams on purpose.
+ */
+/** Driver skill -> strength, measured at the same calibration points (the AI gains little above 0.75); linear in between, clamped at the ends. */
+export const DRIVER_CURVE: readonly (readonly [number, number])[] = [
+  [0.15, -0.1],
+  [0.35, 0.16],
+  [0.45, 0.41],
+  [0.55, 0.55],
+  [0.65, 0.64],
+  [0.75, 0.79],
+  [0.95, 0.8],
+  [1.1, 0.86],
+];
+export const CAR_VALUE: Readonly<Record<string, number>> = { raven: 0, outlaw: -0.12, iceberg: -0.28, scorch: 0.43, titan: 0.22, blaze: 0.89, viper: 1.08, wraith: 1.38 };
+export const LEVEL_VALUE: Readonly<Record<UpgradeKind, number>> = { engine: 0.14, tires: 0.041, armor: 0.02, gun: 0.008, fuel: 0.025, spikes: 0 };
+/** The human driver in AI-skill units. User 2026-10-25: finishes quick races "Mostly 1st-2nd" against 0.35/0.55/0.75, so the 0.75 AI. */
+export const PLAYER_DRIVER_SKILL = 0.75;
 /** A new car is bought only if this much cash is left afterwards. */
 export const CAR_MARGIN = 1000;
+/** Highest level bought on a car that is not the best tier for sale. */
+export const SAVE_ABOVE_LEVEL = 1;
 const UPGRADE_PRIORITY: readonly UpgradeKind[] = ['engine', 'armor', 'tires', 'gun', 'fuel', 'spikes'];
 
-export function playerSkill(save: SaveGame): number {
-  const u = save.upgrades;
-  const avg = (u.engine + u.tires + u.armor + u.gun) / 4;
-  return PLAYER_SKILL_MODEL.base + PLAYER_SKILL_MODEL.perUpgrade * avg + PLAYER_SKILL_MODEL.perTier * getCar(save.carDefId).tier;
+function driverValue(skill: number): number {
+  const i = DRIVER_CURVE.findIndex(([x]) => x >= skill);
+  if (i <= 0) return (DRIVER_CURVE[i < 0 ? DRIVER_CURVE.length - 1 : 0] as readonly [number, number])[1];
+  const [x0, y0] = DRIVER_CURVE[i - 1] as readonly [number, number];
+  const [x1, y1] = DRIVER_CURVE[i] as readonly [number, number];
+  return y0 + ((y1 - y0) * (skill - x0)) / (x1 - x0);
 }
 
-const rivalSkill = (save: SaveGame, driverId: string): number =>
-  driverId === BOSS.driverId ? BOSS.skill : (save.rivals.find((r) => r.driverId === driverId)?.skill ?? 0);
+export function strength(driverSkill: number, carDefId: string, levels: UpgradeLevels): number {
+  const car = CAR_VALUE[carDefId];
+  if (car === undefined) throw new Error(`no CAR_VALUE for '${carDefId}': calibrate it (scripts/balance/run.mjs --calibrate)`);
+  return driverValue(driverSkill) + car + (Object.keys(LEVEL_VALUE) as UpgradeKind[]).reduce((s, k) => s + LEVEL_VALUE[k] * levels[k], 0);
+}
 
-/** Skill-vs-field model: 1 + rivals with a higher skill. */
-const predictedPosition = (save: SaveGame, offer: RaceOffer): number => 1 + offer.rivals.filter((d) => rivalSkill(save, d) > playerSkill(save)).length;
+export const playerSkill = (save: SaveGame, driverSkill = PLAYER_DRIVER_SKILL): number => strength(driverSkill, save.carDefId, save.upgrades);
 
-export function chooseOffer(save: SaveGame, offers: RaceOffer[], policy: CareerPolicy): RaceOffer {
+function rivalSkill(save: SaveGame, driverId: string): number {
+  const def = driverId === BOSS.driverId ? BOSS : save.rivals.find((r) => r.driverId === driverId);
+  if (!def) return 0;
+  const level = rivalUpgradeLevel(def.skill);
+  return strength(def.skill, def.carDefId, { engine: level, tires: level, armor: level, gun: level, fuel: level, spikes: rivalSpikesLevel(def.skill) });
+}
+
+/** Skill-vs-field model: 1 + rivals with a higher strength. */
+const predictedPosition = (save: SaveGame, offer: RaceOffer, driverSkill: number): number =>
+  1 + offer.rivals.filter((d) => rivalSkill(save, d) > playerSkill(save, driverSkill)).length;
+
+export function chooseOffer(save: SaveGame, offers: RaceOffer[], policy: CareerPolicy, driverSkill = PLAYER_DRIVER_SKILL): RaceOffer {
   const medium = offers.find((o) => o.tier === 'medium') as RaceOffer;
   if (policy === 'safe') return medium;
   // Offers come easy, medium, hard|boss: take the highest tier predicted top 2, else easy.
-  return [...offers].reverse().find((o) => predictedPosition(save, o) <= 2) ?? offers[0];
+  return [...offers].reverse().find((o) => predictedPosition(save, o, driverSkill) <= 2) ?? offers[0];
 }
 
-/** One shop visit, each item at most once, in priority order: repair > engine > armor > tires > gun > fuel > spikes > next car. */
+/** One shop visit, each item at most once: repair, then the next car if affordable, then one level per line in priority order engine > armor > tires > gun > fuel > spikes. */
 export function shopVisit(save: SaveGame): SaveGame {
   let s = save;
   const r = repair(s, Infinity);
@@ -73,10 +114,6 @@ export function shopVisit(save: SaveGame): SaveGame {
   else if (r.reason === 'cash') {
     const part = repair(s, Math.floor(s.cash / (REPAIR_COST_PER_HP * TIER_MULT[getCar(s.carDefId).tier])));
     if (part.ok) s = part.save;
-  }
-  for (const kind of UPGRADE_PRIORITY) {
-    const u = buyUpgrade(s, kind);
-    if (u.ok) s = u.save;
   }
   const tier = getCar(s.carDefId).tier;
   const next = carsForSale()
@@ -86,13 +123,20 @@ export function shopVisit(save: SaveGame): SaveGame {
     const c = buyCar(s, next.id);
     if (c.ok) s = c.save;
   }
+  // While a better car is for sale, levels above SAVE_ABOVE_LEVEL are skipped so cash builds up for it (they are lost on trade-in).
+  const saving = carsForSale().some((c) => c.tier > getCar(s.carDefId).tier);
+  for (const kind of UPGRADE_PRIORITY) {
+    if (saving && s.upgrades[kind] >= SAVE_ABOVE_LEVEL) continue;
+    const u = buyUpgrade(s, kind);
+    if (u.ok) s = u.save;
+  }
   return s;
 }
 
-function simulateResult(save: SaveGame, offer: RaceOffer, model: ResultsModel, rng: Rng): RaceResult {
+function simulateResult(save: SaveGame, offer: RaceOffer, model: ResultsModel, rng: Rng, driverSkill: number): RaceResult {
   const drivers = [PLAYER_DRIVER_ID, ...offer.rivals];
   const order = finishOrder(
-    drivers.map((d) => skillWeight(d === PLAYER_DRIVER_ID ? playerSkill(save) : rivalSkill(save, d))),
+    drivers.map((d) => skillWeight(d === PLAYER_DRIVER_ID ? playerSkill(save, driverSkill) : rivalSkill(save, d))),
     rng,
   );
   const maxHp = computeStats(getCar(save.carDefId), save.upgrades).maxHp;
@@ -126,6 +170,7 @@ function simulateResult(save: SaveGame, offer: RaceOffer, model: ResultsModel, r
 export function simulateCareer(seed: number, policy: CareerPolicy, options: CareerSimOptions = {}): CareerRun {
   const maxRaces = options.maxRaces ?? CAREER_SIM_MAX_RACES;
   const model = options.model ?? DEFAULT_RESULTS_MODEL;
+  const driverSkill = options.driverSkill ?? PLAYER_DRIVER_SKILL;
   // Own stream for race outcomes so the save's offer RNG stays exactly what the game would draw.
   const rng = createRng(hashString(`careerSim:${seed >>> 0}`));
   let save = newCareer(seed);
@@ -133,9 +178,10 @@ export function simulateCareer(seed: number, policy: CareerPolicy, options: Care
   while (run.races < maxRaces && !save.championWon) {
     save = shopVisit(save);
     const gen = generateOffers(save);
-    const offer = chooseOffer(gen.save, gen.offers, policy);
-    const { save: after, payout } = applyRaceResult(gen.save, offer, simulateResult(gen.save, offer, model, rng));
+    const offer = chooseOffer(gen.save, gen.offers, policy, driverSkill);
+    const { save: after, payout } = applyRaceResult(gen.save, offer, simulateResult(gen.save, offer, model, rng, driverSkill));
     save = after;
+    options.trace?.(save, offer);
     run.races++;
     run.cashCurve.push(save.cash);
     run.rankCurve.push(rankOf(save));

@@ -17,9 +17,9 @@ describe('careerSim', () => {
     expect(simulateCareer(7, 'safe', { maxRaces: 5 }).races).toBe(5);
   });
 
-  it('player skill = 0.35 + 0.1 * avg upgrade + 0.15 * car tier', () => {
-    expect(playerSkill(newCareer(1))).toBeCloseTo(0.5, 12);
-    expect(playerSkill({ ...newCareer(1), carDefId: 'viper', upgrades: maxed })).toBeCloseTo(1.3, 12);
+  it('player skill = driver value 0.79 (0.75 driver) + car value + level values', () => {
+    expect(playerSkill(newCareer(1))).toBeCloseTo(0.79, 12);
+    expect(playerSkill({ ...newCareer(1), carDefId: 'viper', upgrades: maxed })).toBeCloseTo(3.04, 12);
   });
 
   it('safe always takes medium; greedy the highest tier it is predicted top 2 in', () => {
@@ -43,10 +43,10 @@ describe('careerSim', () => {
 
   it('next car = cheapest forSale car of a higher tier, only with 1000 left after the trade-in', () => {
     const raven: SaveGame = { ...newCareer(1), upgrades: maxed, hp: maxHp('raven') };
-    expect(shopVisit({ ...raven, cash: 7000 })).toMatchObject({ carDefId: 'scorch', cash: 1000 });
+    expect(shopVisit({ ...raven, cash: 7000 })).toMatchObject({ carDefId: 'scorch', cash: 40 });
     expect(shopVisit({ ...raven, cash: 6999 }).carDefId).toBe('raven');
-    // Scorch (tier 2) skips Titan (tier 2) for Viper (tier 3): 17000 + 3000 trade-in - 16000.
+    // Scorch (tier 2) skips Titan (tier 2) for Viper (tier 3): 17000 + 3000 trade-in - 12000, then one level per line on the Viper.
     const scorch: SaveGame = { ...raven, carDefId: 'scorch', hp: maxHp('scorch') };
-    expect(shopVisit({ ...scorch, cash: 17000 })).toMatchObject({ carDefId: 'viper', cash: 4000 });
+    expect(shopVisit({ ...scorch, cash: 17000 })).toMatchObject({ carDefId: 'viper', cash: 3200 });
   });
 });

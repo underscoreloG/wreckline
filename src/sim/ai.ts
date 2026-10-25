@@ -6,9 +6,9 @@ import type { AiDriver, SimCar, SimWorld } from './internal';
 import { buildRacingLine, lineCurvature, lineLimit, type RacingLine } from './racingLine';
 
 // AI-side tuning factors (WP12 tunes these, never src/content), multiplied onto the profile values.
-/** Measured over 16 soak seeds: at 1 the pack shoots the leader (usually the player) to a wreck within ~15 s, 2.1 wrecks per race; 0.2 gives ~0.75. */
-export const AGGRESSION_SCALE = 0.2;
-export const MINE_USE_SCALE = 1;
+/** Measured over 16 soak seeds: at 1 the pack shoots the leader (usually the player) to a wreck within ~15 s, 2.1 wrecks per race; 0.2 gives ~0.75. WP12: 0.25 with MINE_USE_SCALE 0.6 (docs/tuning-log.md). */
+export const AGGRESSION_SCALE = 0.25;
+export const MINE_USE_SCALE = 0.6;
 export const TURBO_USE_SCALE = 1;
 
 const DEG = Math.PI / 180;

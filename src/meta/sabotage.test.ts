@@ -49,8 +49,8 @@ function resultFor(offer: RaceOffer): RaceResult {
 }
 
 describe('sabotage (CCR-5)', () => {
-  it('price = round(0.3 * 1st prize) per tier: easy 180, medium 360, hard 750, boss 3000', () => {
-    expect(round(23).offers.map((o) => o.sabotagePrice)).toEqual([180, 360, 750]);
+  it('price = round(0.3 * 1st prize) per tier: easy 270, medium 540, hard 1125, boss 3000', () => {
+    expect(round(23).offers.map((o) => o.sabotagePrice)).toEqual([270, 540, 1125]);
     expect(tier(round(100).offers, 'boss').sabotagePrice).toBe(3000);
   });
 
@@ -75,7 +75,7 @@ describe('sabotage (CCR-5)', () => {
       const pct = a.sabotage!.pct;
       expect(Number.isInteger(pct)).toBe(true);
       seen.add(pct);
-      expect(a).toMatchObject({ cash: save.cash - 750, sabotage: { offerId: offer.id, price: 750 } });
+      expect(a).toMatchObject({ cash: save.cash - 1125, sabotage: { offerId: offer.id, price: 1125 } });
       expect(a.rngState).not.toBe(rngState);
     }
     expect(Math.min(...seen)).toBe(SABOTAGE_PCT_MIN);
@@ -88,7 +88,7 @@ describe('sabotage (CCR-5)', () => {
     const once = bought(save, offers[0]);
     expect(buySabotage(once, offers[0])).toEqual({ ok: false, reason: 'pending' });
     expect(buySabotage(once, offers[1])).toEqual({ ok: false, reason: 'pending' });
-    expect(buySabotage({ ...save, cash: 359 }, offers[1])).toEqual({ ok: false, reason: 'cash' });
+    expect(buySabotage({ ...save, cash: 539 }, offers[1])).toEqual({ ok: false, reason: 'cash' });
   });
 
   it('the target starts the race at round(maxHp * (1 - pct/100)); everyone else is untouched', () => {
@@ -143,7 +143,7 @@ describe('sabotage (CCR-5)', () => {
     const medium = tier(offers, 'medium');
     const s = bought(save, medium);
     const other = applyRaceResult(s, offers[0], resultFor(offers[0]));
-    expect(other.save.cash).toBe(s.cash + other.payout.total + 360);
+    expect(other.save.cash).toBe(s.cash + other.payout.total + 540);
     expect(other.save.cashEarned).toBe(s.cashEarned + other.payout.total);
     expect(other.save.sabotage).toBeNull();
     const same = applyRaceResult(s, medium, resultFor(medium));
@@ -153,7 +153,7 @@ describe('sabotage (CCR-5)', () => {
 });
 
 describe('rival rocket fuel and spikes (content.md section 10)', () => {
-  it('rivals: fuel floor(skill * 5), spikes floor(skill * 3) on stats and mesh; the boss fuel 5, spikes 3; the player from the save', () => {
+  it('rivals: fuel floor(skill * 2), spikes floor(skill * 3) on stats and mesh; the boss fuel 2, spikes 3; the player from the save', () => {
     const { save, offers } = round(100, 1, { upgrades: { engine: 0, tires: 0, armor: 0, gun: 0, fuel: 2, spikes: 1 } });
     const setup = buildCareerRaceSetup(save, tier(offers, 'boss'), 1);
     const [player, ...ais] = setup.entrants;
@@ -161,9 +161,9 @@ describe('rival rocket fuel and spikes (content.md section 10)', () => {
     expect(player.stats.turboSpeedMult).toBeCloseTo(1.38, 12);
     for (const e of ais) {
       const skill = e.driverId === 'boss' ? 1.1 : save.rivals.find((r) => r.driverId === e.driverId)!.skill;
-      const fuel = Math.min(5, Math.floor(skill * 5));
+      const fuel = Math.min(5, Math.floor(skill * 2));
       const spikes = Math.min(3, Math.floor(skill * 3));
-      if (e.driverId === 'boss') expect([fuel, spikes]).toEqual([5, 3]);
+      if (e.driverId === 'boss') expect([fuel, spikes]).toEqual([2, 3]);
       expect(e.mesh.spikes).toBe(spikes);
       expect(e.stats.turboSpeedMult).toBeCloseTo(1.3 + 0.04 * fuel, 12);
       expect(e.stats.turboAccelMult).toBeCloseTo(1.6 + 0.08 * fuel, 12);

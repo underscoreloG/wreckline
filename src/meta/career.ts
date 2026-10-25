@@ -26,7 +26,7 @@ export const RIVAL_LOADOUT = { mines: 2, turbo: 3 } as const;
 
 /** Offer brackets, content.md section 11: ranks around the player, the top of the ladder, and the bottom fallback. */
 const EASY_FALLBACK_BOTTOM = 6;
-const MEDIUM_RANK_WINDOW = 3;
+const MEDIUM_RANK_WINDOW = 5;
 const HARD_TOP_RANKS = 6;
 const BOSS_TOP_RANKS = 3;
 const OFFER_RIVALS = 3;

@@ -67,7 +67,7 @@ describe('offers (test 2)', () => {
     [1, 100],
   ];
 
-  it('easy below the player, medium within +-3, hard in the top 6, boss only at rank 1', () => {
+  it('easy below the player, medium within +-5, hard in the top 6, boss only at rank 1', () => {
     for (const [rank, points] of pointsByRank) {
       for (let seed = 1; seed <= 20; seed++) {
         const save = withPoints(points, seed);
@@ -82,7 +82,7 @@ describe('offers (test 2)', () => {
         }
         // With fewer than 3 rivals below (rank 20), the bottom 6 are the pool.
         for (const d of easy.rivals) expect(rk.get(d)!).toBeGreaterThan(rank === 20 ? 13 : rank);
-        for (const d of medium.rivals) expect(Math.abs(rk.get(d)! - rank)).toBeLessThanOrEqual(3);
+        for (const d of medium.rivals) expect(Math.abs(rk.get(d)! - rank)).toBeLessThanOrEqual(5);
         if (rank === 1) {
           expect(top.rivals[0]).toBe('boss');
           for (const d of top.rivals.slice(1)) expect(rk.get(d)!).toBeLessThanOrEqual(3);
@@ -112,7 +112,7 @@ describe('offers (test 2)', () => {
   it('offer tables match content.md section 11', () => {
     const [easy, medium, hard] = generateOffers(newCareer(1)).offers;
     expect([easy.laps, medium.laps, hard.laps]).toEqual([3, 4, 5]);
-    expect(medium.prizes).toEqual([1200, 700, 300, 0]);
+    expect(medium.prizes).toEqual([1800, 1050, 450, 0]);
     expect(hard.points).toEqual([10, 6, 3, 1]);
   });
 });
@@ -131,10 +131,10 @@ describe('payout (test 3)', () => {
     ],
   };
 
-  it('2nd in medium, 1 wreck, 2 cash = 700 + 375 + 400 = 1475 and 4 points', () => {
+  it('2nd in medium, 1 wreck, 2 cash = 1050 + 375 + 400 = 1825 and 4 points', () => {
     const { payout, save: after } = applyRaceResult(save, medium, result);
-    expect(payout).toEqual({ prize: 700, wreckBonus: 375, pickups: 400, total: 1475, pointsGained: 4 });
-    expect(after).toMatchObject({ cash: save.cash + 1475, points: 27, racesRun: 1, wins: 0, hp: 61.5, mines: 0, turbo: 0.5 });
+    expect(payout).toEqual({ prize: 1050, wreckBonus: 375, pickups: 400, total: 1825, pointsGained: 4 });
+    expect(after).toMatchObject({ cash: save.cash + 1825, points: 27, racesRun: 1, wins: 0, hp: 61.5, mines: 0, turbo: 0.5 });
     expect(after.rngState).not.toBe(save.rngState);
   });
 
@@ -190,7 +190,7 @@ describe('race setup', () => {
     expect(p.stats).toEqual(computeStats(getCar('raven'), save.upgrades));
     for (const e of ais) {
       const r = save.rivals.find((x) => x.driverId === e.driverId)!;
-      const lv = Math.min(5, Math.floor(r.skill * 5));
+      const lv = Math.min(5, Math.floor(r.skill * 2));
       const spikes = Math.min(3, Math.floor(r.skill * 3));
       expect(e.stats).toEqual(computeStats(getCar(r.carDefId), { engine: lv, tires: lv, armor: lv, gun: lv, fuel: lv, spikes }));
       expect(e.mesh.spikes).toBe(spikes);
@@ -198,12 +198,12 @@ describe('race setup', () => {
     }
   });
 
-  it('the boss drives wraith with +6% maxSpeed', () => {
+  it('the boss drives wraith with no extra maxSpeed', () => {
     const save = withPoints(100);
     const boss = buildCareerRaceSetup(save, offerOf(save, 'boss'), 1).entrants.find((e) => e.driverId === 'boss')!;
-    const base = computeStats(getCar('wraith'), { engine: 5, tires: 5, armor: 5, gun: 5, fuel: 0, spikes: 0 });
+    const base = computeStats(getCar('wraith'), { engine: 2, tires: 2, armor: 2, gun: 2, fuel: 0, spikes: 0 });
     expect(boss).toMatchObject({ name: 'THE WARDEN', carDefId: 'wraith' });
-    expect(boss.stats.maxSpeed).toBeCloseTo(base.maxSpeed * 1.06, 9);
+    expect(boss.stats.maxSpeed).toBeCloseTo(base.maxSpeed * 1, 9);
   });
 });
 

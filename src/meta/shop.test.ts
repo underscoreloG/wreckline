@@ -95,9 +95,9 @@ describe('car shop (test 10)', () => {
   it('buying trades in 50% of the current car, resets upgrades and fills hp', () => {
     const fromRaven = ok(buyCar(career({ cash: 6000, upgrades: { engine: 3, tires: 2, armor: 1, gun: 0, fuel: 2, spikes: 1 }, hp: 20 }), 'scorch'));
     expect(fromRaven).toMatchObject({ carDefId: 'scorch', cash: 0, hp: 140, upgrades: { engine: 0, tires: 0, armor: 0, gun: 0, fuel: 0, spikes: 0 } });
-    // Scorch trades in for 3000: 8000 + 3000 - 11000.
-    expect(ok(buyCar(career({ carDefId: 'scorch', cash: 8000, hp: 140 }), 'titan'))).toMatchObject({ carDefId: 'titan', cash: 0, hp: 190 });
-    expect(buyCar(career({ carDefId: 'scorch', cash: 7999, hp: 140 }), 'titan')).toEqual({ ok: false, reason: 'cash' });
+    // Scorch trades in for 3000: 6000 + 3000 - 9000.
+    expect(ok(buyCar(career({ carDefId: 'scorch', cash: 6000, hp: 140 }), 'titan'))).toMatchObject({ carDefId: 'titan', cash: 0, hp: 190 });
+    expect(buyCar(career({ carDefId: 'scorch', cash: 5999, hp: 140 }), 'titan')).toEqual({ ok: false, reason: 'cash' });
   });
 });
 

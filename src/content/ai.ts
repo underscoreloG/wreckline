@@ -12,7 +12,7 @@ export const AI_SKILL_MIN = 0;
 export const AI_SKILL_MAX = 1.1;
 
 /** The boss gets this maxSpeed multiplier on top of its car stats. */
-export const BOSS_MAX_SPEED_MULT = 1.06;
+export const BOSS_MAX_SPEED_MULT = 1;
 
 /** M1 quick race AI skills and names, in entrant order (extra AIs use 0.55). */
 export const QUICK_RACE_AI_SKILLS: readonly number[] = [0.35, 0.55, 0.75];
