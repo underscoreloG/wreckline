@@ -1,7 +1,7 @@
 # Wreckline - status
-Phase: 5 (fun gate: the user plays v0.2.1)   Size: L   Milestone: M1   Updated: 2026-10-25
+Phase: 4 for M2 (wave C1 merged; waiting on the user's art and sound steps)   Size: L   Milestone: M1   Updated: 2026-10-25
 Integration pattern: merges of a running wave go into `integ/<wave>` so main stays put while workers run; main fast-forwards after the last merge.
-Next action: the user plays v0.2.1 and answers the fun gate. Yes -> wave C1 (WP09, WP11, WP13, WP15). Knobs ready if asked: AGGRESSION_SCALE 0.2 -> 0.3 (more carnage, probed: 0.31 wrecks, gap 1.06); pickup respawn 8 -> 12 s if bonuses feel too many.
+Next action: user steps WP13U (car sheets via ChatGPT + Tripo, RAVEN sheet first for a brain spot check: specs/art/prompts/README.md) and WP15U (Pixabay downloads: specs/sfx/README.md). Meanwhile WP10 (career UI) can start on request. WP14/WP16 start when their files land in art-incoming/.
 Remote: origin = git@github.com:underscoreloG/wreckline.git (public since 2026-10-25; Pages source = GitHub Actions, set by the user; site will be https://underscorelog.github.io/wreckline/ - not yet deployed).
 Ledger edits stay uncommitted on main while a worker runs (workers check that main did not move).
 
@@ -36,13 +36,13 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | WP05 | Input and audio | A | subagent | opus high | merged | agent a544df2d76a3177cf | wp/05-input-audio (ce89a76) | 21 tests; 21/21 sounds pass offline level check; integ 113/113 |
 | WP07 | AI drivers | B | subagent | opus high | merged | agent a90c0dfb365a0356c | wp/07-ai (27490dc) | 24 AI tests; median 0.55 lap 30.95 s; 0.75 wrecks/race; 0.029 ms/tick; finished-car cruise + immunity |
 | WP08 | Game integration | B | subagent | opus high | merged | agent ad9b023c548dd07cf | wp/08-integration (221b8d7) | 34 game tests; flow, settings, memory pass |
-| WP09 | Career logic | C1 | subagent | opus high | todo | - | | after fun gate |
-| WP11 | Tracks 2-3 and themes | C1 | subagent | opus high | todo | - | | after fun gate |
-| WP13 | Car art prompt pack | C1 | subagent | opus high | todo | - | | after fun gate |
+| WP09 | Career logic | C1 | subagent | opus high | merged | agent a7f0fde9b242efb9a | wp/09-career-logic (9279d4d) | 34 meta tests; integ 250/250; careerSim: greedy champion 2/16 by race 100 (target 18-35) -> WP12 |
+| WP11 | Tracks 2-3 and themes | C1 | subagent | opus high | merged | agent a8803896755e170a7 | wp/11-tracks-themes (21b31a8) | Dust Bowl 1419 m ref 36 s, walls 2.81, wrecks 0.31; Dockside 1130 m ref 31 s, walls 3.63, wrecks 0.69, shoulder 4 m; draws <= 95 |
+| WP13 | Car art prompt pack | C1 | subagent | opus high | merged | agent a740d6458e7596f60 | wp/13-car-art-prompts (1d22828) | 8 prompts + README + checks.md, grep check all pass; TITAN turret moved to bed (needs user ok) |
 | WP13U | Generate car sheets and models | U1 | user:ChatGPT+Tripo | ChatGPT image + Tripo (user) | todo | - | - | brain spot-checks 1 sheet first |
 | WP10 | Career UI and wiring | C2 | subagent | opus high | todo | - | | |
 | WP14 | Car model import | C2 | subagent | opus high | todo | - | | pin glTF optimizer first; copy art-incoming |
-| WP15 | Sound list (Pixabay picks) | C1 | subagent | sonnet high | todo | - | | after fun gate |
+| WP15 | Sound list (Pixabay picks) | C1 | subagent | sonnet high | merged | agent a0a443f4dc1a2475d | wp/15-sound-list (7020764) | 22 sounds x 3 candidates, 66/66 links 200, all Pixabay Content License; nothing listened to |
 | WP15U | Download the sounds | U1 | user:Pixabay | Pixabay (user's browser) | todo | - | - | user checks each licence |
 | WP16 | Sound import and mix | C2 | subagent | opus high | todo | - | | copy art-incoming/sfx; listening session with user after merge |
 | WP17 | M1 tuning pass 1 (faster, more pickups) | 5 | subagent | opus high | merged | agent afc590ff684ca968e | wp/17-tuning-1 (8033df0) | lap 30.95->27.70 s; walls 1.75->2.94/race; wrecks 0.75->0.25; pickups 8.7->21.9/race; gap 1.25->0.88; released v0.2.1 |
@@ -66,11 +66,15 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | G0 | pass 2026-10-25: verify green on main; fake sim 15/15 event types, car 3 wrecked; real sim drives/turns/walls hold, AI moves, finish hook 4 rows; no console errors |
 | GA | pass 2026-10-25 on main 9fd625f: verify 151/151, gzip 1801 kB; real sim with stub AI races, shoots, mines, wrecks, pickups respawn; render harness draws (screenshot), all 5 harnesses load with no console errors. NOT verified: 60 fps (pane rAF unreliable: 24 rAF fps, stats 0 then 120); re-measure at GB in a real browser |
 | GB / M1 | pass 2026-10-25 on main: verify 215/215, gzip 1808 kB; autoplay race seed 42 all 4 finish 93-97 s, no console errors; full keyboard flow title-preRace-race-pause-resume-results; live race 120 fps (p50 8.3 ms, p95 9.3 ms, 87 draws) in a visible pane ~1474x1466 backing; released as v0.2.0 |
-| Fun gate | - |
+| Fun gate | YES 2026-10-25 on v0.2.1 (after tuning pass 1) |
 | Art gate (after C2) | - |
 | GC / M2 | - |
 
 ## Open
+- Wave C1 integration: WP09's test pinned the single-track TRACKS of its branch; with WP11 merged it failed. Brain fixed the assertion on integ (6f49e35) to follow the real list. From WP11: desert keeps WP03's headlight cones in daylight (cosmetic, WP03-area follow-up); Dockside referenceLapTime rests on 17 clean laps.
+- From WP15 (for the user at WP15U): weak picks: raceStart (horns), skid (no true loops: synth likely stays), mineDropped (generic clunk), uiConfirm/uiBack (single clicks), turbo (sci-fi). Some candidates have reverb tails. WP16 spec now reads WP15's import table and the exact licence string.
+- From WP09 (for WP12): career far too long: greedy champion in 2/16 seeds by race 93-99, 0/16 within 60 (target 18-35); all 19 rivals score every race off-screen (~6 pts/race in hard), player stalls at rank 3-5. Cash per race greedy 2307 / safe 1319; race-5 cash target met. careerSim assumes damage 10-50% maxHp per race (not measured). CCR-2 accepted in substance: WP12 may tune the named career constants where they are (RIVAL_LOADOUT, OFF_SIM_*, SKILL_WEIGHT_K, PLAYER_SKILL_MODEL in src/meta/{career,offSim,careerSim}.ts) instead of moving them to content; add them to WP12's owned paths before its brief. `safe` policy never takes the boss by definition.
+- From WP13 (for WP14 and the user): TITAN prompt moves the turret from the cab roof to the bed so the cab roof can hold the plate (user to confirm); OUTLAW plate sits on the cage, ICEBERG on the rack; spikes/rams count in the length x width fit, so WRAITH/TITAN bodies come out smaller; Tripo option names unverified (README has a single-image fallback); RAVEN first, brain spot-checks its sheet before the other 7.
 - From WP17: wrecks (0.25) and skill gap (0.88) sit near WP07's floors; playerWrecked endings 4 -> 0 (more repairs). Pickups collected x2.5. Optional CCR: explicit `fx.speedStreaks` quality flag instead of reusing `headlightCones` (render only, not applied).
 - From WP07 (watch at fun gate): AGGRESSION_SCALE = 0.2 in ai.ts. At 1.0 the pack shot the leader (usually the player) to a wreck in ~15 s; at 0.3, 9 of 16 races ended with the player wrecked. Skill gaps are small (laps 31.2-32.2 s); positions come from grid order and combat. LAT_ACCEL measured grip*64 (turn-rate limited model). First-lap pile-ups at the tight corner seen (seed 7 cost ~12 s), cars recover.
 - For WP12/user (from WP03): AGX tone mapping makes explosions, gantry red and pickups look pastel; bloom subtle. Vite warns the raw chunk > 4096 kB (gzip budget fine). Roof-plate light trim for dark bodies left to WP14.
@@ -83,5 +87,6 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 - Minor review items still open (`specs/REVIEW-2026-10-23.md`): 23 (finished cars coast and stay hittable), 24 (aim target and impact speed wording), 25 (names/colors past 3 AIs, TRACKS shape), 27 (sound check, fps checks need a visible pane), 28 (handbrake flag, audio car stats, layout map), 30 (easy-rival fallback wording), 31 (doc drift: GC seeds, placeProps args, WP12 probe runner).
 - Before WP14: pin a glTF optimizer version on npm into SPEC.md section 2.
 - From WP08: App is mounted by src/game/index.ts (rule 5: main.tsx may not create input/audio), accepted. Any keydown/pointerdown unlocks audio. Results delay counts 150 sim ticks. Title backdrop restarts its fake race every ~7 min (wrecked-car reset visuals unchecked). Pages workflow runs on push to main.
+- 2026-10-25 Fun gate: yes on v0.2.1. M2 starts with wave C1 (WP09, WP11, WP13, WP15). New tracks get 10-14 pickups (every kind >= 2) to match the approved density.
 - 2026-10-25 Playtest of v0.2.0, user verbatim: "seems to be working great, it is a little bit too slow in my opinion. And I would love a little bit more bonuses on the race". Chosen: all cars maxSpeed x1.15 / accel x1.20, camera 46-62 m + turbo speed streaks; Scrapyard pickups 6 -> 12, respawn 12 -> 8 s. New pickup kinds not now (M2 if wanted). -> WP17.
 - 2026-10-25 Sound specs written: WP15 (Pixabay picks), WP15U (user downloads), WP16 (import + mix, synth fallback, engine stays synth). Default timing after the fun gate.
