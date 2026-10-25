@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.0 - Ten tracks (2026-10-25)
+
+- Four more tracks: Junkyard Sprint (short and violent, a hairpin at each end), Pine Hollow (fast forest sweepers with a blind kink), Rain District (chicanes and a long boulevard), Blast Pit (the longest, a double loop around two pits).
+- Career unlocks all 10 by rank 6; quick race picker lists all 10.
+
 ## 0.4.0 - Rocket fuel, spikes, sabotage, 6 tracks, real sounds (2026-10-25)
 
 - Rocket fuel: the boost is now called rocket fuel and can be upgraded in the shop (5 levels: up to +15% boost speed, +25% boost acceleration).

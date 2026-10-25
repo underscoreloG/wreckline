@@ -1,7 +1,7 @@
 # Wreckline - status
 Phase: 4 for M2 (wave C1 merged; waiting on the user's art and sound steps)   Size: L   Milestone: M1   Updated: 2026-10-25
 Integration pattern: merges of a running wave go into `integ/<wave>` so main stays put while workers run; main fast-forwards after the last merge.
-Next action: v0.4.0 released (fuel, spikes, sabotage, picker, 6 tracks, sounds). Next: WP23a | WP23b (4 tracks), listening session with the user, WP14 when RAVEN GLB + 7 sheets land, WP12 last.
+Next action: v0.5.0 released (10 tracks). Remaining: listening session (user), WP14 car models (waits for RAVEN GLB + 7 sheets), CCR-7 AI wreck-pushing fix, WP12 balance over 10 tracks, M2 release.
 Remote: origin = git@github.com:underscoreloG/wreckline.git (public since 2026-10-25; Pages source = GitHub Actions, set by the user; site will be https://underscorelog.github.io/wreckline/ - not yet deployed).
 Ledger edits stay uncommitted on main while a worker runs (workers check that main did not move).
 
@@ -51,8 +51,8 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | WP20 | Rocket fuel, spikes, sabotage: contract, sim, content, career logic | C2 | subagent | opus high | merged | agent a0c2abe65b20d2e38 | wp/20-core (e16baf3) | 356/356; level 0 bit-identical on 48 soak races; probe AI fuel4/spikes2: wrecks 0.56 vs 0.25, walls 3.81 vs 2.94 |
 | WP21 | Rocket fuel, spikes, sabotage: screens, HUD, visuals | C2 | subagent | opus high | merged | agent a37935456fb1dd2c6 | wp/21-ui (4181c08) | 371/371; shop lines, sabotage row (target hp verified), FUEL label, picker persists, spikes in garage, loop paused behind results |
 | WP22 | Snow, city, quarry themes, new props, 3 tracks | C2 | subagent | opus high | merged | agent a838562114a16f044 | wp/22-themes-tracks (0c392e6) | frostbite 1238 m ref 33 walls 0.69 wrecks 1.19; neonMile 1409 m ref 39 (n=12, shaky) walls 2.63 wrecks 0.50; redrock 1361 m ref 35 walls 2.88 wrecks 0.69 |
-| WP23a | Junkyard Sprint, Pine Hollow | C2 | subagent | opus high | todo | - | | after WP22 |
-| WP23b | Rain District, Blast Pit | C2 | subagent | opus high | todo | - | | after WP22; brain registers TRACKS lines |
+| WP23a | Junkyard Sprint, Pine Hollow | C2 | subagent | opus high | merged | agent affbffcf6260e8584 | wp/23a-tracks (7fd20c2) | junkyardSprint 834 m ref 23 walls 2.75 wrecks 0.50; pineHollow 1397 m ref 36.5 walls 2.00 wrecks 0.81 |
+| WP23b | Rain District, Blast Pit | C2 | subagent | opus high | merged | agent afdd68226264e08fa | wp/23b-tracks (1d49285) | rainDistrict 1165 m ref 31.5 (n=28) walls 2.50 wrecks 0.38; blastPit 1608 m ref 41 (n=28) walls 2.44 wrecks 0.38, 17 pickups |
 | WP12 | Balance and polish | C3 | session | opus high | todo | - | | |
 
 ## Helper agents (not WPs)
@@ -78,6 +78,8 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | GC / M2 | - |
 
 ## Open
+- CCR-7 (from WP23a, accepted, not applied): AI avoidance skips cars that are not slower, so an AI can shove a wreck at ~6 m/s on full throttle for 70+ s (stuck detector misses it, speed > 1.5). Fix in src/sim/ai.ts avoidance: `if (!o.wrecked && speed - oSpeed <= AVOID_SLOWER) continue;`. Changes every soak number, so it goes with a re-soak (WP12, or a small WP before it). WP23a/b picked starts that avoid it (2 of 6 Pine Hollow starts hit it).
+- Integration C3: WP23b's test compared Blast Pit with every registered track, which failed once Blast Pit itself was registered; brain fixed the test to skip itself (22a7670).
 - From WP22 (for WP23 and WP12): Frostbite wrecks 1.19/race (highest; inside gate); Neon Mile referenceLapTime on 12 clean laps (shaky); start position swings walls/wrecks 2x, try 4-8 starts; give every soaked layout a unique id (racing line cache); billboard/crane via rules with rotation = tangent; AGX makes magenta billboards pastel (same as WP03 note); pines very dark at night.
 - Listening session (WP16 notes): starting MIX gun 1 (~7 dB over the old synth gun), explosionWreck 2.5, turbo 0.7, race cues 1.6, ui category 0.5, engine player 0.28. Listen for: gun choppy at 12 shots/s (0.3 s sample cut every 83 ms); carDamaged layers with impact on crashes; pickupMines/uiBack/mineDropped squashed by 6 dB limiting; mineBeep and pickupTurbo quiet; explosionMine short (0.46 s); lapCompleted cut at 1.0 s. Synth fallback ignores MIX levels and pitch jitter. Skid sample path exists in the script but skid.ts is not wired (5 lines if a skid file arrives).
 - From WP21 (for WP14): `buildSpikesGeometry(spec)` is in src/render/carMesh.ts (null for spikes 0 or boss), non-indexed with vertex colours, car frame +x forward, placed from spec length/width/height/wheelRadius: WP14 must use a flat-shaded vertexColors material and keep spec dims equal to the model's collider (hitbox follows art). "New track" message is a toast on CONTINUE to the hub (no UiState hub field). Menu nav: Down from BACK does not reach the sabotage row (2-column grid, existing behaviour).
