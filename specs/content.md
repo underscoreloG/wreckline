@@ -248,4 +248,4 @@ Plus 6 `wreck` and 10 `crate` props scattered on the infield: accepted only if t
 
 ### Dust Bowl and Dockside (M2)
 
-Designed by WP11 under these constraints: length 1100-1500 m, width 13-16, min radius >= width, min clearance >= width + 2*shoulder + 8, at least one straight >= 150 m, at least one hairpin (radius < 25 m), 6-8 pickups with at least 1 of each kind. Must pass `validateTrack`.
+Designed by WP11 under these constraints: length 1100-1500 m, width 13-16, min radius >= width, min clearance >= width + 2*shoulder + 8, at least one straight >= 150 m, at least one hairpin (radius < 25 m), 10-14 pickups with every kind at least twice and cash the most common (tuning pass 1 density: Scrapyard has 12 for ~1049 m, so about one pickup per 90 m). Must pass `validateTrack`.
