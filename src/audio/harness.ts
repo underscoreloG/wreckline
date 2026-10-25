@@ -6,7 +6,7 @@ import { buildBus } from './bus';
 import { createEngineVoice, ENGINE_GAIN_PLAYER } from './engine';
 import { createAudioEngine } from './index';
 import { playSound, soundSource } from './samples';
-import { SFX_NAMES, type SfxName } from './sfx';
+import { playSfx, SFX_NAMES, type SfxName } from './sfx';
 import { createSkidVoice, SKID_GAIN } from './skid';
 
 const MAX_STEPS = 5; // per frame, as in the game loop
@@ -93,18 +93,28 @@ export function mountAudioHarness(root: HTMLElement): void {
     parent.appendChild(e);
     return e;
   };
-  el('div', 'Audio harness - click anywhere once to unlock audio; each button shows sample or synth');
+  el('div', 'Audio harness - click anywhere once to unlock audio; "sample" plays the recorded file at its MIX level (what the game plays), "synth" the fallback recipe');
   const buttons = el('div');
-  buttons.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin:12px 0';
+  buttons.style.cssText = 'display:grid;grid-template-columns:max-content max-content max-content;gap:4px 8px;align-items:center;margin:12px 0';
   const labels: [HTMLButtonElement, SfxName][] = [];
+  // Synth on the same bus node as engine.play, so the A/B only differs by source.
+  const playSynth = async (name: SfxName): Promise<void> => {
+    await unlock();
+    const bus = engine.bus();
+    if (bus) playSfx(bus.ctx, bus.sfx, name, bus.ctx.currentTime, 1, 0);
+  };
   for (const name of SFX_NAMES) {
-    const b = el('button', name, buttons);
+    el('span', name, buttons);
+    const b = el('button', 'sample', buttons);
     labels.push([b, name]);
     b.dataset.sound = name;
     b.onclick = async () => {
       await unlock();
       engine.play(name);
     };
+    const s = el('button', 'synth', buttons);
+    s.dataset.synth = name;
+    s.onclick = () => void playSynth(name);
   }
 
   const sliders = el('div');
@@ -200,7 +210,9 @@ export function mountAudioHarness(root: HTMLElement): void {
   checkBtn.onclick = () => void runChecks();
 
   const draw = (): void => {
-    for (const [b, name] of labels) b.textContent = `${name} (${soundSource(name)})`;
+    for (const [b, name] of labels) {
+      b.textContent = soundSource(name) === 'sample' ? 'sample' : 'sample (not loaded: plays synth)';
+    }
     const snap = sim?.snapshot();
     readout.textContent = [
       `context    ${engine.bus()?.ctx.state ?? 'locked'}`,
@@ -221,6 +233,7 @@ export function mountAudioHarness(root: HTMLElement): void {
     engine,
     unlock,
     play: (name: SfxName) => engine.play(name),
+    playSynth,
     ui: (s: Parameters<typeof engine.ui>[0]) => engine.ui(s),
     voices: () => engine.voices(),
     maxVoices: () => maxVoices,
