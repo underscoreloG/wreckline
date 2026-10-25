@@ -56,6 +56,8 @@ Cost to buy level L (1..5): `[300, 700, 1500, 3000, 6000][L-1] * tierMult`, `tie
 | item | price | cap |
 |---|---|---|
 | repair | 4 cash per HP x tierMult of the current car, rounded up | to maxHp |
+| partial repair | same price per HP; the garage offers +25% of maxHp and "all you can afford" next to FULL | to maxHp |
+| free tow (user decision 2026-10-25) | when the car has 0 hp and the player cannot afford a repair to 30% of maxHp, it is repaired to `ceil(0.3 * maxHp)` for free, with the message "Towed: free repair to 30%". Checked after every race result, every shop action and on career load, so a career can never get stuck | - |
 | mine | 60 each | 8 carried |
 | turbo | 40 per second | 10 s carried |
 | car | table price, `forSale` cars only; trade-in gives 50% of the current car's price; upgrades are lost; new car starts at full hp | - |
