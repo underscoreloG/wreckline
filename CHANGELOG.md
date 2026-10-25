@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1 - Instant results (2026-10-25)
+
+- Results appear 1.5 s after you finish or wreck. The rest of the race is fast-forwarded in the background, so positions and times are exactly what they would have been if you had waited.
+
 ## 0.3.0 - Career (2026-10-25)
 
 - Career mode: ladder of 19 rivals plus a boss, three race offers per round (easy, medium, hard; boss at rank 1), payouts, standings, champion screen. Progress saves in the browser.
