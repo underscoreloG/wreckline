@@ -131,7 +131,7 @@ Query params (dev and prod, handled in `main.tsx`):
 | WP11 | Tracks 2-3 and themes | C1 | M1 gate, WP03 | `src/content/tracks/dustBowl.ts`, `src/content/tracks/dockside.ts`, `src/content/tracks/m2Tracks.test.ts`, `src/render/themes/**` (data; WP03 created `index.ts`) | opus high | subagent |
 | WP10 | Career UI and wiring | C2 | WP08, WP09 | `src/ui/**` (taken over from WP04, edits listed in WP10), `src/ui/career.css`, `src/game/**` (taken over from WP08) | opus high | subagent |
 | WP13 | Car art prompt pack | C1 | M1 gate | `specs/art/prompts/**` | opus high | subagent |
-| WP13U | Generate car sheets and models | U1 | WP13 | `art-incoming/cars/**` (gitignored) | - | user:ChatGPT+Tripo |
+| WP13U | Generate car sheets and models | U1 | WP13 | `art-incoming/cars/**` (gitignored) | external: ChatGPT image generation + Tripo image-to-model, latest in the user's accounts (not pinned) | user:ChatGPT+Tripo |
 | WP14 | Car model import | C2 | WP03, WP13U | `scripts/assets/**`, `public/models/cars/**`, `src/render/carModel.ts` (+ test), `src/render/{carMesh,index,harness}.ts` (taken over from WP03), `mesh.model` values in `src/content/cars.ts` | opus high | subagent |
 | WP12 | Balance and polish | C3 | WP09-11 merged | values in `src/content/**`, AI scale constants in `src/sim/ai.ts`, expected values in tuning-pinned tests (list in WP12), `scripts/balance/**`, `docs/tuning-log.md` | opus high | session |
 
@@ -163,7 +163,7 @@ Wave B: WP07 | WP08                        (2 agents in parallel) -> merge -> ga
 M1 gate: orchestrator verification in the browser pane, then the user playtests. Go / tune / stop.
 Wave C1: WP09 | WP11 | WP13               (3 agents in parallel) -> merge
 Wave U1: WP13U                             (user generates 8 sheets + models with ChatGPT and Tripo)
-Wave C2: WP10 | WP14                       (WP10 needs the career API and the M1 shell; WP14 needs the user's models) -> merge -> art gate (brain: lineup screenshots, fresh critic agent vs the concept sheet, then the user)
+Wave C2: WP10 | WP14                       (WP10 needs the career API and the M1 shell; WP14 needs the user's models) -> merge -> art gate (brain: lineup screenshots, fresh critic agent (opus, max effort) vs the concept sheet, then the user)
 Wave C3: WP12                              (session with the user, after C1+C2) -> gate GC = M2
 ```
 

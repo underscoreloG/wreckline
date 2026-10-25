@@ -25,23 +25,34 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 - Still assumed: working title "Wreckline", career length target 18-35 races (WP12 can move it).
 
 ## Work packages
-| WP | Name | Wave | Dispatch | Status | Agent/session id | Branch | Notes |
-|---|---|---|---|---|---|---|---|
-| WP00 | Foundation | 0 | subagent | merged | agent a49385f5fa850e0b1 | wp/00-foundation (merged 4d085b3) | 59 tests; gzip 1342 kB |
-| WP01 | Vehicle and race rules | A | subagent | merged | agent a0b65fac6f34c72da | wp/01-vehicle-race (51902d4) | 14/14; 0-100 2.17 s, lap 34.3 s (crude follower), perf 83 ms/3600 ticks |
-| WP02 | Combat and pickups | A | subagent | merged | agent a15ac35ba1dc32e8a | wp/02-combat (630a638) | 13/13; T8/T9 green under WP01 dynamics on integ (92/92 total) |
-| WP03 | Renderer | A | subagent | merged | agent a6a6739309f02b457 | wp/03-renderer (8c1f867) | 23 render tests; < 400 tris/car, 9 draws/car; scene 48-59k tris, 64-91 draws at high; GPU 7.9 ms/frame at 4K (proxy) |
-| WP04 | UI shell and HUD | A | subagent | merged | agent aadfab483ba45c628 | wp/04-ui-hud (1ce7623) | 17 ui tests; all M1 screens + 3 HUD states render clean; integ 128/128, gzip 1568 kB |
-| WP05 | Input and audio | A | subagent | merged | agent a544df2d76a3177cf | wp/05-input-audio (ce89a76) | 21 tests; 21/21 sounds pass offline level check; integ 113/113 |
-| WP07 | AI drivers | B | subagent | todo | - | | |
-| WP08 | Game integration | B | subagent | todo | - | | |
-| WP09 | Career logic | C1 | subagent | todo | - | | after fun gate |
-| WP11 | Tracks 2-3 and themes | C1 | subagent | todo | - | | after fun gate |
-| WP13 | Car art prompt pack | C1 | subagent | todo | - | | after fun gate |
-| WP13U | Generate car sheets and models | U1 | user:ChatGPT+Tripo | todo | - | - | brain spot-checks 1 sheet first |
-| WP10 | Career UI and wiring | C2 | subagent | todo | - | | |
-| WP14 | Car model import | C2 | subagent | todo | - | | pin glTF optimizer first; copy art-incoming |
-| WP12 | Balance and polish | C3 | session | todo | - | | |
+| WP | Name | Wave | Dispatch | Model | Status | Agent/session id | Branch | Notes |
+|---|---|---|---|---|---|---|---|---|
+| WP00 | Foundation | 0 | subagent | opus high | merged | agent a49385f5fa850e0b1 | wp/00-foundation (merged 4d085b3) | 59 tests; gzip 1342 kB |
+| WP01 | Vehicle and race rules | A | subagent | opus high | merged | agent a0b65fac6f34c72da | wp/01-vehicle-race (51902d4) | 14/14; 0-100 2.17 s, lap 34.3 s (crude follower), perf 83 ms/3600 ticks |
+| WP02 | Combat and pickups | A | subagent | opus high | merged | agent a15ac35ba1dc32e8a | wp/02-combat (630a638) | 13/13; T8/T9 green under WP01 dynamics on integ (92/92 total) |
+| WP03 | Renderer | A | subagent | opus high | merged | agent a6a6739309f02b457 | wp/03-renderer (8c1f867) | 23 render tests; < 400 tris/car, 9 draws/car; scene 48-59k tris, 64-91 draws at high; GPU 7.9 ms/frame at 4K (proxy) |
+| WP04 | UI shell and HUD | A | subagent | opus high | merged | agent aadfab483ba45c628 | wp/04-ui-hud (1ce7623) | 17 ui tests; all M1 screens + 3 HUD states render clean; integ 128/128, gzip 1568 kB |
+| WP05 | Input and audio | A | subagent | opus high | merged | agent a544df2d76a3177cf | wp/05-input-audio (ce89a76) | 21 tests; 21/21 sounds pass offline level check; integ 113/113 |
+| WP07 | AI drivers | B | subagent | opus high | todo | - | | |
+| WP08 | Game integration | B | subagent | opus high | todo | - | | |
+| WP09 | Career logic | C1 | subagent | opus high | todo | - | | after fun gate |
+| WP11 | Tracks 2-3 and themes | C1 | subagent | opus high | todo | - | | after fun gate |
+| WP13 | Car art prompt pack | C1 | subagent | opus high | todo | - | | after fun gate |
+| WP13U | Generate car sheets and models | U1 | user:ChatGPT+Tripo | ChatGPT image + Tripo (user) | todo | - | - | brain spot-checks 1 sheet first |
+| WP10 | Career UI and wiring | C2 | subagent | opus high | todo | - | | |
+| WP14 | Car model import | C2 | subagent | opus high | todo | - | | pin glTF optimizer first; copy art-incoming |
+| WP12 | Balance and polish | C3 | session | opus high | todo | - | | |
+
+## Helper agents (not WPs)
+| Task | When | Model | Effort |
+|---|---|---|---|
+| Brain (this session) | all phases | opus | high (max while dispatching reviewers) |
+| Spec reviewer + recheck | Phase 3, and after any large spec change | opus | max |
+| Art critic (WP14 art gate) | after wave C2 | opus | max |
+| glTF optimizer version pin (npm) | before WP14 | haiku | high |
+| Fact lookups during briefs | as needed | sonnet | high |
+| Soak / balance probe runs outside WP12 | gates GB, GC | sonnet | high |
+| WP12 session | wave C3 | claude-opus-5-5 (start_session `model`) | high (start_session `effort`, capped at the brain's own) |
 
 ## Gates
 | Gate | State |
