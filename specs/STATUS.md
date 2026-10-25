@@ -1,7 +1,7 @@
 # Wreckline - status
-Phase: 5 (tuning pass 1 before the fun gate counts)   Size: L   Milestone: M1   Updated: 2026-10-25
+Phase: 5 (fun gate: the user plays v0.2.1)   Size: L   Milestone: M1   Updated: 2026-10-25
 Integration pattern: merges of a running wave go into `integ/<wave>` so main stays put while workers run; main fast-forwards after the last merge.
-Next action: WP17 running (tuning pass 1). When it lands: verify, merge, re-run autoplay + flow on main, release v0.2.1 (patch: tuning), push, check the live site, then the user plays again and answers the fun gate.
+Next action: the user plays v0.2.1 and answers the fun gate. Yes -> wave C1 (WP09, WP11, WP13, WP15). Knobs ready if asked: AGGRESSION_SCALE 0.2 -> 0.3 (more carnage, probed: 0.31 wrecks, gap 1.06); pickup respawn 8 -> 12 s if bonuses feel too many.
 Remote: origin = git@github.com:underscoreloG/wreckline.git (public since 2026-10-25; Pages source = GitHub Actions, set by the user; site will be https://underscorelog.github.io/wreckline/ - not yet deployed).
 Ledger edits stay uncommitted on main while a worker runs (workers check that main did not move).
 
@@ -45,7 +45,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | WP15 | Sound list (Pixabay picks) | C1 | subagent | sonnet high | todo | - | | after fun gate |
 | WP15U | Download the sounds | U1 | user:Pixabay | Pixabay (user's browser) | todo | - | - | user checks each licence |
 | WP16 | Sound import and mix | C2 | subagent | opus high | todo | - | | copy art-incoming/sfx; listening session with user after merge |
-| WP17 | M1 tuning pass 1 (faster, more pickups) | 5 | subagent | opus high | todo | - | wp/17-tuning-1 | wt wp17, port 5217 |
+| WP17 | M1 tuning pass 1 (faster, more pickups) | 5 | subagent | opus high | merged | agent afc590ff684ca968e | wp/17-tuning-1 (8033df0) | lap 30.95->27.70 s; walls 1.75->2.94/race; wrecks 0.75->0.25; pickups 8.7->21.9/race; gap 1.25->0.88; released v0.2.1 |
 | WP12 | Balance and polish | C3 | session | opus high | todo | - | | |
 
 ## Helper agents (not WPs)
@@ -71,6 +71,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | GC / M2 | - |
 
 ## Open
+- From WP17: wrecks (0.25) and skill gap (0.88) sit near WP07's floors; playerWrecked endings 4 -> 0 (more repairs). Pickups collected x2.5. Optional CCR: explicit `fx.speedStreaks` quality flag instead of reusing `headlightCones` (render only, not applied).
 - From WP07 (watch at fun gate): AGGRESSION_SCALE = 0.2 in ai.ts. At 1.0 the pack shot the leader (usually the player) to a wreck in ~15 s; at 0.3, 9 of 16 races ended with the player wrecked. Skill gaps are small (laps 31.2-32.2 s); positions come from grid order and combat. LAT_ACCEL measured grip*64 (turn-rate limited model). First-lap pile-ups at the tight corner seen (seed 7 cost ~12 s), cars recover.
 - For WP12/user (from WP03): AGX tone mapping makes explosions, gantry red and pickups look pastel; bloom subtle. Vite warns the raw chunk > 4096 kB (gzip budget fine). Roof-plate light trim for dark bodies left to WP14.
 - Brief facts for later waves (from WP00): `__harness.step()` switches the debug view to scripted mode for good; `finishRace()` = `debugFinishRace()` + `step(1)` (raceFinished arrives on the next step); stub countdown gives raceStart on tick 180; stub params renamed with `_` prefix (names only).

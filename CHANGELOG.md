@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1 - Tuning pass 1 (2026-10-25)
+
+- Faster: every car +15% top speed and +20% acceleration (laps ~31 s -> ~27.7 s on Scrapyard).
+- Closer camera (46-62 m) and white speed streaks while turbo is on.
+- More bonuses: Scrapyard pickups 6 -> 12, respawn 12 s -> 8 s.
+- Plain full steering now shows drift smoke from about 64% of top speed (was 70%).
+
 ## 0.2.0 - M1 vertical slice (2026-10-25)
 
 - Playable quick race on Scrapyard: 3 laps, the player against 3 AI drivers.
