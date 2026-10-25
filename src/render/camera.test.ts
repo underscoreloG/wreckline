@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SIM_DT } from '../shared/contracts';
-import { decayTrauma, FollowCamera, smoothDamp, valueNoise } from './camera';
+import { decayTrauma, EDGE_BLUR_KEY, FollowCamera, smoothDamp, valueNoise } from './camera';
 
 const input = { pos: { x: 0, y: 0 }, vel: { x: 0, y: 0 }, speed: 0, maxSpeed: 34, phase: 'racing' as const, countdown: 0, countdownTotal: 3, wrecked: false, turbo: false, shake: true };
 
@@ -73,5 +73,73 @@ describe('render: camera', () => {
       expect(Math.abs(v - prev)).toBeLessThan(0.1);
       prev = v;
     }
+  });
+
+  describe('boost kick (WP26)', () => {
+    const fast = { ...input, speed: 34, vel: { x: 34, y: 0 } };
+    /** Runs `seconds` of frames, returning the FOV per frame. */
+    const run = (cam: FollowCamera, seconds: number, inp: typeof input): number[] => {
+      const out: number[] = [];
+      for (let i = 0; i < Math.round(seconds * 60); i++) {
+        cam.update(SIM_DT, inp);
+        out.push(cam.camera.fov);
+      }
+      return out;
+    };
+
+    it('zooms out to a peak within 0.2 s of turboStart, holds while boosting, returns to rest after turbo end', () => {
+      const cam = new FollowCamera();
+      run(cam, 1, fast);
+      expect(cam.camera.fov).toBeCloseTo(34, 3);
+      const boost = run(cam, 2, { ...fast, turbo: true });
+      const peakAt = boost.indexOf(Math.max(...boost));
+      expect((peakAt + 1) * SIM_DT).toBeLessThanOrEqual(0.2);
+      expect(Math.max(...boost)).toBeGreaterThan(boost[boost.length - 1] + 2); // a pulse, then a lower hold
+      expect(boost[boost.length - 1] - 34).toBeCloseTo(4, 1); // held offset while turbo lasts
+      run(cam, 2, fast);
+      expect(cam.camera.fov).toBeCloseTo(34, 2);
+    });
+
+    it('the peak still shows with long frames (dt 0.1 s)', () => {
+      const cam = new FollowCamera();
+      cam.update(0.1, fast);
+      const fovs: number[] = [];
+      for (let i = 0; i < 4; i++) {
+        cam.update(0.1, { ...fast, turbo: true });
+        fovs.push(cam.camera.fov);
+      }
+      expect(Math.max(...fovs.slice(0, 2))).toBeCloseTo(41, 3);
+    });
+
+    it('turboStart shakes the camera only when the shake setting is on; the zoom ignores the setting', () => {
+      for (const shake of [true, false]) {
+        const cam = new FollowCamera();
+        run(cam, 1, { ...fast, shake });
+        let maxOff = 0;
+        for (let i = 0; i < 20; i++) {
+          cam.update(SIM_DT, { ...fast, shake, turbo: true });
+          maxOff = Math.max(maxOff, Math.abs(cam.camera.position.x - cam.target.x));
+        }
+        if (shake) expect(maxOff).toBeGreaterThan(0.01);
+        else expect(maxOff).toBe(0);
+        expect(cam.camera.fov).toBeGreaterThan(38);
+      }
+    });
+
+    it('edge blur fades in over ~0.2 s while boosting, follows speed, fades out after turbo end', () => {
+      const cam = new FollowCamera();
+      const blur = (): number => cam.camera.userData[EDGE_BLUR_KEY] as number;
+      run(cam, 0.5, fast);
+      expect(blur()).toBe(0);
+      run(cam, 0.1, { ...fast, turbo: true });
+      expect(blur()).toBeGreaterThan(0.4);
+      expect(blur()).toBeLessThan(0.6);
+      run(cam, 0.15, { ...fast, turbo: true });
+      expect(blur()).toBeCloseTo(1, 6);
+      run(cam, 0.5, { ...fast, turbo: true, speed: 17 });
+      expect(blur()).toBeCloseTo(0.5, 6);
+      run(cam, 0.25, fast);
+      expect(blur()).toBe(0);
+    });
   });
 });

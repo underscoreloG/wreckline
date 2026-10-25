@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { CarState, PickupKind, RaceSnapshot, SimEvent, TrackGeometry, Vec2 } from '../shared/contracts';
+import type { CarState, PickupKind, RaceSnapshot, SimEvent, TrackGeometry, TrackTheme, Vec2 } from '../shared/contracts';
 import { PLAYER_CAR_ID } from '../shared/contracts';
 import { createRng } from '../shared/rng';
 import type { CarParts } from './carMesh';
@@ -20,7 +20,6 @@ const SCORCH_CAP = 48;
 const MINE_CAP = 64;
 const DEBRIS_CAP = 96;
 const EXPLOSION_CAP = 16;
-const HEADLIGHT_LENGTH = 14;
 const PICKUP_COLORS: Record<PickupKind, string> = { cash: '#2EE6A6', repair: '#E8EAED', mines: '#FF3355', turbo: '#2EA8FF' };
 const PICKUP_GLOW = 1.6; // HDR multiplier so icons bloom
 const PICKUP_POP = 0.2; // s, scale-out on collect and scale-in on respawn
@@ -28,20 +27,47 @@ const SMOKE_COLUMN = 3; // s after an explosion
 const DRIFT_MIN_SPEED = 3;
 const DAMAGE_SMOKE_BELOW = 0.4;
 const FIRE_BELOW = 0.15;
-// Speed streaks on the player's turbo (design.md section 3, tuning pass 1).
-const STREAK_CAP = 30; // alive at once: the design's 20-30 lines
-const STREAK_RATE = 100; // per s: rate * life = 25 alive on average
-const STREAK_LIFE = 0.25; // s
-const STREAK_WIDTH = 0.05; // m
-const STREAK_LEN_MIN = 4; // m
-const STREAK_LEN_MAX = 8; // m
-const STREAK_RING_MIN = 6; // m from the car
-const STREAK_RING_MAX = 20; // m
-const STREAK_Y = 0.6; // m above the ground
-/** Streaks drift forward at this fraction of the car velocity: the car outruns them, so they rush backward on screen. */
-const STREAK_DRIFT = 0.15;
-const STREAK_GLOW = 2.2; // HDR white so bloom picks the thin lines up
-const STREAK_MIN_SPEED = 3; // m/s, below this there is no direction to align with
+// Headlight beams (WP26): one soft beam per lamp, on dark themes and at high quality only.
+const HEADLIGHT_THEMES: ReadonlySet<TrackTheme> = new Set<TrackTheme>(['scrapyard', 'docks', 'snow', 'city']);
+const LAMP_OFFSET = 0.3; // x car width from the centre line
+const BEAM_LENGTH = 13; // m
+const BEAM_HALF_START = 0.3; // m, half width at the lamp
+const BEAM_HALF_END = 2.8; // m, half width at the far end
+const BEAM_FADE_IN = 1; // m from the lamp to full brightness, so the beam has no hard start line
+const BEAM_PEAK = 0.06; // additive linear brightness at the brightest point of one beam
+const BEAM_COLOR = [1, 0.93, 0.78] as const; // warm white
+const BEAM_SEG_ALONG = 13;
+const BEAM_SEG_ACROSS = 8;
+// Turbo exhaust flame (WP26): only its core is bright enough to bloom.
+const FLAME_LEN_MIN = 0.9; // m, length jitters every frame
+const FLAME_LEN_MAX = 1.5; // m
+const FLAME_RADIUS = 0.22; // m at the exhaust
+const FLAME_CORE = [3, 2.4, 1.5] as const; // HDR, blooms
+const FLAME_TIP = [0.7, 0.24, 0.03] as const; // orange, under the bloom threshold
+const FLAME_CORE_FRAC = 0.3; // of the length: core to orange, then orange fades out to the tip
+// Road-level particles whipping past the player while boosting (WP26), alpha blended (no bloom), fading in and out.
+const ROAD_CAP = 96; // alive at once
+const ROAD_RATE = 140; // per s: rate * life = 49 alive on average
+const ROAD_LIFE = 0.35; // s
+const ROAD_SIZE_MIN = 0.08; // m
+const ROAD_SIZE_MAX = 0.2; // m
+const ROAD_ALPHA = 0.3;
+/** World velocity = -car velocity * this: the car outruns them, so they whip backward past it. */
+const ROAD_BACK = 0.35;
+const ROAD_STRETCH = 0.1; // s of velocity added to the dash length
+const ROAD_AHEAD = 5; // m in front of the car centre
+const ROAD_BEHIND = 2; // m behind it
+const ROAD_SIDE = 3.5; // m beyond each side of the car
+const ROAD_Y = 0.12; // m
+const ROAD_MIN_SPEED = 3; // m/s
+const ROAD_COLORS: Record<TrackTheme, string> = {
+  scrapyard: '#9C8468', // dust
+  desert: '#E0C08A',
+  quarry: '#D9A878',
+  city: '#AFC3D6', // spray
+  snow: '#F2F6FA',
+  docks: '#8E8E86', // grit
+};
 
 /** One car's rendered pose for this frame plus its latest state. */
 export interface CarFrame {
@@ -136,12 +162,54 @@ function starGeometry(): THREE.BufferGeometry {
   return new THREE.ShapeGeometry(new THREE.Shape(pts)).rotateX(-Math.PI / 2);
 }
 
-function headlightGeometry(): THREE.BufferGeometry {
-  const L = HEADLIGHT_LENGTH;
+export const headlightsOn = (theme: TrackTheme): boolean => HEADLIGHT_THEMES.has(theme);
+
+/**
+ * One beam on the ground, lamp at the origin, +x forward: a single grid layer whose vertex colors fade smoothly
+ * along (soft start, falloff to 0 at the far end) and across (0 at both sides), so it has no inner shape or hard edge.
+ */
+export function headlightGeometry(): THREE.BufferGeometry {
+  const pos: number[] = [];
+  const col: number[] = [];
+  const idx: number[] = [];
+  const smooth = (t: number): number => t * t * (3 - 2 * t);
+  for (let i = 0; i <= BEAM_SEG_ALONG; i++) {
+    const u = i / BEAM_SEG_ALONG;
+    const x = u * BEAM_LENGTH;
+    const hw = BEAM_HALF_START + (BEAM_HALF_END - BEAM_HALF_START) * u;
+    const along = smooth(Math.min(1, x / BEAM_FADE_IN)) * (1 - u) ** 2;
+    for (let j = 0; j <= BEAM_SEG_ACROSS; j++) {
+      const a = (j / BEAM_SEG_ACROSS) * 2 - 1;
+      const k = BEAM_PEAK * along * (1 - a * a) ** 2;
+      pos.push(x, 0, a * hw);
+      col.push(BEAM_COLOR[0] * k, BEAM_COLOR[1] * k, BEAM_COLOR[2] * k);
+      if (i < BEAM_SEG_ALONG && j < BEAM_SEG_ACROSS) {
+        const v = i * (BEAM_SEG_ACROSS + 1) + j;
+        const w = v + BEAM_SEG_ACROSS + 1;
+        idx.push(v, v + 1, w, v + 1, w + 1, w);
+      }
+    }
+  }
   const g = new THREE.BufferGeometry();
-  // Apex at the bumper, fading to black (= nothing, additive) at the far end.
-  g.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, L, 0, 4.5, L, 0, -4.5, 0, 0, 0, L * 0.5, 0, -2.5, L * 0.5, 0, 2.5], 3));
-  g.setAttribute('color', new THREE.Float32BufferAttribute([0.035, 0.033, 0.028, 0, 0, 0, 0, 0, 0, 0.035, 0.033, 0.028, 0.014, 0.013, 0.011, 0.014, 0.013, 0.011], 3));
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.setIndex(idx);
+  return g;
+}
+
+/** Unit-length open cone from the exhaust (x 0) to the tip (x -1), hot core to orange tip in vertex colors. */
+function flameGeometry(): THREE.BufferGeometry {
+  const g = new THREE.ConeGeometry(FLAME_RADIUS, 1, 8, 4, true).rotateZ(Math.PI / 2).translate(-0.5, 0, 0);
+  const p = g.getAttribute('position');
+  const col: number[] = [];
+  for (let i = 0; i < p.count; i++) {
+    const t = -p.getX(i);
+    const c = FLAME_CORE_FRAC;
+    for (let k = 0; k < 3; k++) {
+      col.push(t < c ? FLAME_CORE[k] + (FLAME_TIP[k] - FLAME_CORE[k]) * (t / c) : FLAME_TIP[k] * (1 - (t - c) / (1 - c)));
+    }
+  }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   return g;
 }
 
@@ -156,12 +224,15 @@ interface Timed {
 
 export class Fx {
   readonly group = new THREE.Group();
+  /** Quality gate, mirrors quality === 'high' (index.ts setQuality). */
   headlightCones = true;
+  private readonly headlightTheme: boolean;
+  private readonly roadColor: THREE.Color;
+  private roadEmit = 0;
   private readonly rng = createRng(FX_SEED);
   private readonly smoke = new Particles(SMOKE_CAP, false);
   private readonly glow = new Particles(GLOW_CAP, true);
-  private readonly streaks = new Particles(STREAK_CAP, true, true);
-  private streakEmit = 0;
+  private readonly road = new Particles(ROAD_CAP, false, true);
   private readonly skids = new Skidmarks();
   private readonly tracerPos = new Float32Array(TRACER_CAP * 6);
   private readonly tracerCol = new Float32Array(TRACER_CAP * 6);
@@ -190,10 +261,12 @@ export class Fx {
   private readonly pickupChange: Float64Array; // pickup id -> time its active flag last flipped
   private readonly pickupActive: Int8Array; // -1 = not seen yet
   private readonly pickupColor: Record<PickupKind, THREE.Color>;
-  private readonly emit: Float32Array; // per car: tire, damage, fire, ember, wreck, turbo
+  private readonly emit: Float32Array; // per car: tire, damage, fire, ember, wreck
   private time = 0;
   constructor(track: TrackGeometry, carCount: number, glowTex: THREE.Texture) {
-    this.emit = new Float32Array(carCount * 6);
+    this.emit = new Float32Array(carCount * 5);
+    this.headlightTheme = headlightsOn(track.def.theme);
+    this.roadColor = new THREE.Color(ROAD_COLORS[track.def.theme]);
     const tg = new THREE.BufferGeometry();
     tg.setAttribute('position', new THREE.BufferAttribute(this.tracerPos, 3).setUsage(THREE.DynamicDrawUsage));
     tg.setAttribute('color', new THREE.BufferAttribute(this.tracerCol, 3).setUsage(THREE.DynamicDrawUsage));
@@ -211,9 +284,9 @@ export class Fx {
     this.debrisInst = new Inst(new THREE.BoxGeometry(0.35, 0.2, 0.3), new THREE.MeshStandardMaterial({ color: '#2A2522', roughness: 0.8, flatShading: true }), DEBRIS_CAP);
     this.muzzleInst = new Inst(starGeometry(), additive(), carCount);
     this.groundFlashInst = new Inst(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), additive({ map: glowTex }), carCount);
-    const cone = new THREE.ConeGeometry(0.28, 1, 8, 1, true).rotateZ(Math.PI / 2).translate(-0.5, 0, 0);
-    this.turboInst = new Inst(cone, additive({ side: THREE.DoubleSide }), carCount);
-    this.headInst = new Inst(headlightGeometry(), additive({ vertexColors: true, side: THREE.DoubleSide }), carCount);
+    this.turboInst = new Inst(flameGeometry(), additive({ vertexColors: true, side: THREE.DoubleSide }), carCount);
+    // Fog off: fog would tint the zero-brightness beam edges and show the footprint.
+    this.headInst = new Inst(headlightGeometry(), additive({ vertexColors: true, side: THREE.DoubleSide, fog: false }), carCount * 2);
     this.mineInst = new Inst(new THREE.CylinderGeometry(0.45, 0.5, 0.14, 10).translate(0, 0.07, 0), new THREE.MeshStandardMaterial({ color: '#1E2024', roughness: 0.5, metalness: 0.4, flatShading: true }), MINE_CAP);
     this.ledInst = new Inst(new THREE.BoxGeometry(0.22, 0.1, 0.22).translate(0, 0.18, 0), new THREE.MeshBasicMaterial({ color: new THREE.Color(5, 0.15, 0.1) }), MINE_CAP);
     // Red ground glow blinking with the LED: a dark disc alone does not read on dark asphalt from 55 m up.
@@ -241,7 +314,7 @@ export class Fx {
       this.skids.mesh,
       this.smoke.mesh,
       this.glow.mesh,
-      this.streaks.mesh,
+      this.road.mesh,
       this.tracers,
       ...[this.flashInst, this.ringInst, this.scorchInst, this.debrisInst, this.muzzleInst, this.groundFlashInst, this.turboInst, this.headInst, this.mineInst, this.ledInst, this.ledGlowInst, this.ringPickupInst, ...Object.values(this.pickupInst)].map((i) => i.mesh),
     );
@@ -368,7 +441,7 @@ export class Fx {
     for (let i = 0; i < cars.length; i++) {
       const c = cars[i];
       const s = c.state;
-      const e = i * 6;
+      const e = i * 5;
       const rotY = -c.heading;
       const speed = Math.abs(s.speed);
       const hpFrac = s.maxHp > 0 ? s.hp / s.maxHp : 1;
@@ -430,33 +503,29 @@ export class Fx {
         this.local(c, ex.x, ex.z);
         const tx = this.lx;
         const tz = this.lz;
-        this.turboInst.push(tx, ex.y, tz, yaw(rotY), rng.range(1.2, 1.8), 1, 1, 0.7, 1.3, 3);
-        this.emit[e + 5] += dt * 30;
-        while (this.emit[e + 5] >= 1) {
-          this.emit[e + 5]--;
-          const back = -speed * 0.3;
-          this.glow.spawn(tx, ex.y, tz, Math.cos(c.heading) * back, 0.3, Math.sin(c.heading) * back, 0.25, 0.5, 0.15, 0.6, 1.1, 3, 1, 0, 2, 0, 0);
-        }
+        const w = rng.range(0.85, 1.1);
+        const b = rng.range(0.8, 1.15);
+        this.turboInst.push(tx, ex.y, tz, yaw(rotY), rng.range(FLAME_LEN_MIN, FLAME_LEN_MAX), w, w, b, b, b);
       }
-      // headlightCones mirrors quality === 'high' (index.ts setQuality), the streaks' quality gate.
-      if (i === PLAYER_CAR_ID && this.headlightCones && s.turboActive && !s.wrecked && speed > STREAK_MIN_SPEED) {
-        this.streakEmit += dt * STREAK_RATE;
-        const vs = Math.hypot(s.vel.x, s.vel.y);
-        while (this.streakEmit >= 1) {
-          this.streakEmit--;
-          const a = rng.next() * Math.PI * 2;
-          const r = rng.range(STREAK_RING_MIN, STREAK_RING_MAX);
-          const k = STREAK_DRIFT;
-          // Particles draws a streak of length size + |v| * stretch along v (view space; the view is near top-down).
-          const stretch = rng.range(STREAK_LEN_MIN, STREAK_LEN_MAX) / Math.max(vs * k, 1e-3);
-          this.streaks.spawn(c.x + Math.cos(a) * r, STREAK_Y, c.z + Math.sin(a) * r, s.vel.x * k, 0, s.vel.y * k, STREAK_LIFE, STREAK_WIDTH, STREAK_WIDTH, STREAK_GLOW, STREAK_GLOW, STREAK_GLOW, 1, 1, 0, 0, stretch);
+      if (i === PLAYER_CAR_ID && s.turboActive && !s.wrecked && speed > ROAD_MIN_SPEED) {
+        this.roadEmit += dt * ROAD_RATE;
+        const side = Math.abs(c.parts.rearWheels[1].z) + ROAD_SIDE; // rear wheels sit at half the car width
+        const rc = this.roadColor;
+        while (this.roadEmit >= 1) {
+          this.roadEmit--;
+          this.local(c, rng.range(-ROAD_BEHIND, ROAD_AHEAD), rng.range(-side, side));
+          const sz = rng.range(ROAD_SIZE_MIN, ROAD_SIZE_MAX);
+          this.road.spawn(this.lx, ROAD_Y, this.lz, -s.vel.x * ROAD_BACK, 0, -s.vel.y * ROAD_BACK, ROAD_LIFE, sz, sz, rc.r, rc.g, rc.b, ROAD_ALPHA, 0, 0, 0, ROAD_STRETCH);
         }
       } else if (i === PLAYER_CAR_ID) {
-        this.streakEmit = 0;
+        this.roadEmit = 0;
       }
-      if (this.headlightCones && !s.wrecked) {
-        this.local(c, c.parts.nose.x, 0);
-        this.headInst.push(this.lx, 0.06, this.lz, yaw(rotY), 1, 1, 1);
+      if (this.headlightCones && this.headlightTheme && !s.wrecked) {
+        const lamp = Math.abs(c.parts.rearWheels[1].z) * 2 * LAMP_OFFSET; // rear wheels sit at half the car width
+        for (let k = -1; k <= 1; k += 2) {
+          this.local(c, c.parts.nose.x, k * lamp);
+          this.headInst.push(this.lx, 0.06, this.lz, yaw(rotY), 1, 1, 1);
+        }
       }
     }
     this.muzzleInst.end();
@@ -486,7 +555,7 @@ export class Fx {
     this.updateMines(snap);
     this.smoke.update(dt);
     this.glow.update(dt);
-    this.streaks.update(dt);
+    this.road.update(dt);
   }
 
   private updateTimed(dt: number): void {

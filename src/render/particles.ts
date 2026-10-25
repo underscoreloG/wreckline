@@ -50,7 +50,7 @@ export class Particles {
   private readonly aColor: THREE.InstancedBufferAttribute;
   private readonly aVel: THREE.InstancedBufferAttribute;
   private static readonly F = 18;
-  /** true: alpha rises from 0 to a0 at mid-life and falls back to 0 (a1 unused), for speed streaks. */
+  /** true: alpha rises from 0 to a0 at mid-life and falls back to 0 (a1 unused), for the boost's road particles. */
   private readonly fadeInOut: boolean;
 
   constructor(capacity: number, additive: boolean, fadeInOut = false) {

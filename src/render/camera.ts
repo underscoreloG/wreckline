@@ -4,7 +4,6 @@ import { clamp } from '../shared/math';
 
 // design.md section 2.
 const FOV = 34;
-const TURBO_FOV = 3;
 const NEAR = 1;
 const FAR = 600;
 const HEIGHT_REST = 46; // tuning pass 1, was 52-64
@@ -19,7 +18,17 @@ const TARGET_SMOOTH = 0.18; // s
 const TRAUMA_DECAY = 1.6; // per s
 const SHAKE_MAX = 1.2; // m at trauma 1
 const SHAKE_FREQ = 14; // noise lattice points per s
-const FOV_TAU = 0.25; // s
+// Boost kick on the followed car's turboStart (WP26): FOV zoom-out pulse, held while turbo lasts, plus a light shake.
+const KICK_FOV_PEAK = 7; // deg added at the top of the pulse
+const KICK_FOV_HOLD = 4; // deg held while turbo lasts (was a flat +3)
+const KICK_OUT = 0.15; // s to reach the peak
+const KICK_SETTLE_TAU = 0.3; // s, peak down to the hold
+const KICK_RELEASE_TAU = 0.25; // s, back to rest after turbo end
+const KICK_TRAUMA = 0.35; // trauma added on turboStart: amp = 0.35^2 * 1.2 m = 0.15 m
+// Screen-edge blur strength published for post.ts (high quality only, since only the composer reads it).
+const EDGE_FADE = 0.2; // s to fade fully in or out
+/** camera.userData key holding the edge blur strength 0..1 (post.ts reads it; index.ts only hands post the camera). */
+export const EDGE_BLUR_KEY = 'edgeBlur';
 
 /** Critically damped spring toward `target` (Unity SmoothDamp). `vel` is the spring state, updated in place. */
 export function smoothDamp(current: number, target: number, vel: { v: number }, smoothTime: number, dt: number): number {
@@ -79,7 +88,13 @@ export class FollowCamera {
   trauma = 0;
   private readonly vx = { v: 0 };
   private readonly vy = { v: 0 };
-  private fovBoost = 0;
+  /** Degrees added to the FOV by the boost kick. */
+  fovBoost = 0;
+  /** Screen-edge blur strength 0..1, mirrored to camera.userData[EDGE_BLUR_KEY]. */
+  edgeBlur = 0;
+  private kickT = Infinity; // s since the last turboStart
+  private kickFrom = 0; // fovBoost when the pulse started (a re-boost during the release)
+  private wasTurbo = false;
   private time = 0;
   private started = false;
 
@@ -114,6 +129,7 @@ export class FollowCamera {
       this.target.y = gy;
       this.vx.v = this.vy.v = 0;
       this.height = inp.phase === 'countdown' ? HEIGHT_INTRO : rest;
+      this.wasTurbo = inp.turbo; // a car switch mid-boost is not a turboStart
     }
     this.target.x = smoothDamp(this.target.x, gx, this.vx, TARGET_SMOOTH, dt);
     this.target.y = smoothDamp(this.target.y, gy, this.vy, TARGET_SMOOTH, dt);
@@ -124,12 +140,22 @@ export class FollowCamera {
       this.height = approach(this.height, inp.wrecked ? HEIGHT_WRECK : rest, HEIGHT_TAU, dt);
     }
 
+    if (inp.turbo && !this.wasTurbo) {
+      this.kickT = 0;
+      this.addTrauma(KICK_TRAUMA); // shown only when the shake setting is on (amp below)
+    }
+    this.wasTurbo = inp.turbo;
+    this.fovBoost = this.kick(dt, inp.turbo);
+    const edgeGoal = inp.turbo && !inp.wrecked ? clamp(Math.abs(inp.speed) / Math.max(inp.maxSpeed, 1), 0, 1) : 0;
+    const step = dt / EDGE_FADE;
+    this.edgeBlur = clamp(edgeGoal, this.edgeBlur - step, this.edgeBlur + step);
+    this.camera.userData[EDGE_BLUR_KEY] = this.edgeBlur;
+
     this.trauma = decayTrauma(this.trauma, dt);
     const amp = inp.shake ? this.trauma * this.trauma * SHAKE_MAX : 0;
     const ox = amp * valueNoise(this.time * SHAKE_FREQ, 1);
     const oz = amp * valueNoise(this.time * SHAKE_FREQ, 2);
 
-    this.fovBoost = approach(this.fovBoost, inp.turbo ? TURBO_FOV : 0, FOV_TAU, dt);
     const cam = this.camera;
     if (Math.abs(cam.fov - (FOV + this.fovBoost)) > 1e-3) {
       cam.fov = FOV + this.fovBoost;
@@ -139,5 +165,15 @@ export class FollowCamera {
     const tz = this.target.y + oz;
     cam.position.set(tx, this.height, tz + this.height * BACK_FACTOR);
     cam.lookAt(tx, 0, tz);
+  }
+
+  /** FOV kick envelope: eased rise to the peak over KICK_OUT, settle to the hold while turbo lasts, release on turbo end. */
+  private kick(dt: number, turbo: boolean): number {
+    if (!turbo) return approach(this.fovBoost, 0, KICK_RELEASE_TAU, dt);
+    if (this.kickT === 0) this.kickFrom = this.fovBoost;
+    this.kickT += dt;
+    if (this.kickT <= KICK_OUT) return this.kickFrom + (KICK_FOV_PEAK - this.kickFrom) * smoothstep(this.kickT / KICK_OUT);
+    if (this.kickT - dt < KICK_OUT) return KICK_FOV_PEAK; // a long frame jumped past the top: still show it once
+    return approach(this.fovBoost, KICK_FOV_HOLD, KICK_SETTLE_TAU, dt);
   }
 }
