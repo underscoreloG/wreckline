@@ -66,9 +66,12 @@ export function followShadow(world: World, x: number, z: number): void {
   world.key.position.copy(p).addScaledVector(dir, -LIGHT_DISTANCE);
 }
 
-/** Shadows on/off; materials recompile because the shadow map defines change. */
+/** Shadows and high-only dressing (WP27) on/off; materials recompile because the shadow map defines change. */
 export function applyQuality(renderer: THREE.WebGLRenderer, world: World, q: Quality): void {
   const shadows = q === 'high';
+  world.scene.traverse((o) => {
+    if (o.userData.highOnly) o.visible = shadows;
+  });
   renderer.shadowMap.type = THREE.PCFShadowMap;
   if (renderer.shadowMap.enabled === shadows && world.key.castShadow === shadows) return;
   renderer.shadowMap.enabled = shadows;

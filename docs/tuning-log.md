@@ -282,3 +282,43 @@ The pane was hidden, so rAF did not run: frames were driven by `__game.step(1)` 
 | `autoplay=1`, 1500 frames from tick 200 (no player turbo in the window) | 73 / 94 max | 73 / 93 max | 3.8 / 6.1 | 4.7 / 6.3 |
 
 Bundle: main JS 4533.8 -> 4535.7 kB raw, 1620.6 -> 1621.5 kB gzip (+0.9 kB).
+
+## 2026-10-26 - Track dressing (WP27)
+
+User request (2026-10-25): "Tracks, I would like them to be more sexy, anything we can do? I want more details on the side". Render only: `src/render/dressing.ts` plans everything from the track geometry with a fixed seed per track (`hashString(id)`), `dressingMesh.ts` builds it into the group `trackMesh` returns. No change to `src/content/**`, `src/sim/**`, colliders or props; every 3D piece stands beyond the wall mesh and clear of every prop (`dressing.test.ts`).
+
+Per theme (`ThemeDef.dressing`): kerbs on every corner over 1/70 curvature with 6 m lead-in/out (hairpins: turn >= 150 deg under 25 m radius, 1.6 m wide, 12 m lead); barrier dressing on the outside of corners tighter than 40 m radius (tyre walls scrapyard/docks, jersey blocks city, guard rails desert/quarry, wooden snow fences snow); ground and shoulder decals from one 512x512 canvas atlas (blotches, gravel, scrub, oil, puddles, sand and snow drifts); road paint (repair patches, tar seams, cracks, oil/puddle/sand/snow stains, tyre marks along a racing line through each corner, grid boxes, chipped markings and polished wheel lanes in the asphalt texture); low clutter beyond the walls (scrap, rocks, crates, snow mounds); grandstands with crowd and flags near the grid where they fit, crowd clusters behind hairpin barriers, banners on the start straight, smoke or steam vents (burning barrels on scrapyard and snow), neon signs on city tracks. Lamp pools stay the props' own: every dark track already has a pole every ~40 m, so a gap-filling lamp pass placed none and was removed.
+
+User OK per theme (screenshots at race height 50 m, a hairpin from 52 m, the start area and a 13 m close-up, before/after):
+
+| theme | track shown | user |
+|---|---|---|
+| scrapyard | Scrapyard (v3) | "looks good" |
+| desert | Dust Bowl (v2: road sand toned down, kept off the grid) | "Dust Bowl looks good, ok. Next theme." |
+| docks | Dockside (v2) | "Dockside looks good, ok. Next theme." |
+| snow | Frostbite Pass (v1) | "Frostbite looks good, ok. Next theme." |
+| city | Neon Mile (v2: neon every 30-50 m, lighter puddles) | "Neon Mile looks good, ok. Next theme." |
+| quarry | Redrock Quarry (v2: lighter repair patches) | "Redrock looks good, ok. Finish up." |
+
+Junkyard Sprint, Pine Hollow, Rain District and Blast Pit checked once each with their theme, no change needed.
+
+Cost at high quality, 1920x1080 DPR 2, 4 cars, seed 1, sampled at ticks 300-2300 every 400 (draw calls over every pass incl. shadows; triangles likewise):
+
+| track | draws mean before -> after | draws max before -> after | triangles mean before -> after |
+|---|---|---|---|
+| scrapyard | 68 -> 81 | 92 -> 110 | 51k -> 162k |
+| dustBowl | 68 -> 77 | 89 -> 102 | 73k -> 108k |
+| dockside | 79 -> 91 | 96 -> 109 | 75k -> 172k |
+| frostbite | 74 -> 86 | 90 -> 103 | 143k -> 182k |
+| neonMile | 72 -> 83 | 93 -> 106 | 58k -> 80k |
+| redrock | 84 -> 91 | 93 -> 98 | 59k -> 88k |
+| junkyardSprint | 87 -> 100 | 96 -> 113 | 57k -> 128k |
+| pineHollow | 73 -> 83 | 89 -> 100 | 167k -> 184k |
+| rainDistrict | 80 -> 91 | 92 -> 104 | 51k -> 80k |
+| blastPit | 70 -> 78 | 86 -> 93 | 65k -> 101k |
+
+Worst mean increase +13 draws (budget +30), worst peak 113 (gate 150). Triangles grow mostly from tyre walls (1000+ two-high tyre columns on Scrapyard), heaps and crowd, each drawn twice (shadow pass). Low quality hides ground scatter, clutter, stands, crowd, banners, flags, vents and neon (`userData.highOnly`, `applyQuality`); kept: kerbs, road paint, barriers. Low, tick 700: Scrapyard 42 -> 44 draws, Neon Mile 45 -> 47.
+
+fps: the browser pane throttles rAF to 1 fps, so live fps was not measurable. Stand-in: 120 debug steps each followed by a 1-pixel readPixels (GPU sync), median frame cost Scrapyard 5.8 -> 6.7 ms, Dockside 5.9 -> 7.2 ms (sim step + render at 3840x2160). New texture: one 512x512 RGBA canvas atlas (~1.3 MB with mipmaps). Bundle: 1831.9 -> 1839.2 kB gzip (+7.3 kB).
+
+Balance probe (`node scripts/balance/run.mjs`) identical before and after.
