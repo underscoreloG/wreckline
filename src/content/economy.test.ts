@@ -8,7 +8,7 @@ const max = { engine: 5, tires: 5, armor: 5, gun: 5, fuel: 0, spikes: 0 };
 describe('cars', () => {
   it('has the 8 cars with procedural meshes', () => {
     expect(Object.keys(CARS)).toEqual(['raven', 'outlaw', 'iceberg', 'scorch', 'blaze', 'titan', 'viper', 'wraith']);
-    for (const c of Object.values(CARS)) expect(c.mesh.model).toBeNull();
+    for (const c of Object.values(CARS)) expect(c.mesh.model).toBe(`models/cars/${c.id}.glb`);
     expect(getCar('raven').base.maxSpeed).toBe(39.1);
     expect(() => getCar('nope')).toThrow();
   });

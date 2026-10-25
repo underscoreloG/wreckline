@@ -3,6 +3,7 @@ import { COUNTDOWN_SECONDS } from '../content/race';
 import type { CarId, Quality, Renderer, RendererOptions, SimEvent } from '../shared/contracts';
 import { FollowCamera } from './camera';
 import { buildCarParts, CarRig, disposeTree, type CarPose } from './carMesh';
+import { preloadCarModels } from './carModel';
 import { Fx, type CarFrame } from './fx';
 import { interpolatePose, type Pose } from './interp';
 import { createPost, type Post } from './post';
@@ -53,6 +54,7 @@ export async function createRenderer(opts: RendererOptions): Promise<Renderer> {
   const track = buildTrackMesh(opts.track, theme, textures);
   world.scene.add(track.group, buildProps(opts.track, theme, textures.glow));
 
+  await preloadCarModels(opts.entrants.map((e) => e.mesh));
   const rigs = opts.entrants.map((e) => {
     const parts = buildCarParts(e.mesh, e.color);
     world.scene.add(parts.group);
@@ -250,3 +252,4 @@ export async function createRenderer(opts: RendererOptions): Promise<Renderer> {
 }
 
 export { buildCarMesh } from './carMesh';
+export { preloadCarModels } from './carModel';

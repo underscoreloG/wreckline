@@ -2,11 +2,13 @@ import * as THREE from 'three';
 import type { CarMeshSpec, CarMeshStyle } from '../shared/contracts';
 import { clamp } from '../shared/math';
 import { hashString } from '../shared/rng';
+import { getCarModel, getRoofPlate, type RoofPlateBox } from './carModel';
 import { bar, boxNoBottom, merge, paint } from './geo';
 
 /**
  * Procedural cars (WP03), modeled facing +x with the origin at the ground center.
  * Draw calls per car: body (with extras and bumper spikes), glass, lights, gun, roof plate, 4 wheels.
+ * Imported models (WP14) replace them once preloaded: model, roof plate, bumper spikes.
  */
 
 const BEVEL = 0.08;
@@ -34,6 +36,8 @@ const SPIKE_LENGTH = 0.3;
 const SPIKE_HEIGHT = 0.25; // fraction of body height above the body bottom
 const SPIKE_SPREAD = 0.8; // fraction of width the row covers
 const MUSCLE_BUMPER = 0.12; // the muscle push bar sticks out this far past the nose
+const PLATE_FILL = 0.95; // plate size as a fraction of its roof box
+const PLATE_TRIM = 0.1; // m, light edge around the plate on dark bodies (design.md "Car art")
 
 /** Side profiles, x in -0.5..0.5 of length (front = +x), y in 0..1 of height. Listed CCW: bottom edge, then the top from nose to tail. */
 const PROFILES: Record<CarMeshStyle, readonly (readonly [number, number])[]> = {
@@ -132,7 +136,67 @@ export interface CarParts {
   rearWheels: [THREE.Vector3, THREE.Vector3];
 }
 
+/** Roof plate: livery color with one bold darker decal (kind from the color), optional light edge trim, its own mesh. */
+function plateGeometry(x: number, y: number, z: number, length: number, width: number, color: string, trim: boolean): THREE.BufferGeometry {
+  const parts = [
+    paint(at(boxNoBottom(length, 0.04, width), x, y, z), color),
+    paint(at(decal(hashString(color) % 3, Math.min(length, width) * 0.75), x, y + 0.025, z), shade(color, DECAL_SHADE)),
+  ];
+  if (trim) parts.push(paint(at(boxNoBottom(length + 2 * PLATE_TRIM, 0.03, width + 2 * PLATE_TRIM), x, y - 0.01, z), STEEL));
+  return merge(parts);
+}
+
+const flat = { flatShading: true, vertexColors: true } as const;
+
+/** Imported model (shared geometry, own body material so tints stay per car), roof plate from the manifest, spikes on its bumper. */
+function importedParts(spec: CarMeshSpec, color: string, model: THREE.Group, box: RoofPlateBox): CarParts {
+  let bodyMaterial: THREE.MeshStandardMaterial | null = null;
+  model.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    m.castShadow = true;
+    // The import keeps one material per car; a clone shares its texture.
+    bodyMaterial ??= (m.material as THREE.MeshStandardMaterial).clone();
+    m.material = bodyMaterial;
+  });
+  const bounds = new THREE.Box3().setFromObject(model);
+  const plateMaterial = new THREE.MeshStandardMaterial({ ...flat, roughness: 0.55, metalness: 0.1 });
+  const plate = new THREE.Mesh(plateGeometry(box.x, box.y + 0.02, box.z, box.length * PLATE_FILL, box.width * PLATE_FILL, color, !!box.trim), plateMaterial);
+  plate.name = 'roofPlate';
+  model.add(plate);
+  const spikes = buildSpikesGeometry(spec);
+  if (spikes) {
+    // Onto the model's own front end instead of the procedural bumper.
+    spikes.computeBoundingBox();
+    spikes.translate(bounds.max.x - 0.04 - spikes.boundingBox!.min.x, 0, 0);
+    const m = new THREE.Mesh(spikes, new THREE.MeshStandardMaterial({ ...flat, roughness: 0.55, metalness: 0.25 }));
+    m.name = 'spikes';
+    m.castShadow = true;
+    model.add(m);
+  }
+  const L = bounds.max.x - bounds.min.x;
+  const W = bounds.max.z - bounds.min.z;
+  const hoodY = spec.wheelRadius * 0.9 + spec.height;
+  return {
+    group: model,
+    bodyMaterial: bodyMaterial ?? new THREE.MeshStandardMaterial(),
+    plateMaterial,
+    // No light meshes: the model's lights are painted in its texture.
+    lights: new THREE.BufferAttribute(new Float32Array(0), 3),
+    tailStart: 0,
+    wheels: [],
+    muzzle: v3(bounds.max.x + 0.2, hoodY, 0),
+    nose: v3(bounds.max.x, 0, 0),
+    exhaust: v3(bounds.min.x - 0.15, spec.wheelRadius * 0.9 + 0.25 * spec.height, 0),
+    hood: v3(0.3 * L, hoodY + 0.1, 0),
+    rearWheels: [v3(-0.36 * L, 0, -0.5 * W), v3(-0.36 * L, 0, 0.5 * W)],
+  };
+}
+
 export function buildCarParts(spec: CarMeshSpec, color: string): CarParts {
+  const model = getCarModel(spec);
+  const box = getRoofPlate(spec);
+  if (model && box) return importedParts(spec, color, model, box);
   const L = spec.length;
   const W = spec.width;
   const H = spec.height;
@@ -281,17 +345,7 @@ export function buildCarParts(spec: CarMeshSpec, color: string): CarParts {
   barrel.rotateZ(-Math.PI / 2);
   gunParts.push(paint(at(barrel, gunX + 0.45, gunY + 0.02, 0), GUN));
 
-  // Roof plate: livery color with one bold darker decal, its own mesh (WP14 keeps it on imported bodies).
-  const pl = (roof.x1 - roof.x0) * 0.95;
-  const pw = roof.w * 2 * 0.95;
-  const plateY = roofY + 0.02;
-  const decalKind = hashString(color) % 3;
-  const plateGeo = merge([
-    paint(at(boxNoBottom(pl, 0.04, pw), (roof.x0 + roof.x1) / 2, plateY, 0), color),
-    paint(at(decal(decalKind, Math.min(pl, pw) * 0.75), (roof.x0 + roof.x1) / 2, plateY + 0.025, 0), shade(color, DECAL_SHADE)),
-  ]);
-
-  const flat = { flatShading: true, vertexColors: true } as const;
+  const plateGeo = plateGeometry((roof.x0 + roof.x1) / 2, roofY + 0.02, 0, (roof.x1 - roof.x0) * PLATE_FILL, roof.w * 2 * PLATE_FILL, color, false);
   const bodyMaterial = new THREE.MeshStandardMaterial({ ...flat, roughness: 0.55, metalness: 0.25 });
   const plateMaterial = new THREE.MeshStandardMaterial({ ...flat, roughness: 0.55, metalness: 0.1 });
   const group = new THREE.Group();
