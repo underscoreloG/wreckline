@@ -251,3 +251,34 @@ No two cars are within 5% on both fundamental and centroid at either rpm. First 
 Cost: 15 nodes per engine voice (WP05: 8), still one voice per car in the voice count. Game race check (raven, viper, blaze, titan, career offer): no console errors, at most 39 live Web Audio sources in 35 s with guns, mines and turbo (24 of them the 4 engines and 4 skids). Harness fake race: max 11 voices (cap 48).
 
 For the listening session: the user judges each car with the per-car sweep buttons, and the recorded Mercedes 190E bench against blaze. Knobs per car: pitch (`base`, `span`, `step`, `gears`), `revTau`, `sub`, lowpass, noise layer (`noise`, `noiseHz`, `noiseQ`, `pulse`), idle wobble, `blower`, `level`.
+
+## 2026-10-25 - Headlight beams and boost feel (WP26)
+
+User: "Car lights are kind of weird with 2 layers. small and big cone" and "Car speed boost, I would like the shinny things to be less visible and a better sensation of speed". Grill choices: two soft beams on dark themes only; boost feel from camera kick, screen-edge motion, road-level particles and an exhaust flame.
+
+### Changed values
+
+| Where | Value | Before | After | Why |
+|---|---|---|---|---|
+| `src/render/fx.ts` | headlights | 2 stacked additive triangles per car (14 m faint, 7 m bright), every theme | 2 beams per car, one per lamp at +-`LAMP_OFFSET` 0.3 x car width, `BEAM_LENGTH` 13 m, half width `BEAM_HALF_START` 0.3 -> `BEAM_HALF_END` 2.8 m, `BEAM_FADE_IN` 1 m, `BEAM_PEAK` 0.06, warm white; one grid layer whose vertex colors fade to 0 at the far end and both sides; fog off | "2 layers" |
+| `src/render/fx.ts` | headlight themes | all | `HEADLIGHT_THEMES` scrapyard, docks, snow, city (off on desert, quarry) | no headlights in daylight; closes the "desert headlights" ledger note |
+| `src/render/fx.ts`, `particles.ts` | speed streaks (WP17) | 20-30 white HDR lines (`STREAK_GLOW` 2.2), high only | removed | "shinny things" |
+| `src/render/fx.ts` | exhaust glow particles | 30/s blue-white additive dots | removed | "shinny things" |
+| `src/render/fx.ts` | turbo flame | blue-white cone, 1.2-1.8 m | `FLAME_LEN_MIN`-`FLAME_LEN_MAX` 0.9-1.5 m (jitters every frame), `FLAME_RADIUS` 0.22 m, core `FLAME_CORE` (3, 2.4, 1.5) HDR -> orange `FLAME_TIP` (0.7, 0.24, 0.03) at `FLAME_CORE_FRAC` 0.3, fading out to the tip; brightness flicker 0.8-1.15 | only the core blooms |
+| `src/render/fx.ts` | road particles (player boost, both qualities) | none | `ROAD_RATE` 140/s, `ROAD_LIFE` 0.35 s, 0.08-0.2 m, `ROAD_ALPHA` 0.3 (fade in and out), world velocity -0.35 x car velocity (`ROAD_BACK`), `ROAD_STRETCH` 0.1 s, spawned 5 m ahead to 2 m behind, car width + 3.5 m each side; colors `ROAD_COLORS` per theme (dust, spray, snow, grit); alpha blended, no bloom | sense of speed |
+| `src/render/camera.ts` | turbo FOV | +3 deg, 0.25 s time constant | kick on turboStart: +`KICK_FOV_PEAK` 7 deg reached in `KICK_OUT` 0.15 s, settles to +`KICK_FOV_HOLD` 4 deg (`KICK_SETTLE_TAU` 0.3 s) while turbo lasts, back to 0 (`KICK_RELEASE_TAU` 0.25 s); not affected by the shake setting | sense of speed |
+| `src/render/camera.ts` | turboStart shake | none | trauma +`KICK_TRAUMA` 0.35 (0.15 m), only with "camera shake" on | kick |
+| `src/render/post.ts` | screen-edge zoom blur (high only) | none | own `EffectPass` (SMAA is also a convolution effect), enabled only while its strength > 0; `EDGE_SAMPLES` 8, `EDGE_SPAN` 0.06, sharp inside uv radius `EDGE_INNER` 0.25, full at `EDGE_OUTER` 0.6; strength = speed / maxSpeed (clamped 0..1) while boosting, ramps at 1 per `EDGE_FADE` 0.2 s (camera.ts) | sense of speed |
+
+Knobs: "more kick" = `KICK_FOV_PEAK` / `KICK_FOV_HOLD`; "less blur" = `EDGE_SPAN` (or a larger `EDGE_INNER`); "more road rush" = `ROAD_RATE`, `ROAD_ALPHA`, `ROAD_STRETCH`; "dimmer lights" = `BEAM_PEAK`.
+
+### Measured (dev server, hidden browser pane at 1280x720 x DPR 2, quality high, Scrapyard seed 7, 4 cars)
+
+The pane was hidden, so rAF did not run: frames were driven by `__game.step(1)` and timed with a 1-pixel `readPixels` sync (sim step + render, GPU included).
+
+| Scenario | Draw calls before | After | ms per frame before (median / p95) | After |
+|---|---|---|---|---|
+| Player holding turbo from the green light, 150 frames | 95 / 95 max | 95 / 96 max | 6.0 / 7.4 | 4.8 / 6.4 |
+| `autoplay=1`, 1500 frames from tick 200 (no player turbo in the window) | 73 / 94 max | 73 / 93 max | 3.8 / 6.1 | 4.7 / 6.3 |
+
+Bundle: main JS 4533.8 -> 4535.7 kB raw, 1620.6 -> 1621.5 kB gzip (+0.9 kB).
