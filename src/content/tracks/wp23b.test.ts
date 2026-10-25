@@ -157,7 +157,7 @@ describe('track signatures (content.md section 12, tracks 9-10)', () => {
 
   it('Blast Pit: the longest track, and its hairpin is the one between the pits under the crane', () => {
     const len = buildTrackGeometry(BLAST_PIT).length;
-    for (const t of [...Object.values(TRACKS), RAIN_DISTRICT]) expect(len).toBeGreaterThan(buildTrackGeometry(t).length);
+    for (const t of [...Object.values(TRACKS), RAIN_DISTRICT]) if (t.id !== BLAST_PIT.id) expect(len).toBeGreaterThan(buildTrackGeometry(t).length);
     const hairpin = tightestTurn(BLAST_PIT);
     expect(BLAST_PIT_CRANE_S).toBeGreaterThan(hairpin.from);
     expect(BLAST_PIT_CRANE_S).toBeLessThan(hairpin.to);
