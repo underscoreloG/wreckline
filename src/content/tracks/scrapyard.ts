@@ -8,7 +8,7 @@ const BASE: TrackDef = {
   width: 14,
   shoulder: 2,
   checkpointSpacing: 40,
-  referenceLapTime: 38, // WP07 measures and reports; the brain updates it on main
+  referenceLapTime: 31, // WP07 measured the 0.55 AI median clean lap: 30.95 s (2026-10-25)
   centerline: [
     { x: 0, y: 0 },
     { x: 120, y: 0 },
