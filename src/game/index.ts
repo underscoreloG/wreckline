@@ -299,6 +299,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
         audio.unlock().catch(report);
         break;
       case 'showResults': {
+        session?.fastForward();
         const r = session?.sim.result() ?? null;
         if (mode === 'career' && r) {
           const { payout, champion } = career.finishRace(r);

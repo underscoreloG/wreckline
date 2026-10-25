@@ -1,12 +1,14 @@
 import { createRenderer } from '../render';
 import type { AudioEngine, CarId, HudState, InputFrame, InputSource, RaceSetup, RaceSnapshot, Renderer, Settings, Sim, SimEvent } from '../shared/contracts';
-import { PLAYER_CAR_ID, SIM_HZ } from '../shared/contracts';
+import { NEUTRAL_INPUT, PLAYER_CAR_ID, SIM_HZ } from '../shared/contracts';
 import { createSim } from '../sim';
 import { createTally, tallyEvent, type RaceTally } from './careerSession';
 import { createHudMemo, deriveHud } from './hud';
 
-/** Results show this long after the sim phase turns 'finished' (WP08 table). */
-export const RESULTS_DELAY_TICKS = Math.round(2.5 * SIM_HZ);
+/** The live race stays on screen this long after the player finishes or wrecks, then results (WP19). */
+export const PLAYER_DONE_DELAY_TICKS = Math.round(1.5 * SIM_HZ);
+/** Fast-forward safety cap: the race-end rules end the race within 900 ticks of the player's finish. */
+export const FAST_FORWARD_CAP_TICKS = 3600;
 const HUD_EVERY_N_FRAMES = 4; // ~15 Hz at 60 fps
 
 export interface RaceSessionOptions {
@@ -28,8 +30,13 @@ export interface RaceSession {
   redraw(): void;
   /** Derives the HUD from every event since the last flush and publishes it. */
   flushHud(): void;
-  /** True once the race has been finished for RESULTS_DELAY_TICKS. */
+  /** True once the player (or the race) has been done for PLAYER_DONE_DELAY_TICKS. */
   isOver(): boolean;
+  /**
+   * Steps the sim headlessly (no render, audio or HUD, neutral player input) until the race phase is
+   * 'finished'. Same seed and inputs give the same result as waiting. Returns the ticks stepped.
+   */
+  fastForward(): number;
   snapshot(): RaceSnapshot;
   /** Wreck credits and cash pickups so far (a quit career race has no sim result to read them from). */
   readonly tally: RaceTally;
@@ -69,7 +76,7 @@ export async function createRaceSession(opts: RaceSessionOptions): Promise<RaceS
   const memo = createHudMemo();
   let hud: HudState | null = null;
   let frames = 0;
-  let finishedTicks = 0;
+  let doneTick: number | null = null;
   let disposed = false;
   const tally = createTally(setup.entrants.length);
 
@@ -94,7 +101,8 @@ export async function createRaceSession(opts: RaceSessionOptions): Promise<RaceS
       }
       prev = curr;
       curr = sim.snapshot();
-      if (curr.phase === 'finished') finishedTicks++;
+      const p = curr.cars[PLAYER_CAR_ID];
+      if (doneTick === null && (curr.phase === 'finished' || p?.finished || p?.wrecked)) doneTick = curr.tick;
     },
     render(alpha, dt) {
       renderer.render(prev, curr, alpha, renderEvents, dt);
@@ -107,7 +115,26 @@ export async function createRaceSession(opts: RaceSessionOptions): Promise<RaceS
       renderer.render(prev, curr, 1, [], 0);
     },
     flushHud,
-    isOver: () => finishedTicks >= RESULTS_DELAY_TICKS,
+    isOver: () => doneTick !== null && curr.tick - doneTick >= PLAYER_DONE_DELAY_TICKS,
+    fastForward() {
+      audio.stopRace();
+      if (!playerIsAi) {
+        Object.assign(merged, NEUTRAL_INPUT);
+        inputs.set(PLAYER_CAR_ID, merged);
+      }
+      let n = 0;
+      while (sim.snapshot().phase !== 'finished') {
+        if (n >= FAST_FORWARD_CAP_TICKS) {
+          console.error(`[game] fast-forward: race not finished after ${n} ticks`);
+          break;
+        }
+        // Skipped ticks never reach the renderer, audio or HUD; the tally still counts them.
+        for (const e of sim.step(inputs)) tallyEvent(tally, e);
+        n++;
+      }
+      prev = curr = sim.snapshot();
+      return n;
+    },
     snapshot: () => curr,
     tally,
     setOverride(patch) {
