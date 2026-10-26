@@ -1,8 +1,10 @@
+import { getCar } from '../content/cars';
+import { BEATEN_DISCOUNT } from '../content/economy';
 import { PICKUP_CASH_UNITS } from '../content/pickups';
 import { getTrack } from '../content/tracks';
-import { applyRaceResult, buildCareerRaceSetup, generateOffers, newCareer, newlyUnlocked, sabotageTarget } from '../meta/career';
+import { applyRaceResult, buildCareerRaceSetup, generateOffers, newCareer, newlyBeaten, newlyUnlocked, sabotageTarget } from '../meta/career';
 import { loadSave, writeSave, type KeyValueStore } from '../meta/save';
-import { buyCar, buyMines, buySabotage, buyTurbo, buyUpgrade, freeTowIfStuck, repair, type ShopFail, type ShopResult } from '../meta/shop';
+import { buyCar, buyMines, buySabotage, buyTurbo, buyUpgrade, freeTowIfStuck, LOCKED_TEXT, repair, type ShopFail, type ShopResult } from '../meta/shop';
 import type { GameCommand, Payout, RaceOffer, RaceResult, RaceResultRow, RaceSetup, RaceSnapshot, SaveGame, SimEvent } from '../shared/contracts';
 import { PLAYER_CAR_ID } from '../shared/contracts';
 
@@ -18,6 +20,7 @@ const FAIL_TEXT: Record<ShopFail, string> = {
   owned: 'Already owned',
   invalid: 'Not available',
   pending: 'Sabotage already bought for another race',
+  locked: LOCKED_TEXT,
 };
 
 /**
@@ -44,9 +47,10 @@ export interface CareerSession {
   buySabotage(): { ok: true; target: string; pct: number } | { ok: false; error: string };
   /**
    * Applies the selected offer's result; `champion` is true when this race just won the title,
-   * `unlocked` lists the track ids this race unlocked (for the one-time "New track" message).
+   * `unlocked` lists the track ids this race unlocked (for the one-time "New track" message),
+   * `beaten` the car types it beat for the first time, minus the starter and the player's own (one hub message each, CCR-10).
    */
-  finishRace(result: RaceResult): { payout: Payout; champion: boolean; unlocked: string[] };
+  finishRace(result: RaceResult): { payout: Payout; champion: boolean; unlocked: string[]; beaten: string[] };
 }
 
 export function createCareerSession(storage: KeyValueStore, notify: (text: string) => void = () => {}): CareerSession {
@@ -145,7 +149,7 @@ export function createCareerSession(storage: KeyValueStore, notify: (text: strin
       offers = null;
       selected = null;
       persistChecked(r.save);
-      return { payout: r.payout, champion: !before.championWon && r.save.championWon, unlocked: newlyUnlocked(before, r.save) };
+      return { payout: r.payout, champion: !before.championWon && r.save.championWon, unlocked: newlyUnlocked(before, r.save), beaten: newlyBeaten(before, r.save) };
     },
   };
 }
@@ -154,6 +158,13 @@ export function createCareerSession(storage: KeyValueStore, notify: (text: strin
 export function unlockText(trackIds: readonly string[]): string {
   const names = trackIds.map((id) => getTrack(id).name);
   return `New track${names.length > 1 ? 's' : ''}: ${names.join(', ')}`;
+}
+
+/** Hub message for a newly beaten car type (CCR-10): a locked car is now listed, a forSale one is discounted. */
+export function beatenText(carDefId: string): string {
+  const car = getCar(carDefId);
+  const name = car.name.toUpperCase();
+  return car.forSale ? `${name} now ${Math.round(BEATEN_DISCOUNT * 100)}% off in the shop` : `Unlocked in shop: ${name}`;
 }
 
 /** Per-car wreck credits and cash pickups seen in the event stream, for a race quit before the sim built a result. */

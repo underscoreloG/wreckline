@@ -18,7 +18,7 @@ describe('save (test 6)', () => {
     expect(loadSave(store)).toBeNull();
   });
 
-  it('a raw v1 save (live players) under wreckline.save.v1 loads as v2 and round-trips', () => {
+  it('a raw v1 save (live players) under wreckline.save.v1 loads as v3 and round-trips', () => {
     const store = memoryStore();
     const rivals = newCareer(3).rivals.map((r, i) => ({ ...r, points: r.points + (i % 3) * 4 }));
     // Exactly what v0.3.1 wrote: version 1, four upgrade lines, no bestRank / wrecks / cashEarned / sabotage.
@@ -43,12 +43,13 @@ describe('save (test 6)', () => {
     const { version: _v, upgrades: _u, ...rest } = v1;
     expect(loaded).toEqual({
       ...rest,
-      version: 2,
+      version: 3,
       upgrades: { engine: 2, tires: 1, armor: 0, gun: 3, fuel: 0, spikes: 0 },
       bestRank: rankOf(loaded!),
       wrecks: 0,
       cashEarned: 0,
       sabotage: null,
+      beatenCars: [],
     });
     expect(loaded!.bestRank).toBeLessThan(20);
     expect(writeSave(store, loaded!)).toBe(true);
@@ -59,11 +60,34 @@ describe('save (test 6)', () => {
     expect(loadSave(store)).toEqual(pending);
   });
 
+  it('a v2 save migrates to v3 with beatenCars [] and keeps everything else (CCR-10)', () => {
+    const store = memoryStore();
+    const { beatenCars: _b, ...v3 } = { ...newCareer(4), cash: 777, bestRank: 12, wrecks: 3, cashEarned: 4100, sabotage: { offerId: '5-hard', pct: 30, price: 1125 } };
+    store.set(SAVE_KEY, JSON.stringify({ ...v3, version: 2 }));
+    expect(loadSave(store)).toEqual({ ...v3, version: 3, beatenCars: [] });
+    // A v2 save carrying a stray beatenCars field still migrates to [] (v2 never wrote one).
+    store.set(SAVE_KEY, JSON.stringify({ ...v3, version: 2, beatenCars: ['blaze'] }));
+    expect(loadSave(store)!.beatenCars).toEqual([]);
+  });
+
+  it('v3 beatenCars round-trips; duplicates are dropped', () => {
+    const store = memoryStore();
+    const save = { ...newCareer(9), beatenCars: ['wraith', 'outlaw'] };
+    writeSave(store, save);
+    expect(loadSave(store)).toEqual(save);
+    store.set(SAVE_KEY, JSON.stringify({ ...save, beatenCars: ['outlaw', 'outlaw', 'scorch'] }));
+    expect(loadSave(store)!.beatenCars).toEqual(['outlaw', 'scorch']);
+  });
+
   it('corrupt JSON, wrong version and missing or bad fields give null', () => {
     const store = memoryStore();
     const good = JSON.parse(JSON.stringify(newCareer(1))) as Record<string, unknown>;
     const bad: unknown[] = [
-      { ...good, version: 3 },
+      { ...good, version: 4 },
+      { ...good, beatenCars: undefined },
+      { ...good, beatenCars: 'blaze' },
+      { ...good, beatenCars: ['blaze', 'nope'] },
+      { ...good, beatenCars: [1] },
       { ...good, bestRank: undefined },
       { ...good, wrecks: 'x' },
       { ...good, cashEarned: undefined },

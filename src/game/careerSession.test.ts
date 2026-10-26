@@ -5,8 +5,9 @@ import { loadSave, SAVE_KEY, type KeyValueStore } from '../meta/save';
 import type { RaceResult, RaceSetup, SaveGame } from '../shared/contracts';
 import { PLAYER_CAR_ID } from '../shared/contracts';
 import { createFakeSim } from '../sim';
-import { affordableRepairHp, partialRepairHp } from '../meta/shop';
-import { createCareerSession, createTally, dnfResult, REPAIR_FIRST, tallyEvent, TOWED, unlockText } from './careerSession';
+import { affordableRepairHp, LOCKED_TEXT, partialRepairHp } from '../meta/shop';
+import { beatenText, createCareerSession, createTally, dnfResult, REPAIR_FIRST, tallyEvent, TOWED, unlockText } from './careerSession';
+import { buildQuickRaceSetup } from '../content/quickRace';
 import { TRACKS_AT_START } from '../content/economy';
 import { getTrack, TRACKS } from '../content/tracks';
 import { sabotageTarget, unlockedTrackIds } from '../meta/career';
@@ -267,6 +268,31 @@ describe('career session', () => {
     const { unlocked } = career.finishRace(resultFor(r.setup, 1));
     expect(career.save!.bestRank).toBe(1);
     expect(unlocked).toEqual(unlockedTrackIds(career.save!).slice(TRACKS_AT_START));
+  });
+
+  it('finishRace reports the car types beaten for the first time; quick race setups never touch the save (CCR-10)', () => {
+    const { career, storage } = careerWith({ points: 23 });
+    const before = storage.map.get(SAVE_KEY);
+    buildQuickRaceSetup({ seed: 1, carId: 'wraith' });
+    expect(storage.map.get(SAVE_KEY)).toBe(before);
+    const offer = career.ensureOffers()[1]!;
+    const r = career.selectOffer(offer.id, 1);
+    if (!r.ok) throw new Error(r.error);
+    const { beaten } = career.finishRace(resultFor(r.setup, 1));
+    const expected = [...new Set(r.setup.entrants.slice(1).map((e) => e.carDefId))].filter((c) => c !== 'raven');
+    expect([...beaten].sort()).toEqual(expected.sort());
+    expect([...loadSave(storage)!.beatenCars].sort()).toEqual([...new Set(r.setup.entrants.slice(1).map((e) => e.carDefId))].sort());
+  });
+
+  it('beaten car messages: locked cars are unlocked, forSale cars are discounted', () => {
+    expect(beatenText('blaze')).toBe('Unlocked in shop: BLAZE');
+    expect(beatenText('wraith')).toBe('Unlocked in shop: WRAITH');
+    expect(beatenText('scorch')).toBe('SCORCH now 25% off in the shop');
+  });
+
+  it('a locked car is refused with the unlock hint', () => {
+    const { career } = careerWith({ cash: 1e6 });
+    expect(career.shop({ type: 'buyCar', carDefId: 'blaze' })).toEqual({ ok: false, error: LOCKED_TEXT });
   });
 
   it('unlock message: one track, then several', () => {

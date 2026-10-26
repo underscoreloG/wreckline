@@ -1,7 +1,8 @@
 import type { CarDef, RaceOffer, SaveGame, UpgradeKind } from '../shared/contracts';
 import { createRng } from '../shared/rng';
-import { CARS, carsForSale, getCar } from '../content/cars';
+import { CARS, getCar, STARTER_CAR_ID } from '../content/cars';
 import {
+  BEATEN_DISCOUNT,
   computeStats,
   MAX_LEVEL,
   MINE_PRICE,
@@ -15,21 +16,43 @@ import {
   upgradeCost,
 } from '../content/economy';
 
-/** 'pending': a sabotage is already bought and not raced yet. */
-export type ShopFail = 'cash' | 'max' | 'owned' | 'invalid' | 'pending';
+/** 'pending': a sabotage is already bought and not raced yet. 'locked': a car not beaten yet (CCR-10). */
+export type ShopFail = 'cash' | 'max' | 'owned' | 'invalid' | 'pending' | 'locked';
+/** Shop text of a car not beaten yet (CCR-10), also the refusal when buying it. */
+export const LOCKED_TEXT = 'Finish ahead of one in a race to unlock';
 export type ShopResult = { ok: true; save: SaveGame } | { ok: false; reason: ShopFail };
 
 const fail = (reason: ShopFail): ShopResult => ({ ok: false, reason });
 /** A fresh save (no shared nested objects with the input) with `patch` applied. */
 const done = (save: SaveGame, patch: Partial<SaveGame>): ShopResult => ({
   ok: true,
-  save: { ...save, upgrades: { ...save.upgrades }, rivals: save.rivals.map((r) => ({ ...r })), sabotage: save.sabotage && { ...save.sabotage }, ...patch },
+  save: { ...save, upgrades: { ...save.upgrades }, rivals: save.rivals.map((r) => ({ ...r })), sabotage: save.sabotage && { ...save.sabotage }, beatenCars: [...save.beatenCars], ...patch },
 });
 const UPGRADE_KINDS = Object.keys(MAX_LEVEL) as readonly UpgradeKind[];
 
-/** `forSale` cars other than the one owned, in table order. */
+/**
+ * The shop's view of one car (CCR-10), the single price rule for the shop logic, the Shop screen and careerSim.
+ * listed: every car except the starter. locked: not forSale and not beaten yet (not buyable).
+ * price: list price, BEATEN_DISCOUNT off for a beaten forSale car (discounted).
+ */
+export interface CarOffer {
+  listed: boolean;
+  locked: boolean;
+  price: number;
+  discounted: boolean;
+}
+
+export function carOffer(save: SaveGame, carDefId: string): CarOffer {
+  const car = Object.hasOwn(CARS, carDefId) ? CARS[carDefId] : undefined;
+  if (!car || car.id === STARTER_CAR_ID) return { listed: false, locked: true, price: 0, discounted: false };
+  const beaten = save.beatenCars.includes(car.id);
+  const discounted = car.forSale && beaten;
+  return { listed: true, locked: !car.forSale && !beaten, price: discounted ? Math.round(car.price * (1 - BEATEN_DISCOUNT)) : car.price, discounted };
+}
+
+/** Every listed car in table order, the owned one included (its row is not buyable). */
 export function shopCars(save: SaveGame): CarDef[] {
-  return carsForSale().filter((c) => c.id !== save.carDefId);
+  return Object.values(CARS).filter((c) => carOffer(save, c.id).listed);
 }
 
 export const canAfford = (save: SaveGame, cost: number): boolean => save.cash >= cost;
@@ -50,12 +73,14 @@ export function buyUpgrade(save: SaveGame, kind: UpgradeKind): ShopResult {
 
 export const tradeInValue = (save: SaveGame): number => Math.round(getCar(save.carDefId).price * TRADE_IN_FRACTION);
 
-/** Trades in the current car (50% of its price), loses the upgrades, starts at full hp. */
+/** Trades in the current car (50% of its list price), pays carOffer's price, loses the upgrades, starts at full hp. */
 export function buyCar(save: SaveGame, carDefId: string): ShopResult {
-  const car = Object.hasOwn(CARS, carDefId) ? CARS[carDefId] : undefined;
-  if (!car || !car.forSale) return fail('invalid');
-  if (car.id === save.carDefId) return fail('owned');
-  const cash = save.cash + tradeInValue(save) - car.price;
+  const offer = carOffer(save, carDefId);
+  if (!offer.listed) return fail('invalid');
+  if (carDefId === save.carDefId) return fail('owned');
+  if (offer.locked) return fail('locked');
+  const car = getCar(carDefId);
+  const cash = save.cash + tradeInValue(save) - offer.price;
   if (cash < 0) return fail('cash');
   const upgrades = { engine: 0, tires: 0, armor: 0, gun: 0, fuel: 0, spikes: 0 };
   return done(save, { cash, carDefId: car.id, upgrades, hp: computeStats(car, upgrades).maxHp });
@@ -86,7 +111,7 @@ export function freeTowIfStuck(save: SaveGame): { save: SaveGame; towed: boolean
   const car = getCar(save.carDefId);
   const towHp = Math.ceil(TOW_HP_FRACTION * computeStats(car, save.upgrades).maxHp);
   if (canAfford(save, repairCost(car, towHp))) return { save, towed: false };
-  return { save: { ...save, upgrades: { ...save.upgrades }, rivals: save.rivals.map((r) => ({ ...r })), hp: towHp }, towed: true };
+  return { save: { ...save, upgrades: { ...save.upgrades }, rivals: save.rivals.map((r) => ({ ...r })), beatenCars: [...save.beatenCars], hp: towHp }, towed: true };
 }
 
 /** Hp a +25% repair adds: ceil(PARTIAL_REPAIR_FRACTION * maxHp), clamped to the missing hp. */

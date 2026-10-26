@@ -270,6 +270,16 @@
   gap: 0.6rem;
 }
 
+/* Every car but the starter has a row (CCR-10): tighter rows so all of them and BACK fit a laptop-height window. */
+.shop-cars {
+  gap: 0.4rem;
+}
+
+.shop-cars .tile {
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+}
+
 /* ------------------------------------------------------------ race select */
 
 .race-select-panel {

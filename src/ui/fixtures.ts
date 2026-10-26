@@ -122,7 +122,9 @@ function careerSave(screen: Screen): SaveGame {
   };
   if (screen === 'champion') return { ...mid, cash: 18640, points: 96, racesRun: 31, wins: 14, wrecks: 23, cashEarned: 61250, championWon: true };
   // Low cash so the garage shows all three repairs: +25% unaffordable, MAX partial, FULL.
-  return screen === 'garage' ? { ...mid, cash: 90 } : mid;
+  if (screen === 'garage') return { ...mid, cash: 90 };
+  // CARS tab (CCR-10): outlaw unlocked, scorch discounted, the other rival-only cars locked.
+  return screen === 'shop' ? { ...mid, cash: 6000, beatenCars: ['outlaw', 'scorch'] } : mid;
 }
 
 const PAYOUT: Payout = { prize: 350, wreckBonus: 250, pickups: 300, total: 900, pointsGained: 2 };
@@ -138,7 +140,7 @@ export function fixtureState(screen: Screen, hud: HudFixture = 'mid', career = C
   return {
     screen,
     previousScreen: screen === 'settings' || screen === 'controls' ? 'title' : sub ? 'career' : null,
-    settings: { version: 1, masterVolume: 0.8, sfxVolume: 0.9, quality: 'high', cameraShake: true, showFps: false, quickTrackId: null },
+    settings: { version: 1, masterVolume: 0.8, sfxVolume: 0.9, quality: 'high', cameraShake: true, showFps: false, quickTrackId: null, quickCarId: null },
     usingGamepad: false,
     version: __APP_VERSION__,
     race: { trackId: setup.track.id, trackName: setup.track.name, laps: setup.laps, entrants, minimapPath },

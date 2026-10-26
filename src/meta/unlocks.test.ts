@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RaceResult, SaveGame } from '../shared/contracts';
+import { TRACKS_AT_START } from '../content/economy';
 import { TRACKS } from '../content/tracks';
 import { applyRaceResult, generateOffers, newCareer, newlyUnlocked, rankOf, unlockedTrackIds } from './career';
 
@@ -7,12 +8,20 @@ const IDS = Array.from({ length: 10 }, (_, i) => `t${i}`);
 const at = (bestRank: number, patch: Partial<SaveGame> = {}): SaveGame => ({ ...newCareer(2), bestRank, ...patch });
 
 describe('track unlocks (content.md section 11)', () => {
-  it('3 at the start, one more every 2 ranks, all 10 by rank 6, in list order', () => {
+  it('all 10 from the first race at every rank (user decision 2026-10-26), in list order', () => {
+    expect(TRACKS_AT_START).toBe(10);
     const count = (r: number) => unlockedTrackIds(at(r), IDS).length;
-    expect([20, 19, 18, 17, 16, 6, 5, 1].map(count)).toEqual([3, 3, 4, 4, 5, 10, 10, 10]);
-    expect(unlockedTrackIds(at(18), IDS)).toEqual(['t0', 't1', 't2', 't3']);
-    // Default: the registry, whatever its size.
-    expect(unlockedTrackIds(newCareer(1))).toEqual(Object.keys(TRACKS).slice(0, 3));
+    expect([20, 19, 18, 12, 6, 1].map(count)).toEqual([10, 10, 10, 10, 10, 10]);
+    expect(unlockedTrackIds(at(20), IDS)).toEqual(IDS);
+    // Default: the registry, whatever its size (up to the 10-track cap).
+    expect(unlockedTrackIds(newCareer(1))).toEqual(Object.keys(TRACKS).slice(0, 10));
+  });
+
+  it('a new career gets offers on more than 3 different tracks over its first rounds', () => {
+    const save = newCareer(3);
+    const seen = new Set<string>();
+    for (let racesRun = 0; racesRun < 4; racesRun++) for (const o of generateOffers({ ...save, racesRun }).offers) seen.add(o.trackId);
+    expect(seen.size).toBeGreaterThan(3);
   });
 
   it('offers only use unlocked ids and rotate over them', () => {
@@ -25,10 +34,9 @@ describe('track unlocks (content.md section 11)', () => {
     }
   });
 
-  it('newlyUnlocked lists what the second save adds', () => {
-    expect(newlyUnlocked(at(19), at(18), IDS)).toEqual(['t3']);
-    expect(newlyUnlocked(at(18), at(14), IDS)).toEqual(['t4', 't5']);
-    expect(newlyUnlocked(at(18), at(18), IDS)).toEqual([]);
+  it('newlyUnlocked: nothing is ever added, so no "New track" message fires', () => {
+    expect(newlyUnlocked(at(19), at(18), IDS)).toEqual([]);
+    expect(newlyUnlocked(at(20), at(1), IDS)).toEqual([]);
   });
 
   it('bestRank follows the rank after every race and never gets worse', () => {

@@ -5,7 +5,7 @@ import { getCar } from '../content/cars';
 import { computeStats } from '../content/economy';
 import { RIVALS } from '../content/rivals';
 import { TRACKS } from '../content/tracks';
-import { applyRaceResult, buildCareerRaceSetup, generateOffers, ladder, newCareer, rankOf } from './career';
+import { applyRaceResult, buildCareerRaceSetup, generateOffers, ladder, newCareer, newlyBeaten, rankOf } from './career';
 
 const withPoints = (points: number, rngState = 1): SaveGame => ({ ...newCareer(rngState), points });
 
@@ -40,8 +40,8 @@ const offerOf = (save: SaveGame, tier: RaceOffer['tier']): RaceOffer => {
 describe('newCareer (test 1)', () => {
   it('matches content.md', () => {
     const s = newCareer(1);
-    expect(s).toMatchObject({ version: 2, cash: 600, carDefId: 'raven', hp: 100, mines: 2, turbo: 3, points: 0, racesRun: 0, wins: 0, championWon: false });
-    expect(s).toMatchObject({ bestRank: 20, wrecks: 0, cashEarned: 0, sabotage: null });
+    expect(s).toMatchObject({ version: 3, cash: 600, carDefId: 'raven', hp: 100, mines: 2, turbo: 3, points: 0, racesRun: 0, wins: 0, championWon: false });
+    expect(s).toMatchObject({ bestRank: 20, wrecks: 0, cashEarned: 0, sabotage: null, beatenCars: [] });
     expect(s.upgrades).toEqual({ engine: 0, tires: 0, armor: 0, gun: 0, fuel: 0, spikes: 0 });
     expect(s.rivals).toHaveLength(19);
     for (const [i, r] of s.rivals.entries()) expect(r.points).toBe(Math.round(RIVALS[i].skill * 40));
@@ -225,5 +225,57 @@ describe('rubber banding (test 9)', () => {
         if (tier === 'easy') expect(expected).toBeGreaterThan(0);
       }
     }
+  });
+});
+
+describe('beaten car types (CCR-10)', () => {
+  const carOf = (save: SaveGame, id: string): string => (id === 'boss' ? 'wraith' : save.rivals.find((r) => r.driverId === id)!.carDefId);
+  /** Result for `offer` with the player at `playerPos`, the rivals in offer order around it. */
+  const race = (offer: RaceOffer, playerPos: number, player: Partial<RaceResultRow> = {}): RaceResult => {
+    const order = [...offer.rivals];
+    order.splice(playerPos - 1, 0, 'player');
+    return { trackId: offer.trackId, laps: offer.laps, rows: order.map((d, i) => (d === 'player' ? row(0, d, i + 1, player) : row(i + 1, d, i + 1))) };
+  };
+  const behind = (save: SaveGame, offer: RaceOffer, playerPos: number): string[] => [...new Set(offer.rivals.slice(playerPos - 1).map((d) => carOf(save, d)))];
+
+  it('only rows placed after the player count; a win beats every car type in the race', () => {
+    const save = withPoints(23, 3);
+    const offer = offerOf(save, 'medium');
+    for (const pos of [1, 2, 3, 4]) {
+      const after = applyRaceResult(save, offer, race(offer, pos)).save;
+      expect([...after.beatenCars].sort()).toEqual(behind(save, offer, pos).sort());
+    }
+    expect(applyRaceResult(save, offer, race(offer, 4)).save.beatenCars).toEqual([]);
+    const won = applyRaceResult(save, offer, race(offer, 1)).save;
+    expect([...won.beatenCars].sort()).toEqual([...new Set(offer.rivals.map((d) => carOf(save, d)))].sort());
+  });
+
+  it('a wrecked player still beats the rows behind it', () => {
+    const save = withPoints(23, 3);
+    const offer = offerOf(save, 'medium');
+    const after = applyRaceResult(save, offer, race(offer, 2, { finished: false, wrecked: true, hpLeft: 0 })).save;
+    expect([...after.beatenCars].sort()).toEqual(behind(save, offer, 2).sort());
+  });
+
+  it('finishing ahead of THE WARDEN beats wraith', () => {
+    const top = withPoints(1000, 2);
+    const boss = offerOf(top, 'boss');
+    expect(boss.rivals[0]).toBe('boss');
+    // Player 1st: the boss row (offer order puts it 2nd) is behind.
+    expect(applyRaceResult(top, boss, race(boss, 1)).save.beatenCars).toContain('wraith');
+    // Player last: nothing.
+    expect(applyRaceResult(top, boss, race(boss, 4)).save.beatenCars).toEqual([]);
+  });
+
+  it('kept across races, each car type at most once; newlyBeaten skips the starter and the car the player raced', () => {
+    const save: SaveGame = { ...withPoints(23, 3), beatenCars: ['outlaw'] };
+    const offer = offerOf(save, 'medium');
+    const after = applyRaceResult(save, offer, race(offer, 1)).save;
+    expect(after.beatenCars[0]).toBe('outlaw');
+    expect(new Set(after.beatenCars).size).toBe(after.beatenCars.length);
+    const fresh = newlyBeaten(save, after);
+    expect(fresh).toEqual(after.beatenCars.filter((c) => c !== 'outlaw' && c !== 'raven' && c !== save.carDefId));
+    expect(newlyBeaten({ ...save, beatenCars: [] }, { ...after, beatenCars: ['raven', 'scorch', 'blaze'] })).toEqual(['scorch', 'blaze']);
+    expect(newlyBeaten({ ...save, carDefId: 'scorch', beatenCars: [] }, { ...after, beatenCars: ['scorch', 'blaze'] })).toEqual(['blaze']);
   });
 });

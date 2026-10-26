@@ -49,4 +49,18 @@ describe('careerSim', () => {
     const scorch: SaveGame = { ...raven, carDefId: 'scorch', hp: maxHp('scorch') };
     expect(shopVisit({ ...scorch, cash: 17000 })).toMatchObject({ carDefId: 'viper', cash: 3200 });
   });
+
+  it('follows the shop price rule (CCR-10): beaten forSale cars are discounted, locked cars are never bought', () => {
+    const raven: SaveGame = { ...newCareer(1), upgrades: maxed, hp: maxHp('raven') };
+    const scorch: SaveGame = { ...raven, carDefId: 'scorch', hp: maxHp('scorch') };
+    // Viper 25% off: 7000 + 3000 trade-in - 9000 leaves the 1000 margin.
+    expect(shopVisit({ ...scorch, cash: 7000, beatenCars: ['viper'] }).carDefId).toBe('viper');
+    expect(shopVisit({ ...scorch, cash: 7000 }).carDefId).toBe('scorch');
+    // Scorch 25% off from the raven: 5500 - 4500.
+    expect(shopVisit({ ...raven, cash: 5500, beatenCars: ['scorch'] }).carDefId).toBe('scorch');
+    // Wraith stays locked until beaten; with every tier 3 car buyable the cheapest wins.
+    const viper: SaveGame = { ...raven, carDefId: 'viper', hp: maxHp('viper') };
+    expect(shopVisit({ ...viper, cash: 1e6 }).carDefId).toBe('viper');
+    expect(shopVisit({ ...scorch, cash: 1e6, beatenCars: ['wraith'] }).carDefId).toBe('viper');
+  });
 });

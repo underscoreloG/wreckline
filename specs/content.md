@@ -4,20 +4,20 @@ All numbers here are **starting values**. WP00 encodes them in `src/content/*.ts
 
 ## 1. Cars (`src/content/cars.ts`)
 
-Roster from the concept sheet `specs/art/cars-concept-v1.webp` (decided 2026-10-24). `forSale: false` cars are rival-only (and the boss); the shop lists only `forSale` cars other than the one owned.
+Roster from the concept sheet `specs/art/cars-concept-v1.webp` (decided 2026-10-24). Shop listing (user decision 2026-10-26, CCR-10): every car except the starter `raven` has a shop row. `forSale: true` cars (scorch, titan, viper) are buyable from the start; the other cars (outlaw, iceberg, blaze, wraith, the boss car included) are locked until the player has beaten that car type in a career race (section 3), then buyable at list price.
 
 | id | name | forSale | price | tier | maxSpeed | accel | brake | turnRate | grip | mass | maxHp | gunDps |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | `raven` | Raven (starter) | false | 0 | 1 | 39.1 | 15.6 | 24 | 2.7 | 0.78 | 1100 | 100 | 22 |
-| `outlaw` | Outlaw | false | 0 | 1 | 38 | 18 | 24 | 3.1 | 0.80 | 850 | 80 | 20 |
-| `iceberg` | Iceberg | false | 0 | 1 | 36.8 | 14.4 | 22 | 2.4 | 0.76 | 1500 | 135 | 22 |
+| `outlaw` | Outlaw | false | 3500 | 1 | 38 | 18 | 24 | 3.1 | 0.80 | 850 | 80 | 20 |
+| `iceberg` | Iceberg | false | 4500 | 1 | 36.8 | 14.4 | 22 | 2.4 | 0.76 | 1500 | 135 | 22 |
 | `scorch` | Scorch | true | 6000 | 2 | 42.6 | 18 | 25 | 2.5 | 0.80 | 1400 | 140 | 26 |
-| `blaze` | Blaze | false | 0 | 2 | 46 | 19.2 | 27 | 2.8 | 0.84 | 1150 | 110 | 26 |
+| `blaze` | Blaze | false | 10500 | 2 | 46 | 19.2 | 27 | 2.8 | 0.84 | 1150 | 110 | 26 |
 | `titan` | Titan | true | 9000 | 2 | 40.3 | 15.6 | 26 | 2.2 | 0.80 | 1900 | 190 | 32 |
 | `viper` | Viper | true | 12000 | 3 | 49.5 | 20.4 | 28 | 2.9 | 0.88 | 1200 | 120 | 30 |
-| `wraith` | Wraith (boss only) | false | 0 | 3 | 51.8 | 21.6 | 30 | 2.9 | 0.90 | 1700 | 220 | 34 |
+| `wraith` | Wraith (boss car) | false | 20000 | 3 | 51.8 | 21.6 | 30 | 2.9 | 0.90 | 1700 | 220 | 34 |
 
-`price` is the shop price for `forSale` cars and the trade-in base for every car (starter and rival-only cars trade in for 0). Tuning pass 1 (2026-10-25, user: "a little bit too slow"): every maxSpeed x1.15 and accel x1.20 from the first values (raven was 34 / 13).
+`price` is the list price and the trade-in base for every car (user decision 2026-10-26: outlaw 3500, iceberg 4500, blaze 10500, wraith 20000 were 0; the starter stays 0 and is never listed). Tuning pass 1 (2026-10-25, user: "a little bit too slow"): every maxSpeed x1.15 and accel x1.20 from the first values (raven was 34 / 13).
 
 Mesh specs (procedural placeholders until the art WPs; also the collider size). When WP14 imports the models, each car's `length` x `width` changes to the model's own proportions at the same area (user decision 2026-10-25: the hitbox follows the art), and the model is scaled uniformly to it:
 
@@ -69,12 +69,14 @@ Cost to buy level L (1..5): `[300, 700, 1500, 3000, 6000][L-1] * tierMult`, `tie
 | mine | 60 each | 8 carried |
 | rocket fuel (turbo) | 40 per second | 10 s carried |
 | sabotage | `round(0.3 * offer.prizes[0])`: easy 270, medium 540, hard 1125, boss 3000 | once per race |
-| car | table price, `forSale` cars only; trade-in gives 50% of the current car's price; upgrades are lost; new car starts at full hp | - |
+| car | `carOffer` in `src/meta/shop.ts` (user decision 2026-10-26, CCR-10): every car but the starter has a row. scorch, titan, viper: list price, or `round(list * (1 - BEATEN_DISCOUNT))` once beaten (`BEATEN_DISCOUNT` 0.25). outlaw, iceberg, blaze, wraith: locked ("Finish ahead of one in a race to unlock", not buyable) until beaten, then list price. The owned car's row is not buyable. Trade-in gives 50% of the current car's list price (the cheapest buy is 75% of list, so no buy/sell profit loop); upgrades are lost; new car starts at full hp | - |
+
+**Beating a car type (user decision 2026-10-26, CCR-10):** after every career race (boss race included), every result row placed after the player's row marks that row's car type as beaten (`SaveGame.beatenCars`). A win beats every car type in the race; finishing ahead of THE WARDEN beats `wraith`; a wrecked player still beats the rows behind it. Quick race never changes the save. The career hub shows one message per newly beaten car type: "Unlocked in shop: <NAME>" for a locked car, "<NAME> now 25% off in the shop" for scorch/titan/viper; nothing for `raven` or the player's own car type.
 
 Starting career: cash 600, car `raven`, upgrades all 0, hp 100, mines 2, turbo 3 s.
-M1 quick race: player and AI start with full hp, 3 mines, 4 s turbo.
+M1 quick race: player and AI start with full hp, 3 mines, 4 s turbo. Quick race car (user decision 2026-10-26, CCR-10): the pre-race CAR picker lets the player race any of the 8 cars stock (upgrades 0), remembered in `Settings.quickCarId` (null or unknown = raven); unlocks and cash do not apply; the AI cars stay stock ravens; `?race=1` ignores the setting.
 
-**Sabotage (user decision 2026-10-25):** bought on the pre-race screen for the selected offer. Target: the rival in that race with the most championship points (ties: higher skill; rival skills are all distinct, so no tie survives); in the boss race, THE WARDEN. `sabotageTarget(save, offer)` (WP20) gives the name to show before buying. The damage is a whole percentage drawn at purchase from the meta RNG, uniform in 25..49, stored with the price; the target starts that race at `round(maxHp * (1 - pct/100))` hp. The player sees "Sabotaged: <NAME> -<pct>%". Lifecycle: one pending sabotage at a time (buying for another offer is refused with "Sabotage already bought for another race"); the target is re-picked from the offer's rivals when the race setup is built (offers are rebuilt after a reload, so the stored offer id is matched, not the rival); if the player races a different offer, the price is refunded; it is cleared after the race it applies to. Rivals never sabotage the player. Quick race has no sabotage. Numbers live as named constants in `src/content/economy.ts` so WP12 can tune them: `SABOTAGE_PRICE_FRACTION` 0.3, `SABOTAGE_PCT_MIN` 25, `SABOTAGE_PCT_MAX` 49, `TRACKS_AT_START` 3, `RANKS_PER_UNLOCK` 2.
+**Sabotage (user decision 2026-10-25):** bought on the pre-race screen for the selected offer. Target: the rival in that race with the most championship points (ties: higher skill; rival skills are all distinct, so no tie survives); in the boss race, THE WARDEN. `sabotageTarget(save, offer)` (WP20) gives the name to show before buying. The damage is a whole percentage drawn at purchase from the meta RNG, uniform in 25..49, stored with the price; the target starts that race at `round(maxHp * (1 - pct/100))` hp. The player sees "Sabotaged: <NAME> -<pct>%". Lifecycle: one pending sabotage at a time (buying for another offer is refused with "Sabotage already bought for another race"); the target is re-picked from the offer's rivals when the race setup is built (offers are rebuilt after a reload, so the stored offer id is matched, not the rival); if the player races a different offer, the price is refunded; it is cleared after the race it applies to. Rivals never sabotage the player. Quick race has no sabotage. Numbers live as named constants in `src/content/economy.ts` so WP12 can tune them: `SABOTAGE_PRICE_FRACTION` 0.3, `SABOTAGE_PCT_MIN` 25, `SABOTAGE_PCT_MAX` 49, `TRACKS_AT_START` 10 (was 3, user decision 2026-10-26), `RANKS_PER_UNLOCK` 2, `BEATEN_DISCOUNT` 0.25.
 
 ## 4. Vehicle modifiers (used by WP01)
 
@@ -215,7 +217,7 @@ Rivals' upgrade levels: `floor(skill * 2)` on every line (fuel included), capped
 | boss | 5 | the boss + 2 rivals from the top 3 | 10000, 0, 0, 0 | 0 | 0 | 0 |
 
 - The boss offer replaces the hard offer while the player is rank 1. Winning it sets `championWon`.
-- Track per offer: `unlocked[(racesRun + tierIndex) % unlocked.length]` (easy 0, medium 1, hard/boss 2), so the three offers always differ and rotate each round. `unlocked` = the first `min(10, 3 + floor((20 - bestRank) / 2))` tracks of `TRACKS` in registry order (user decision 2026-10-25: 3 tracks at the start, one more every 2 ranks climbed, all 10 by rank 6). `bestRank` updates after every race. The champion screen and standings show nothing about unlocks; the career hub shows "New track: <name>" once when one unlocks.
+- Track per offer: `unlocked[(racesRun + tierIndex) % unlocked.length]` (easy 0, medium 1, hard/boss 2), so the three offers always differ and rotate each round. `unlocked` = the first `min(10, TRACKS_AT_START + floor((20 - bestRank) / 2))` tracks of `TRACKS` in registry order. All 10 tracks from the first race (user decision 2026-10-26: `TRACKS_AT_START` 10, was 3 with one more every 2 ranks climbed), so the unlock code never adds a track and the career hub's "New track: <name>" message no longer fires. `bestRank` still updates after every race.
 - Off-screen rivals: after each player race, every rival not in that race gains points from a simulated result: `pts = tierPointsTable[pickTier(skill)][simPosition]`, where `simPosition` is drawn so that higher skill finishes higher on average (WP09 spec has the exact formula).
 
 ## 12. Tracks

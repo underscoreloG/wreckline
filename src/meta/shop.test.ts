@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { SaveGame } from '../shared/contracts';
 import { newCareer } from './career';
-import { affordableRepairHp, buyCar, buyMines, buyTurbo, buyUpgrade, canAfford, freeTowIfStuck, partialRepairHp, repair, shopCars } from './shop';
+import { CARS, getCar, STARTER_CAR_ID } from '../content/cars';
+import { BEATEN_DISCOUNT } from '../content/economy';
+import { affordableRepairHp, buyCar, buyMines, buyTurbo, buyUpgrade, canAfford, carOffer, freeTowIfStuck, partialRepairHp, repair, shopCars, tradeInValue } from './shop';
 
 const career = (patch: Partial<SaveGame> = {}): SaveGame => ({ ...newCareer(1), ...patch });
 
@@ -78,18 +80,65 @@ describe('supplies', () => {
 });
 
 describe('car shop (test 10)', () => {
-  it('lists exactly the forSale cars not owned', () => {
-    expect(shopCars(career()).map((c) => c.id)).toEqual(['scorch', 'titan', 'viper']);
-    expect(shopCars(career({ carDefId: 'titan', hp: 190 })).map((c) => c.id)).toEqual(['scorch', 'viper']);
+  // Derived from the registry (other WPs may add cars): forSale cars start buyable, the rest except the starter start locked.
+  const listed = Object.values(CARS).filter((c) => c.id !== STARTER_CAR_ID);
+  const full = (patch: Partial<SaveGame> = {}) => career({ beatenCars: Object.keys(CARS), ...patch });
+
+  it('lists every car but the starter, the owned one included, in table order (CCR-10)', () => {
+    expect(shopCars(career()).map((c) => c.id)).toEqual(listed.map((c) => c.id));
+    expect(shopCars(career({ carDefId: 'titan', hp: 190 })).map((c) => c.id)).toEqual(listed.map((c) => c.id));
+    expect(carOffer(career(), STARTER_CAR_ID).listed).toBe(false);
+    expect(carOffer(full(), STARTER_CAR_ID).listed).toBe(false);
+    expect(carOffer(career(), 'nope').listed).toBe(false);
   });
 
-  it('rival-only and boss cars are invalid, the owned car is owned', () => {
+  it('nothing beaten: forSale cars at list price, the others locked at list price', () => {
+    for (const c of listed) expect(carOffer(career(), c.id)).toEqual({ listed: true, locked: !c.forSale, price: c.price, discounted: false });
+    expect(Object.values(CARS).filter((c) => c.forSale).map((c) => c.id)).toEqual(['scorch', 'titan', 'viper']);
+  });
+
+  it('everything beaten: forSale cars 25% off, the others unlocked at list price', () => {
+    for (const c of listed) {
+      expect(carOffer(full(), c.id)).toEqual({ listed: true, locked: false, price: c.forSale ? Math.round(c.price * (1 - BEATEN_DISCOUNT)) : c.price, discounted: c.forSale });
+    }
+    expect([carOffer(full(), 'scorch').price, carOffer(full(), 'titan').price, carOffer(full(), 'viper').price]).toEqual([4500, 6750, 9000]);
+    // One beaten car changes only that car's row.
+    expect(carOffer(career({ beatenCars: ['blaze'] }), 'blaze').locked).toBe(false);
+    expect(carOffer(career({ beatenCars: ['blaze'] }), 'wraith').locked).toBe(true);
+  });
+
+  it('list prices (user decision 2026-10-26)', () => {
+    expect(Object.fromEntries(listed.map((c) => [c.id, c.price]))).toMatchObject({ outlaw: 3500, iceberg: 4500, scorch: 6000, blaze: 10500, titan: 9000, viper: 12000, wraith: 20000 });
+    expect(getCar(STARTER_CAR_ID).price).toBe(0);
+  });
+
+  it('buyCar refuses a locked car, buys it once beaten at list price, the owned car is owned', () => {
     const rich = career({ cash: 1e6 });
-    expect(buyCar(rich, 'wraith')).toEqual({ ok: false, reason: 'invalid' });
-    expect(buyCar(rich, 'blaze')).toEqual({ ok: false, reason: 'invalid' });
+    for (const c of listed.filter((x) => !x.forSale)) {
+      expect(buyCar(rich, c.id)).toEqual({ ok: false, reason: 'locked' });
+      expect(ok(buyCar({ ...rich, beatenCars: [c.id] }, c.id)).cash).toBe(1e6 - c.price);
+    }
+    expect(ok(buyCar(full({ cash: 4500 }), 'scorch'))).toMatchObject({ carDefId: 'scorch', cash: 0 });
+    expect(buyCar(full({ cash: 4499 }), 'scorch')).toEqual({ ok: false, reason: 'cash' });
+    expect(buyCar(rich, STARTER_CAR_ID)).toEqual({ ok: false, reason: 'invalid' });
     expect(buyCar(rich, 'nope')).toEqual({ ok: false, reason: 'invalid' });
     expect(buyCar(rich, 'toString')).toEqual({ ok: false, reason: 'invalid' });
     expect(buyCar(career({ carDefId: 'scorch', hp: 140 }), 'scorch')).toEqual({ ok: false, reason: 'owned' });
+  });
+
+  // Any cycle of trades costs the sum of (price paid - trade-in) over its cars, so a car whose lowest price beats its trade-in rules out every loop.
+  it('no buy/sell profit loop: every round trip costs cash, and the lowest price is above the trade-in', () => {
+    for (const a of Object.values(CARS)) {
+      for (const b of listed) {
+        if (a.id === b.id) continue;
+        const start = full({ carDefId: a.id, cash: 1e6 });
+        const there = ok(buyCar(start, b.id));
+        const back = a.id === STARTER_CAR_ID ? there : ok(buyCar(there, a.id));
+        expect(back.cash).toBeLessThan(start.cash);
+      }
+      // Lowest price ever paid (75% of list) is above the trade-in (50% of list).
+      if (a.id !== STARTER_CAR_ID) expect(carOffer(full(), a.id).price).toBeGreaterThan(tradeInValue(full({ carDefId: a.id })));
+    }
   });
 
   it('buying trades in 50% of the current car, resets upgrades and fills hp', () => {

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { RaceResult, SaveGame } from '../shared/contracts';
 import { createRng } from '../shared/rng';
-import { applyRaceResult, buildCareerRaceSetup, generateOffers, ladder, newCareer, newlyUnlocked, rankOf, sabotageTarget, unlockedTrackIds } from './career';
+import { applyRaceResult, buildCareerRaceSetup, generateOffers, ladder, newCareer, newlyBeaten, newlyUnlocked, rankOf, sabotageTarget, unlockedTrackIds } from './career';
 import { chooseOffer, playerSkill, shopVisit } from './careerSim';
 import { simulateOtherRivals } from './offSim';
 import { parseSave, writeSave } from './save';
-import { buyCar, buyMines, buySabotage, buyTurbo, buyUpgrade, canAfford, repair, shopCars } from './shop';
+import { buyCar, buyMines, buySabotage, buyTurbo, buyUpgrade, canAfford, carOffer, repair, shopCars } from './shop';
 
 function deepFreeze<T>(v: T): T {
   if (typeof v === 'object' && v !== null) {
@@ -23,7 +23,7 @@ describe('purity (test 7)', () => {
       [100, false],
       [100, true],
     ] as const) {
-      const plain: SaveGame = { ...newCareer(4), points, cash: 50000, hp: 60, upgrades: { engine: 1, tires: 0, armor: 2, gun: 0, fuel: 1, spikes: 2 } };
+      const plain: SaveGame = { ...newCareer(4), points, cash: 50000, hp: 60, upgrades: { engine: 1, tires: 0, armor: 2, gun: 0, fuel: 1, spikes: 2 }, beatenCars: ['blaze'] };
       const { offers } = generateOffers(plain);
       const base: SaveGame = pending ? { ...plain, sabotage: { offerId: offers[1].id, pct: 40, price: offers[1].sabotagePrice } } : plain;
       const save = deepFreeze(structuredClone(base));
@@ -54,6 +54,7 @@ describe('purity (test 7)', () => {
         generateOffers(save);
         unlockedTrackIds(save);
         newlyUnlocked(save, save);
+        newlyBeaten(save, save);
         for (const o of offers) {
           sabotageTarget(save, o);
           buySabotage(save, o);
@@ -62,6 +63,7 @@ describe('purity (test 7)', () => {
           simulateOtherRivals(save, o, createRng(1));
         }
         shopCars(save);
+        carOffer(save, 'blaze');
         canAfford(save, 10);
         for (const k of ['engine', 'tires', 'armor', 'gun', 'fuel', 'spikes'] as const) buyUpgrade(save, k);
         buyCar(save, 'viper');

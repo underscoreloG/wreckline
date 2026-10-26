@@ -10,6 +10,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
   cameraShake: true,
   showFps: false,
   quickTrackId: null,
+  quickCarId: null,
 };
 
 export interface SettingsStorage {
@@ -40,6 +41,8 @@ export function loadSettings(storage: SettingsStorage | null): Settings {
     cameraShake: bool(r.cameraShake, d.cameraShake),
     showFps: bool(r.showFps, d.showFps),
     quickTrackId: typeof r.quickTrackId === 'string' ? r.quickTrackId : d.quickTrackId,
+    // Kept as stored like quickTrackId; an unknown id falls back to the starter where it is used (carOrStarter).
+    quickCarId: typeof r.quickCarId === 'string' ? r.quickCarId : d.quickCarId,
   };
 }
 

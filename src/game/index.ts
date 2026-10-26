@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createAudioEngine } from '../audio';
-import { getCar } from '../content/cars';
+import { carOrStarter, getCar } from '../content/cars';
 import { QUICK_RACE_CASH_VALUE } from '../content/economy';
 import { buildQuickRaceSetup } from '../content/quickRace';
 import { TRACKS } from '../content/tracks';
@@ -11,7 +11,8 @@ import type { GameCommand, GameStore, InputFrame, RaceResult, RaceSetup, Rendere
 import { buildTrackGeometry } from '../shared/trackGeometry';
 import { initPhysics } from '../sim';
 import { App } from '../ui/App';
-import { createCareerSession, dnfResult, unlockText } from './careerSession';
+import { TOAST_SHOW_MS } from '../ui/screens/career/Toast';
+import { beatenText, createCareerSession, dnfResult, unlockText } from './careerSession';
 import { installDebug } from './debug';
 import { createLoop } from './loop';
 import { transition, type Effect, type MachineInput } from './machine';
@@ -127,9 +128,18 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
   let mode: 'quick' | 'career' = 'quick';
   let justChampion = false;
   let unlocked: string[] = []; // tracks the last career race unlocked, announced on the hub
+  let beaten: string[] = []; // car types the last career race beat for the first time, announced on the hub (CCR-10)
+  const queued: number[] = []; // timers of info toasts waiting their turn
   let toastId = 0;
 
   const toast = (text: string, kind: NonNullable<UiState['toast']>['kind']): void => store.set({ toast: { id: ++toastId, text, kind } });
+  /** One info toast after another, each shown for its full time (the UI shows a single toast). */
+  const toastQueue = (texts: readonly string[]): void => {
+    texts.forEach((text, i) => {
+      if (i === 0) toast(text, 'info');
+      else queued.push(window.setTimeout(() => toast(text, 'info'), i * TOAST_SHOW_MS));
+    });
+  };
   const fail = (text: string): void => {
     audio.ui('error');
     toast(text, 'error');
@@ -145,6 +155,11 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
     switch (cmd.type) {
       case 'setSetting':
         applySettings(cmd.patch);
+        // Quick race CAR picker (CCR-10): rebuild the shown setup with the picked car.
+        if (cmd.patch.quickCarId !== undefined && mode === 'quick' && screen === 'preRace' && setup) {
+          setup = quickSetup(setup.seed);
+          store.set({ race: raceInfo(setup) });
+        }
         return;
       case 'newCareer':
         if (screen !== 'title' && screen !== 'champion') return;
@@ -213,7 +228,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
           publishCareer();
           store.set({ selectedOffer: null, lastPayout: null });
           const dnf = r.payout.total > 0 ? `DNF - earned $${r.payout.total}` : 'DNF';
-          toast(r.unlocked.length ? `${dnf} · ${unlockText(r.unlocked)}` : dnf, 'info');
+          toastQueue([r.unlocked.length ? `${dnf} · ${unlockText(r.unlocked)}` : dnf, ...r.beaten.map(beatenText)]);
         }
         break;
       case 'continueFromResults':
@@ -221,8 +236,9 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
         justChampion = false;
         if (mode === 'career') store.set({ offers: career.offers, selectedOffer: null, lastPayout: null });
         // Shown once, on the hub (the champion screen skips it: the career is over).
-        if (unlocked.length && store.getState().screen === 'career') toast(unlockText(unlocked), 'info');
+        if (store.getState().screen === 'career') toastQueue([...(unlocked.length ? [unlockText(unlocked)] : []), ...beaten.map(beatenText)]);
         unlocked = [];
+        beaten = [];
         return;
       case 'startQuickRace':
         mode = 'quick';
@@ -246,7 +262,14 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
   };
 
   const quickSetup = (seed: number): RaceSetup =>
-    buildQuickRaceSetup({ seed, laps: QUICK_LAPS, aiCount: QUICK_AI, autoplay, trackId: quickTrackOrFirst(store.getState().settings.quickTrackId, Object.keys(TRACKS)) });
+    buildQuickRaceSetup({
+      seed,
+      laps: QUICK_LAPS,
+      aiCount: QUICK_AI,
+      autoplay,
+      trackId: quickTrackOrFirst(store.getState().settings.quickTrackId, Object.keys(TRACKS)),
+      carId: carOrStarter(store.getState().settings.quickCarId).id,
+    });
 
   const startBackdrop = async (): Promise<void> => {
     const g = ++backdropGen;
@@ -329,9 +352,10 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
         session?.fastForward();
         const r = session?.sim.result() ?? null;
         if (mode === 'career' && r) {
-          const { payout, champion, unlocked: ids } = career.finishRace(r);
+          const { payout, champion, unlocked: ids, beaten: cars } = career.finishRace(r);
           justChampion = champion;
           unlocked = ids;
+          beaten = cars;
           // Offers stay in the UI state until CONTINUE: the results PRIZE column reads the selected offer.
           store.set({ results: r, lastPayout: payout, save: career.save });
           if (!career.lastWriteOk) toast('Could not save: browser storage is full or blocked', 'error');
@@ -452,6 +476,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
     store,
     dispose() {
       loop.stop();
+      queued.forEach((t) => window.clearTimeout(t));
       window.clearInterval(poll);
       window.removeEventListener('keydown', unlock);
       window.removeEventListener('pointerdown', unlock);
