@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.1 - Recorded engines (2026-10-26)
+
+- BLAZE, ICEBERG and TITAN now use real engine recordings (all CC0): a Mercedes 190E, a BMW 120d diesel and a bus. The other five cars keep their synth engine.
+- VIPER's engine is half as high-pitched, so it no longer whines.
+
 ## 0.7.0 - Real cars, dressed tracks (2026-10-26)
 
 - All 8 cars are real 3D models now, in races and in the garage turntable, each with its own look; the roof plate in the driver's colour has a light edge so it always stands out.
