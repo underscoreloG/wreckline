@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0 - Unlock cars, all tracks, pick your car (2026-10-26)
+
+- Career: all 10 tracks are open from the first race.
+- Beat a car to unlock it: finish ahead of an OUTLAW, ICEBERG, BLAZE or THE WARDEN's WRAITH in a career race and that car goes on sale (3500, 4500, 10500 and 20000). SCORCH, TITAN and VIPER are on sale from the start and get 25% cheaper once you beat one. Quitting a race unlocks nothing.
+- Quick race: pick any of the 8 cars next to the track.
+- The roof plates are gone: each car now has a soft rim glow in its driver's colour. Try `?carMark=underglow` or `?carMark=none` for the other looks.
+- THE WARDEN glows red and shows on the minimap.
+
 ## 0.7.1 - Recorded engines (2026-10-26)
 
 - BLAZE, ICEBERG and TITAN now use real engine recordings (all CC0): a Mercedes 190E, a BMW 120d diesel and a bus. The other five cars keep their synth engine.

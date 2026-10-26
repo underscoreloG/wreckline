@@ -11,7 +11,7 @@ Top-down combat racer in the browser, in the spirit of Death Rally (1996): race,
 | ![Neon Mile at night](docs/screenshots/race-night.jpg) | ![Frostbite Pass in the snow](docs/screenshots/race-snow.jpg) |
 | Neon Mile: dark tracks light up with headlight beams and lamp pools | Frostbite Pass: the pack on rocket fuel through the snow |
 | ![The 8 cars](docs/screenshots/cars.jpg) | ![Shop](docs/screenshots/shop.jpg) |
-| 8 cars, each a 3D model; the roof plate shows the driver's colour | Career shop: upgrades, supplies and cars |
+| 8 cars, each a 3D model; in a race a soft rim glow shows the driver's colour | Career shop: upgrades, supplies and cars |
 
 ## Features
 
