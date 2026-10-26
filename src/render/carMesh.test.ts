@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { CARS } from '../content/cars';
 import type { CarMeshSpec } from '../shared/contracts';
-import { buildCarParts, buildSpikesGeometry, steerVisual } from './carMesh';
+import { buildCarParts, buildSpikesGeometry, CarRig, steerVisual } from './carMesh';
 import { triangles } from './geo';
 
 const COMPACT: CarMeshSpec = { ...CARS.raven.mesh, style: 'compact', spoiler: false };
@@ -21,18 +21,20 @@ const count = (g: THREE.Object3D): { tris: number; meshes: number } => {
 
 describe('render: car mesh', () => {
   for (const spec of [...Object.values(CARS).map((c) => c.mesh), COMPACT]) {
-    it(`${spec.style} ${spec.length} m: < 400 triangles, <= 9 draw calls`, () => {
-      const { tris, meshes } = count(buildCarParts(spec, '#FF5A1F').group);
+    it(`${spec.style} ${spec.length} m: < 400 triangles, <= 8 draw calls, no roof plate`, () => {
+      const { group } = buildCarParts(spec, '#FF5A1F');
+      const { tris, meshes } = count(group);
       expect(tris).toBeLessThan(400);
-      expect(meshes).toBeLessThanOrEqual(9);
+      expect(meshes).toBeLessThanOrEqual(8);
+      expect(group.getObjectByName('roofPlate')).toBeUndefined();
     });
   }
 
   for (const car of Object.values(CARS)) {
-    it(`${car.id} at spikes 3: < 420 triangles, <= 9 draw calls`, () => {
+    it(`${car.id} at spikes 3: < 420 triangles, <= 8 draw calls`, () => {
       const { tris, meshes } = count(buildCarParts({ ...car.mesh, spikes: 3 }, '#FF5A1F').group);
       expect(tris).toBeLessThan(420);
-      expect(meshes).toBeLessThanOrEqual(9);
+      expect(meshes).toBeLessThanOrEqual(8);
     });
   }
 
@@ -48,6 +50,19 @@ describe('render: car mesh', () => {
       g!.computeBoundingBox();
       expect(g!.boundingBox!.max.x).toBeGreaterThan(spec.length / 2 + 0.2);
     }
+  });
+
+  it('procedural body keeps the livery in its vertex colors on a white material, and damage still darkens it', () => {
+    const parts = buildCarParts(COMPACT, '#5C7CFF');
+    expect(parts.bodyMaterial.color.equals(new THREE.Color(1, 1, 1))).toBe(true);
+    const colors = (parts.group.getObjectByName('body') as THREE.Mesh).geometry.getAttribute('color');
+    const livery = new THREE.Color('#5C7CFF');
+    expect(colors.getX(0)).toBeCloseTo(livery.r, 5);
+    expect(colors.getY(0)).toBeCloseTo(livery.g, 5);
+    expect(colors.getZ(0)).toBeCloseTo(livery.b, 5);
+    const rig = new CarRig(parts, COMPACT);
+    rig.update({ x: 0, z: 0, rotY: 0, speed: 0, angVel: 0, braking: false, hpFrac: 0, wrecked: true });
+    expect(parts.bodyMaterial.color.r).toBeCloseTo(0.2, 6);
   });
 
   it('bumper spikes: none added to the boss style, which carries its own', () => {

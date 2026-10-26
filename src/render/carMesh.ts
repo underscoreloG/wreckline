@@ -1,14 +1,13 @@
 import * as THREE from 'three';
 import type { CarMeshSpec, CarMeshStyle } from '../shared/contracts';
 import { clamp } from '../shared/math';
-import { hashString } from '../shared/rng';
-import { getCarModel, getRoofPlate, type RoofPlateBox } from './carModel';
+import { getCarModel } from './carModel';
 import { bar, boxNoBottom, merge, paint } from './geo';
 
 /**
  * Procedural cars (WP03), modeled facing +x with the origin at the ground center.
- * Draw calls per car: body (with extras and bumper spikes), glass, lights, gun, roof plate, 4 wheels.
- * Imported models (WP14) replace them once preloaded: model, roof plate, bumper spikes.
+ * Draw calls per car: body (with extras and bumper spikes), glass, lights, gun, 4 wheels.
+ * Imported models (WP14) replace them once preloaded: model, bumper spikes, plus the driver colour marker (WP30, `CarMark`).
  */
 
 const BEVEL = 0.08;
@@ -28,7 +27,6 @@ const TAIL_LIGHT = '#FF2A2A';
 const TAIL_INTENSITY = 1;
 const TAIL_BRAKING = 3;
 const STRIPE_SHADE = 0.6;
-const DECAL_SHADE = 0.55;
 const WRECK_TINT = 0.2;
 const DAMAGE_TINT = 0.45; // brightness lost at 0 hp before the wreck
 const SPIKE_RADIUS = 0.07;
@@ -36,8 +34,23 @@ const SPIKE_LENGTH = 0.3;
 const SPIKE_HEIGHT = 0.25; // fraction of body height above the body bottom
 const SPIKE_SPREAD = 0.8; // fraction of width the row covers
 const MUSCLE_BUMPER = 0.12; // the muscle push bar sticks out this far past the nose
-const PLATE_FILL = 0.95; // plate size as a fraction of its roof box
-const PLATE_TRIM = 0.1; // m, light edge around imported plates so one never blends into a same-colour body (design.md "Car art")
+/**
+ * Driver colour marker on imported cars (WP30, design.md "Car art"), the body paint stays the model's own:
+ * rim = soft fresnel edge glow on the body material (no extra draw call), underglow = additive ground glow under
+ * the car (one quad), none = no marker. `?carMark=<mode>` picks one so the modes can be compared live.
+ */
+export type CarMark = 'rim' | 'underglow' | 'none';
+const CAR_MARKS: readonly CarMark[] = ['rim', 'underglow', 'none'];
+export const DEFAULT_CAR_MARK: CarMark = 'rim';
+/** Rim: emissive at grazing angles = driver colour x MARK_RIM x (1 - n.v)^RIM_POWER. */
+export const MARK_RIM = 0.6;
+const RIM_POWER = 2.5;
+/** Underglow: additive radial glow = driver colour x MARK_UNDERGLOW, quad = car footprint x these factors. */
+export const MARK_UNDERGLOW = 0.55;
+const UNDERGLOW_LENGTH = 1.5;
+const UNDERGLOW_WIDTH = 2.3;
+const UNDERGLOW_CORE = 0.3; // radius fraction kept at full strength
+const UNDERGLOW_Y = 0.04; // m above the ground, under the car
 
 /** Side profiles, x in -0.5..0.5 of length (front = +x), y in 0..1 of height. Listed CCW: bottom edge, then the top from nose to tail. */
 const PROFILES: Record<CarMeshStyle, readonly (readonly [number, number])[]> = {
@@ -87,18 +100,6 @@ function at(g: THREE.BufferGeometry, x: number, y: number, z: number, rotZ = 0):
   return g;
 }
 
-function decal(kind: number, size: number): THREE.BufferGeometry {
-  let g: THREE.BufferGeometry;
-  if (kind === 0) g = new THREE.PlaneGeometry(size * 0.8, size * 0.8);
-  else if (kind === 1) {
-    const pts: [number, number][] = [[0.45, 0], [-0.15, 0.5], [-0.45, 0.5], [0.15, 0], [-0.45, -0.5], [-0.15, -0.5]];
-    g = new THREE.ShapeGeometry(new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x * size, y * size))));
-  } else g = new THREE.CircleGeometry(size * 0.45, 10);
-  // XY plane facing +z -> XZ plane facing up.
-  g.rotateX(-Math.PI / 2);
-  return g;
-}
-
 const shade = (color: string, k: number): THREE.Color => new THREE.Color(color).multiplyScalar(k);
 
 /**
@@ -124,7 +125,8 @@ export function buildSpikesGeometry(spec: CarMeshSpec): THREE.BufferGeometry | n
 export interface CarParts {
   group: THREE.Group;
   bodyMaterial: THREE.MeshStandardMaterial;
-  plateMaterial: THREE.MeshStandardMaterial;
+  /** Driver colour marker colours (live, base): the rig scales them by the damage tint, 0 once wrecked. */
+  glows: { color: THREE.Color; base: THREE.Color }[];
   lights: THREE.BufferAttribute; // color attribute of the lights mesh
   tailStart: number; // first tail-light vertex in `lights`
   wheels: { pivot: THREE.Group; mesh: THREE.Mesh; front: boolean; side: number }[];
@@ -136,29 +138,49 @@ export interface CarParts {
   rearWheels: [THREE.Vector3, THREE.Vector3];
 }
 
-/** Roof plate: livery color with one bold darker decal (kind from the color), optional light edge trim, its own mesh. */
-function plateGeometry(
-  x: number,
-  y: number,
-  z: number,
-  length: number,
-  width: number,
-  color: string,
-  trim: boolean,
-  mark = { x, size: Math.min(length, width) * 0.75 },
-): THREE.BufferGeometry {
-  const parts = [
-    paint(at(boxNoBottom(length, 0.04, width), x, y, z), color),
-    paint(at(decal(hashString(color) % 3, mark.size), mark.x, y + 0.025, z), shade(color, DECAL_SHADE)),
-  ];
-  if (trim) parts.push(paint(at(boxNoBottom(length + 2 * PLATE_TRIM, 0.03, width + 2 * PLATE_TRIM), x, y - 0.01, z), STEEL));
-  return merge(parts);
-}
-
 const flat = { flatShading: true, vertexColors: true } as const;
 
-/** Imported model (shared geometry, own body material so tints stay per car), roof plate from the manifest, spikes on its bumper. */
-function importedParts(spec: CarMeshSpec, color: string, model: THREE.Group, box: RoofPlateBox): CarParts {
+/** `?carMark=<mode>` when valid, else DEFAULT_CAR_MARK. */
+export function carMarkFromUrl(): CarMark {
+  const v = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('carMark');
+  return CAR_MARKS.find((m) => m === v) ?? DEFAULT_CAR_MARK;
+}
+
+/** Rim: adds the fresnel term to the emissive; every rim car shares one program, the colour is a per-material uniform. */
+function addRim(material: THREE.MeshStandardMaterial, rim: THREE.Color): void {
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.rimColor = { value: rim };
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform vec3 rimColor;')
+      .replace(
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>\ntotalEmissiveRadiance += rimColor * pow(1.0 - saturate(dot(normal, normalize(vViewPosition))), ${RIM_POWER.toFixed(2)});`,
+      );
+  };
+  material.customProgramCacheKey = () => 'carRim';
+}
+
+let underglowMap: THREE.DataTexture | null = null;
+
+/** White radial falloff in the alpha channel (full under the car, fading out past it), built in code (no canvas), shared. */
+function underglowTexture(): THREE.DataTexture {
+  if (underglowMap) return underglowMap;
+  const n = 64;
+  const data = new Uint8Array(n * n * 4).fill(255);
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      const r = Math.hypot(x + 0.5 - n / 2, y + 0.5 - n / 2) / (n / 2);
+      data[(y * n + x) * 4 + 3] = Math.round(255 * (1 - THREE.MathUtils.smoothstep(r, UNDERGLOW_CORE, 1)));
+    }
+  }
+  underglowMap = new THREE.DataTexture(data, n, n);
+  underglowMap.magFilter = underglowMap.minFilter = THREE.LinearFilter;
+  underglowMap.needsUpdate = true;
+  return underglowMap;
+}
+
+/** Imported model (shared geometry, own body material), spikes on its bumper, the driver colour marker. */
+function importedParts(spec: CarMeshSpec, color: string, model: THREE.Group, mark: CarMark): CarParts {
   let bodyMaterial: THREE.MeshStandardMaterial | null = null;
   model.traverse((o) => {
     const m = o as THREE.Mesh;
@@ -168,11 +190,25 @@ function importedParts(spec: CarMeshSpec, color: string, model: THREE.Group, box
     bodyMaterial ??= (m.material as THREE.MeshStandardMaterial).clone();
     m.material = bodyMaterial;
   });
+  bodyMaterial ??= new THREE.MeshStandardMaterial();
   const bounds = new THREE.Box3().setFromObject(model);
-  const plateMaterial = new THREE.MeshStandardMaterial({ ...flat, roughness: 0.55, metalness: 0.1 });
-  const plate = new THREE.Mesh(plateGeometry(box.x, box.y + 0.02, box.z, box.length * PLATE_FILL, box.width * PLATE_FILL, color, true, box.decal), plateMaterial);
-  plate.name = 'roofPlate';
-  model.add(plate);
+  const glows: CarParts['glows'] = [];
+  if (mark === 'rim') {
+    const base = new THREE.Color(color).multiplyScalar(MARK_RIM);
+    const rim = base.clone();
+    addRim(bodyMaterial, rim);
+    glows.push({ color: rim, base });
+  } else if (mark === 'underglow') {
+    const base = new THREE.Color(color).multiplyScalar(MARK_UNDERGLOW);
+    const material = new THREE.MeshBasicMaterial({ map: underglowTexture(), color: base, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    const size = bounds.getSize(new THREE.Vector3());
+    const center = bounds.getCenter(new THREE.Vector3());
+    const quad = new THREE.Mesh(new THREE.PlaneGeometry(size.x * UNDERGLOW_LENGTH, size.z * UNDERGLOW_WIDTH).rotateX(-Math.PI / 2), material);
+    quad.name = 'underglow';
+    quad.position.set(center.x, UNDERGLOW_Y, center.z);
+    model.add(quad);
+    glows.push({ color: material.color, base: base.clone() });
+  }
   const spikes = buildSpikesGeometry(spec);
   if (spikes) {
     // Onto the model's own front end instead of the procedural bumper.
@@ -188,8 +224,8 @@ function importedParts(spec: CarMeshSpec, color: string, model: THREE.Group, box
   const hoodY = spec.wheelRadius * 0.9 + spec.height;
   return {
     group: model,
-    bodyMaterial: bodyMaterial ?? new THREE.MeshStandardMaterial(),
-    plateMaterial,
+    bodyMaterial,
+    glows,
     // No light meshes: the model's lights are painted in its texture.
     lights: new THREE.BufferAttribute(new Float32Array(0), 3),
     tailStart: 0,
@@ -202,10 +238,9 @@ function importedParts(spec: CarMeshSpec, color: string, model: THREE.Group, box
   };
 }
 
-export function buildCarParts(spec: CarMeshSpec, color: string): CarParts {
+export function buildCarParts(spec: CarMeshSpec, color: string, mark: CarMark = carMarkFromUrl()): CarParts {
   const model = getCarModel(spec);
-  const box = getRoofPlate(spec);
-  if (model && box) return importedParts(spec, color, model, box);
+  if (model) return importedParts(spec, color, model, mark);
   const L = spec.length;
   const W = spec.width;
   const H = spec.height;
@@ -354,9 +389,7 @@ export function buildCarParts(spec: CarMeshSpec, color: string): CarParts {
   barrel.rotateZ(-Math.PI / 2);
   gunParts.push(paint(at(barrel, gunX + 0.45, gunY + 0.02, 0), GUN));
 
-  const plateGeo = plateGeometry((roof.x0 + roof.x1) / 2, roofY + 0.02, 0, (roof.x1 - roof.x0) * PLATE_FILL, roof.w * 2 * PLATE_FILL, color, false);
   const bodyMaterial = new THREE.MeshStandardMaterial({ ...flat, roughness: 0.55, metalness: 0.25 });
-  const plateMaterial = new THREE.MeshStandardMaterial({ ...flat, roughness: 0.55, metalness: 0.1 });
   const group = new THREE.Group();
   const add = (name: string, geo: THREE.BufferGeometry, mat: THREE.Material, shadow: boolean): THREE.Mesh => {
     const m = new THREE.Mesh(geo, mat);
@@ -369,7 +402,6 @@ export function buildCarParts(spec: CarMeshSpec, color: string): CarParts {
   if (glassParts.length) add('glass', merge(glassParts), new THREE.MeshStandardMaterial({ ...flat, roughness: 0.2, metalness: 0.3 }), true);
   const lightsMesh = add('lights', lightsGeo, new THREE.MeshBasicMaterial({ vertexColors: true }), false);
   add('gun', merge(gunParts), new THREE.MeshStandardMaterial({ ...flat, roughness: 0.5, metalness: 0.3 }), false);
-  add('roofPlate', plateGeo, plateMaterial, false);
 
   const wheelGeo = new THREE.CylinderGeometry(r, r, WHEEL_WIDTH, WHEEL_SEGMENTS);
   wheelGeo.rotateX(Math.PI / 2); // axle along z
@@ -389,8 +421,9 @@ export function buildCarParts(spec: CarMeshSpec, color: string): CarParts {
 
   return {
     group,
+    // The livery is in the body's vertex colors: no marker needed.
     bodyMaterial,
-    plateMaterial,
+    glows: [],
     lights: lightsMesh.geometry.getAttribute('color') as THREE.BufferAttribute,
     tailStart,
     wheels,
@@ -460,7 +493,8 @@ export class CarRig {
     if (Math.abs(tint - this.tint) > 0.01) {
       this.tint = tint;
       this.parts.bodyMaterial.color.setScalar(tint);
-      this.parts.plateMaterial.color.setScalar(tint);
+      // The marker dims with the body and goes out on a wreck; full hp restores it.
+      for (const g of this.parts.glows) g.color.copy(g.base).multiplyScalar(p.wrecked ? 0 : tint);
     }
     if (p.wrecked !== this.wrecked) {
       this.wrecked = p.wrecked;

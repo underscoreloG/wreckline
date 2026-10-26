@@ -7,7 +7,7 @@
 Rules:
 - Flat shading (`flatShading: true`) on all procedural meshes. `MeshStandardMaterial`, roughness 0.55-0.8, metalness 0-0.3.
 - The world is desaturated, cars and pickups are saturated. No world prop uses a livery color.
-- Emissive only for lights, pickups, mines' blinking LED, muzzle flashes, explosions and turbo flames. Bloom threshold makes only these glow.
+- Emissive only for lights, pickups, mines' blinking LED, muzzle flashes, explosions and turbo flames. Bloom threshold makes only these glow. One exception, below the bloom threshold: the driver color marker on cars (Car art, WP30).
 - No textures from files for the world. (Car models after the fun gate carry their own GLB textures, WP14.) Road, dirt and ground textures are generated at boot on a `CanvasTexture` (noise + markings), 512x512, repeat-wrapped.
 
 ### World palette (theme `scrapyard`; WP11 defines `desert` and `docks` the same way)
@@ -42,9 +42,14 @@ Readability rule for all: the road edge, cars, pickups and mines must stay as le
 Look target: `specs/art/cars-concept-v1.webp` (8 cars: RAVEN, BLAZE, TITAN, VIPER, OUTLAW, SCORCH, ICEBERG, WRAITH). Grungy low-poly bodies with rust, chipped paint, bull bars, spikes and pixel-crisp decals. M1 races with the procedural placeholders of WP03; WP13 and WP14 bring the real models after a "yes" at the fun gate.
 
 Readability rules (the race camera is 46-62 m up with FOV 34 (tuning pass 1), so a car is ~150 px long at 1080p at rest (WP03 measured ~135 px at 52 m); the earlier ~40 px estimate was wrong):
-- Each car is told apart by **silhouette** from above (buggy cage, wagon roof rack, truck bed and turret, wedge wing, boss spikes) and by its **roof plate** in the driver's livery color with one bold decal (content.md section 9).
+- Each car is told apart by **silhouette** from above (buggy cage, wagon roof rack, truck bed and turret, wedge wing, boss spikes) and the driver by a soft **marker** in the driver's livery color (content.md section 9). No roof plate (WP30).
+- Driver marker (WP30), body paint stays the model's own; `?carMark=rim|underglow|none` switches it live for comparison (default `rim`, the user picks):
+  - `rim`: fresnel edge glow on the body material, emissive += driverColor x `MARK_RIM` (0.6) x (1 - n.v)^2.5. Outlines the car sides from the race camera; no extra draw call, one shared shader program.
+  - `underglow`: one additive quad under the car (1.5 x car length, 2.3 x car width) with a radial falloff, color driverColor x `MARK_UNDERGLOW` (0.55). One extra draw call per car.
+  - `none`: no marker (reference).
+  - Damage dims the marker with the body (driver marker x damage scalar); a wreck shows no marker and stays a dark hulk. Procedural fallback cars keep the livery on the whole body and get no marker.
 - Grunge, small decals and skulls are for the garage, shop and results screens, where cars are seen up close. Nothing gameplay-relevant depends on them.
-- Body paint stays as in the concept; it must still contrast with the dark world palette (no car body darker than `#2A2622` over more than half its top area without a lighter trim line: RAVEN and WRAITH get a light edge trim on the roof plate).
+- Body paint stays as in the concept; it must still contrast with the dark world palette (no car body darker than `#2A2622` over more than half its top area). The roof plate trim is gone with the plate.
 
 ### Lighting (quality `high` / `low`)
 
