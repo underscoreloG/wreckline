@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { getCar } from '../../../content/cars';
-import { computeStats, MAX_LEVEL, MINE_PRICE, repairCost, SHOP_MINES_CAP, SHOP_TURBO_CAP, TURBO_PRICE_PER_SECOND, UPGRADE_ADDS, UPGRADE_EFFECTS } from '../../../content/economy';
-import { nextUpgradeCost, shopCars, tradeInValue } from '../../../meta/shop';
+import { BEATEN_DISCOUNT, computeStats, MAX_LEVEL, MINE_PRICE, repairCost, SHOP_MINES_CAP, SHOP_TURBO_CAP, TURBO_PRICE_PER_SECOND, UPGRADE_ADDS, UPGRADE_EFFECTS } from '../../../content/economy';
+import { carOffer, LOCKED_TEXT, nextUpgradeCost, shopCars, tradeInValue } from '../../../meta/shop';
 import type { CarStats, GameCommand, SaveGame, UiState, UpgradeKind } from '../../../shared/contracts';
 import { Button } from '../../components/Button';
 import { Keycap } from '../../components/Keycap';
@@ -45,6 +45,8 @@ interface Offer {
   detail: string;
   cost: number | null; // null = maxed / nothing to buy
   extra?: string;
+  /** Cost column text instead of the price (cars: OWNED, LOCKED). */
+  status?: string;
   cmd: GameCommand;
 }
 
@@ -69,14 +71,19 @@ function offersFor(tab: Tab, save: SaveGame): Offer[] {
     ];
   }
   const tradeIn = tradeInValue(save);
+  // One price rule for the shop, this screen and careerSim (carOffer, CCR-10).
   return shopCars(save).map((c) => {
     const s = c.base;
+    const o = carOffer(save, c.id);
+    const owned = c.id === save.carDefId;
+    const price = o.discounted ? `${formatCash(o.price)} (${Math.round(BEATEN_DISCOUNT * 100)}% off ${formatCash(c.price)})` : formatCash(o.price);
     return {
       key: c.id,
       title: c.name,
       detail: `${Math.round(s.maxSpeed * 3.6)} km/h · ${s.maxHp} hp · ${s.gunDps} dps`,
-      cost: Math.max(0, c.price - tradeIn),
-      extra: `Price ${formatCash(c.price)}${tradeIn > 0 ? ` - trade-in ${formatCash(tradeIn)}` : ''} · upgrades lost`,
+      cost: owned || o.locked ? null : Math.max(0, o.price - tradeIn),
+      extra: o.locked ? LOCKED_TEXT : owned ? 'Your car' : `Price ${price}${tradeIn > 0 ? ` - trade-in ${formatCash(tradeIn)}` : ''} · upgrades lost`,
+      status: owned ? 'OWNED' : o.locked ? 'LOCKED' : undefined,
       cmd: { type: 'buyCar', carDefId: c.id },
     };
   });
@@ -113,7 +120,7 @@ function TabList({ tab, save, setTab }: { tab: Tab; save: SaveGame; setTab: (t: 
                 {tab === 'cars' && o.extra && <span className="tile-detail muted">{o.extra}</span>}
               </span>
               {tab === 'upgrades' && <Pips level={Number(o.extra)} max={MAX_LEVEL[o.key as UpgradeKind]} />}
-              <span className={`tile-cost num display${poor ? ' poor' : ''}`}>{o.cost === null ? (tab === 'upgrades' ? 'MAX' : 'FULL') : formatCash(o.cost)}</span>
+              <span className={`tile-cost num display${poor ? ' poor' : ''}`}>{o.cost === null ? (o.status ?? (tab === 'upgrades' ? 'MAX' : 'FULL')) : formatCash(o.cost)}</span>
             </Tile>
           );
         })}

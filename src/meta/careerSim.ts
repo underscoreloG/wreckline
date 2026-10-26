@@ -1,12 +1,12 @@
 import type { RaceOffer, RaceResult, RaceResultRow, SaveGame, UpgradeKind, UpgradeLevels } from '../shared/contracts';
 import { PLAYER_CAR_ID } from '../shared/contracts';
 import { createRng, hashString, type Rng } from '../shared/rng';
-import { carsForSale, getCar } from '../content/cars';
+import { CARS, getCar } from '../content/cars';
 import { computeStats, REPAIR_COST_PER_HP, TIER_MULT } from '../content/economy';
 import { BOSS, rivalSpikesLevel, rivalUpgradeLevel } from '../content/rivals';
 import { applyRaceResult, generateOffers, newCareer, PLAYER_DRIVER_ID, PLAYER_NAME, rankOf } from './career';
 import { finishOrder, skillWeight } from './offSim';
-import { buyCar, buyUpgrade, repair, tradeInValue } from './shop';
+import { buyCar, buyUpgrade, carOffer, repair, tradeInValue } from './shop';
 
 export type CareerPolicy = 'greedy' | 'safe';
 
@@ -106,7 +106,7 @@ export function chooseOffer(save: SaveGame, offers: RaceOffer[], policy: CareerP
   return [...offers].reverse().find((o) => predictedPosition(save, o, driverSkill) <= 2) ?? offers[0];
 }
 
-/** One shop visit, each item at most once: repair, then the next car if affordable, then one level per line in priority order engine > armor > tires > gun > fuel > spikes. */
+/** One shop visit, each item at most once: repair, then the next car (cheapest buyable of a higher tier) if affordable, then one level per line in priority order engine > armor > tires > gun > fuel > spikes. */
 export function shopVisit(save: SaveGame): SaveGame {
   let s = save;
   const r = repair(s, Infinity);
@@ -115,16 +115,19 @@ export function shopVisit(save: SaveGame): SaveGame {
     const part = repair(s, Math.floor(s.cash / (REPAIR_COST_PER_HP * TIER_MULT[getCar(s.carDefId).tier])));
     if (part.ok) s = part.save;
   }
-  const tier = getCar(s.carDefId).tier;
-  const next = carsForSale()
-    .filter((c) => c.tier > tier)
-    .sort((a, b) => a.price - b.price)[0];
+  // Same price rule as the shop (carOffer): locked cars are out, beaten forSale cars are discounted (CCR-10).
+  const better = (save: SaveGame) =>
+    Object.values(CARS)
+      .filter((c) => c.tier > getCar(save.carDefId).tier && carOffer(save, c.id).listed && !carOffer(save, c.id).locked)
+      .map((c) => ({ id: c.id, price: carOffer(save, c.id).price }))
+      .sort((a, b) => a.price - b.price);
+  const next = better(s)[0];
   if (next && s.cash + tradeInValue(s) - next.price >= CAR_MARGIN) {
     const c = buyCar(s, next.id);
     if (c.ok) s = c.save;
   }
-  // While a better car is for sale, levels above SAVE_ABOVE_LEVEL are skipped so cash builds up for it (they are lost on trade-in).
-  const saving = carsForSale().some((c) => c.tier > getCar(s.carDefId).tier);
+  // While a better car is buyable, levels above SAVE_ABOVE_LEVEL are skipped so cash builds up for it (they are lost on trade-in).
+  const saving = better(s).length > 0;
   for (const kind of UPGRADE_PRIORITY) {
     if (saving && s.upgrades[kind] >= SAVE_ABOVE_LEVEL) continue;
     const u = buyUpgrade(s, kind);

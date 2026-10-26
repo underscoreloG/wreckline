@@ -2,7 +2,7 @@ import type { EntrantSetup, Payout, RaceOffer, RaceResult, RaceSetup, RaceTier, 
 import { PLAYER_CAR_ID } from '../shared/contracts';
 import { createRng, type Rng } from '../shared/rng';
 import { BOSS_MAX_SPEED_MULT, profileForSkill } from '../content/ai';
-import { getCar } from '../content/cars';
+import { getCar, STARTER_CAR_ID } from '../content/cars';
 import {
   CAREER_TIERS,
   computeStats,
@@ -44,7 +44,7 @@ export interface LadderRow {
 
 export function newCareer(seed: number): SaveGame {
   return {
-    version: 2,
+    version: 3,
     cash: STARTING_CAREER.cash,
     carDefId: STARTING_CAREER.carDefId,
     upgrades: { ...STARTING_CAREER.upgrades },
@@ -61,6 +61,7 @@ export function newCareer(seed: number): SaveGame {
     cashEarned: 0,
     sabotage: null,
     rngState: seed >>> 0,
+    beatenCars: [],
   };
 }
 
@@ -176,6 +177,7 @@ const copySave = (save: SaveGame): SaveGame => ({
   upgrades: { ...save.upgrades },
   rivals: save.rivals.map((r) => ({ ...r })),
   sabotage: save.sabotage && { ...save.sabotage },
+  beatenCars: [...save.beatenCars],
 });
 
 /** Who a sabotage on this offer hits: THE WARDEN in the boss race, else the offer's rival with the most points (ties: higher skill). */
@@ -249,6 +251,27 @@ export function buildCareerRaceSetup(save: SaveGame, offer: RaceOffer, seed: num
 
 const pointsFor = (offer: RaceOffer, finished: boolean, position: number): number => (finished ? (offer.points[position - 1] ?? 0) : 0);
 
+/** The car a career driver races (the boss included), or null for an id the save does not know. */
+function carOfDriver(save: SaveGame, driverId: string): string | null {
+  if (driverId === BOSS.driverId) return BOSS.carDefId;
+  return save.rivals.find((r) => r.driverId === driverId)?.carDefId ?? null;
+}
+
+/** beatenCars plus the car of every row placed after the player's (CCR-10): a win beats every car type in the race. The caller skips it for a quit race. */
+export function beatenAfter(save: SaveGame, result: RaceResult, playerPosition: number): string[] {
+  const beaten = [...save.beatenCars];
+  for (const r of result.rows) {
+    const car = r.position > playerPosition ? carOfDriver(save, r.driverId) : null;
+    if (car !== null && !beaten.includes(car)) beaten.push(car);
+  }
+  return beaten;
+}
+
+/** Car types `after` has beaten that `before` had not, minus the starter and the car the player raced: one hub message each (CCR-10). */
+export function newlyBeaten(before: SaveGame, after: SaveGame): string[] {
+  return after.beatenCars.filter((id) => !before.beatenCars.includes(id) && id !== STARTER_CAR_ID && id !== before.carDefId);
+}
+
 export function applyRaceResult(save: SaveGame, offer: RaceOffer, result: RaceResult): { save: SaveGame; payout: Payout } {
   const row = result.rows.find((r) => r.car === PLAYER_CAR_ID);
   if (!row) throw new Error('race result has no player row');
@@ -279,6 +302,8 @@ export function applyRaceResult(save: SaveGame, offer: RaceOffer, result: RaceRe
     wrecks: save.wrecks + row.wrecksCaused,
     cashEarned: save.cashEarned + payout.total,
     sabotage: null,
+    // A quit or unfinished race (player neither finished nor wrecked) beats nothing, so quitting while ahead unlocks nothing.
+    beatenCars: row.finished || row.wrecked ? beatenAfter(save, result, row.position) : [...save.beatenCars],
   };
   const rng = createRng(save.rngState);
   const simulated = { ...simulateOtherRivals(after, offer, rng), rngState: rng.state() };

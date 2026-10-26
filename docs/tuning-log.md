@@ -369,3 +369,24 @@ User, by ear in `?harness=audio`: viper "too high-pitched", then "still too high
 | `src/audio/engineProfiles.ts` | viper base / span / step | 110 / 330 / 25 | 55 / 165 / 12 | x0.5: "too high-pitched"; top note 540 -> 296 Hz, now under blaze (370 Hz), so the WP25 "highest top end" target is dropped |
 
 Offline check after: viper rms -19.3 dBFS (-2.3 dB vs raven, unchanged); fundamental / centroid 116.5 Hz / 2234 Hz at rpm01 0.2 (was 234.0 / 2558), 152.5 Hz / 2362 Hz at 0.8 (was 309.0 / 2687); every pair still differs by > 5% in fundamental or centroid.
+
+## 2026-10-26 - Car unlocks by beating, all career tracks (WP29, CCR-10)
+
+User decisions (2026-10-26): every car but the starter is listed in the shop; outlaw, iceberg, blaze and wraith are locked until the player finishes ahead of one in a career race, then sold at list price; scorch, titan and viper stay buyable from the start and get `BEATEN_DISCOUNT` 0.25 once beaten; all 10 tracks from the first career race.
+
+| File | Value | Before | After | Why |
+|---|---|---|---|---|
+| `src/content/cars.ts` | outlaw / iceberg / blaze / wraith price | 0 / 0 / 0 / 0 | 3500 / 4500 / 10500 / 20000 | list prices for the newly sold cars (user decision) |
+| `src/content/economy.ts` | `BEATEN_DISCOUNT` | - | 0.25 | new: forSale car price once beaten |
+| `src/content/economy.ts` | `TRACKS_AT_START` | 3 | 10 | all tracks from the start (user decision) |
+
+`careerSim` buys through the same `carOffer` price rule as the shop: the next car is the cheapest buyable (not locked) car of a higher tier, at its discounted price when beaten. Nothing was tuned for balance.
+
+### Before / after (greedy `simulateCareer`, seeds 1-16, same probe and seeds; "before" = main 3872127)
+
+| | median | min | max | in 22-38 | in 18-35 (run.mjs row) |
+|---|---|---|---|---|---|
+| Before | 27 | 22 | 38 | 16/16 | 15/16 |
+| After | 25 | 21 | 38 | 15/16 (seed 3: 21) | 15/16 |
+
+Races per seed after: 21 22 22 24 25 25 25 25 25 30 30 31 31 32 33 38 (before: 22 22 24 24 25 25 25 26 28 30 30 31 31 32 33 38). Every seed still buys scorch then viper (no blaze, titan or wraith purchase). Purchases that changed: scorch bought 25% off on seeds 4, 9, 10, 12, 13 (seed 4 at race 4, was 6; seeds 9, 10, 12 at race 5, was 6; seed 13 same race); viper bought 25% off on seeds 3 (race 12, was 13), 10 (race 10, was 16) and 11 (race 13, was 16). `node scripts/balance/run.mjs`: 8/8 inside target after.

@@ -89,8 +89,8 @@ export interface CarMeshSpec {
 export interface CarDef {
   id: string;
   name: string;
-  forSale: boolean; // listed in the shop (false = starter, rival-only or boss)
-  price: number; // shop price when forSale, trade-in base for every car (0 = trades in for nothing)
+  forSale: boolean; // listed in the shop from the start (scorch, titan, viper); other cars except the starter are listed once beaten (CCR-10)
+  price: number; // list price; trade-in base for every car
   tier: 1 | 2 | 3; // upgrade cost multiplier index, see content.md
   base: CarStats;
   mesh: CarMeshSpec;
@@ -458,7 +458,7 @@ export interface RivalState {
 }
 
 export interface SaveGame {
-  version: 2; // v1 saves migrate on load: new upgrade kinds 0, wrecks 0, cashEarned 0, sabotage null (CCR-5), bestRank = current rank (CCR-6)
+  version: 3; // v1 saves migrate on load: new upgrade kinds 0, wrecks 0, cashEarned 0, sabotage null (CCR-5), bestRank = current rank (CCR-6); v1 and v2 saves migrate with beatenCars [] (CCR-10)
   cash: number;
   carDefId: string;
   upgrades: UpgradeLevels;
@@ -476,6 +476,7 @@ export interface SaveGame {
   /** Sabotage bought for the current round's offer, applied when that offer's race starts, cleared after it (CCR-5). */
   sabotage: { offerId: string; pct: number; price: number } | null; // target is re-picked from that offer's rivals when the race is set up; refunded if another offer is raced (CCR-5)
   rngState: number; // meta RNG state so offers are reproducible
+  beatenCars: string[]; // car def ids the player finished ahead of in a career race, each at most once, any order (CCR-10)
 }
 
 export interface RaceOffer {
@@ -505,6 +506,7 @@ export interface Settings {
   cameraShake: boolean;
   showFps: boolean;
   quickTrackId: string | null; // last track picked for quick race; null = first track (CCR-6). `?race=1` ignores it
+  quickCarId: string | null; // last car picked for quick race; null or unknown id = raven (CCR-10). `?race=1` ignores it
 }
 
 // ---------------------------------------------------------------- game shell <-> UI (src/game/store.ts)

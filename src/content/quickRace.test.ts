@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { profileForSkill } from './ai';
-import { getCar } from './cars';
+import { CARS, getCar } from './cars';
 import { buildQuickRaceSetup } from './quickRace';
 
 describe('buildQuickRaceSetup', () => {
@@ -34,5 +34,19 @@ describe('buildQuickRaceSetup', () => {
     expect(s.entrants[5].ai?.skill).toBe(0.55);
     expect(new Set(s.entrants.map((e) => e.driverId)).size).toBe(6);
     expect(buildQuickRaceSetup({ seed: 1, aiCount: 1 }).entrants).toHaveLength(2);
+  });
+
+  it('carId: the player drives that car stock, the AI cars stay stock ravens (CCR-10)', () => {
+    const raven = getCar('raven');
+    for (const car of Object.values(CARS)) {
+      const s = buildQuickRaceSetup({ seed: 1, carId: car.id });
+      const p = s.entrants[0];
+      expect(p.carDefId).toBe(car.id);
+      expect(p.stats).toEqual(car.base);
+      expect(p.mesh).toEqual(car.mesh);
+      expect([p.hp, p.mines, p.turbo, p.color]).toEqual([car.base.maxHp, 3, 4, '#FF5A1F']);
+      for (const e of s.entrants.slice(1)) expect([e.carDefId, e.stats]).toEqual(['raven', raven.base]);
+    }
+    expect(() => buildQuickRaceSetup({ seed: 1, carId: 'nope' })).toThrow();
   });
 });

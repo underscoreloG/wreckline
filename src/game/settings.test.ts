@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { CARS, carOrStarter, STARTER_CAR_ID } from '../content/cars';
 import { DEFAULT_SETTINGS, loadSettings, quickTrackOrFirst, saveSettings, SETTINGS_KEY, type SettingsStorage } from './settings';
 
 const memory = (init: Record<string, string> = {}): SettingsStorage & { data: Record<string, string> } => {
@@ -9,7 +10,7 @@ const memory = (init: Record<string, string> = {}): SettingsStorage & { data: Re
 describe('settings', () => {
   it('defaults when nothing is stored or storage is unavailable', () => {
     expect(loadSettings(memory())).toEqual(DEFAULT_SETTINGS);
-    expect(loadSettings(null)).toEqual({ version: 1, masterVolume: 0.8, sfxVolume: 0.9, quality: 'high', cameraShake: true, showFps: false, quickTrackId: null });
+    expect(loadSettings(null)).toEqual({ version: 1, masterVolume: 0.8, sfxVolume: 0.9, quality: 'high', cameraShake: true, showFps: false, quickTrackId: null, quickCarId: null });
   });
 
   it('round-trips through save and load', () => {
@@ -48,5 +49,20 @@ describe('settings', () => {
     expect(quickTrackOrFirst('gone', ids)).toBe('a');
     const st = memory({ [SETTINGS_KEY]: JSON.stringify({ ...DEFAULT_SETTINGS, quickTrackId: 'gone' }) });
     expect(loadSettings(st).quickTrackId).toBe('gone');
+  });
+
+  it('quick race car (CCR-10): null by default, persisted, unknown or null ids resolve to raven', () => {
+    expect(DEFAULT_SETTINGS.quickCarId).toBeNull();
+    const st = memory();
+    saveSettings(st, { ...DEFAULT_SETTINGS, quickCarId: 'blaze' });
+    expect(loadSettings(st).quickCarId).toBe('blaze');
+    expect(loadSettings(memory({ [SETTINGS_KEY]: JSON.stringify({ ...DEFAULT_SETTINGS, quickCarId: 7 }) })).quickCarId).toBeNull();
+    // Settings written before CCR-10 have no quickCarId.
+    const { quickCarId: _c, ...old } = DEFAULT_SETTINGS;
+    expect(loadSettings(memory({ [SETTINGS_KEY]: JSON.stringify(old) })).quickCarId).toBeNull();
+    expect(loadSettings(memory({ [SETTINGS_KEY]: JSON.stringify({ ...DEFAULT_SETTINGS, quickCarId: 'gone' }) })).quickCarId).toBe('gone');
+    for (const id of Object.keys(CARS)) expect(carOrStarter(id).id).toBe(id);
+    expect(carOrStarter(null).id).toBe(STARTER_CAR_ID);
+    expect(carOrStarter('gone').id).toBe(STARTER_CAR_ID);
   });
 });

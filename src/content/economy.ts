@@ -68,14 +68,16 @@ export const TURBO_PRICE_PER_SECOND = 40;
 export const SHOP_MINES_CAP = MAX_MINES_CARRIED;
 export const SHOP_TURBO_CAP = MAX_TURBO_CARRIED;
 export const TRADE_IN_FRACTION = 0.5;
+/** Off the list price of a forSale car (scorch, titan, viper) once the player has finished ahead of one (CCR-10). */
+export const BEATEN_DISCOUNT = 0.25;
 
 /** Sabotage (content.md section 3): price = round(fraction * offer.prizes[0]); damage a whole pct in MIN..MAX. */
 export const SABOTAGE_PRICE_FRACTION = 0.3;
 export const SABOTAGE_PCT_MIN = 25;
 export const SABOTAGE_PCT_MAX = 49;
 
-/** Track unlocks (content.md section 11): this many at the start, one more per this many ranks climbed. */
-export const TRACKS_AT_START = 3;
+/** Track unlocks (content.md section 11): this many at the start, one more per this many ranks climbed. WP29: all 10 from the start. */
+export const TRACKS_AT_START = 10;
 export const RANKS_PER_UNLOCK = 2;
 
 /** Cost to repair `hp` points on this car, rounded up. */

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { carOrStarter, CARS } from '../../content/cars';
 import { TRACKS } from '../../content/tracks';
 import { sabotageTarget } from '../../meta/career';
 import type { UiState } from '../../shared/contracts';
@@ -13,7 +14,7 @@ import { useUi } from '../uiContext';
 import { formatCash, Tile } from './career/parts';
 
 /**
- * START / BACK, then one compact row under START: the quick race TRACK picker (left/right),
+ * START / BACK, then compact rows under START: the quick race TRACK and CAR pickers (left/right),
  * or the career SABOTAGE row. START keeps the default focus, so a stray Enter never spends cash.
  */
 export function PreRace({ state }: { state: UiState }) {
@@ -31,10 +32,19 @@ export function PreRace({ state }: { state: UiState }) {
     const id = trackIds[(trackIndex + d + trackIds.length) % trackIds.length];
     if (id && id !== race?.trackId) dispatch({ type: 'setQuickTrack', trackId: id });
   };
+  // Quick race car (CCR-10): every car in registry order, stock, remembered in settings.quickCarId.
+  const carIds = Object.keys(CARS);
+  const car = carOrStarter(state.settings.quickCarId);
+  const carIndex = carIds.indexOf(car.id);
+  const pickCar = (d: number) => () => {
+    const id = carIds[(carIndex + d + carIds.length) % carIds.length];
+    if (id && id !== car.id) dispatch({ type: 'setSetting', patch: { quickCarId: id } });
+  };
 
   const items: MenuItem[] = [{ onConfirm: () => dispatch({ type: 'startRace' }) }, { onConfirm: () => dispatch({ type: 'back' }) }];
   if (career) items.push({ disabled: sabotaged !== null, onConfirm: () => dispatch({ type: 'buySabotage' }) });
-  else items.push({ onLeft: pickTrack(-1), onRight: pickTrack(1), onConfirm: pickTrack(1) });
+  // Index 3 is an empty, disabled grid cell, so left/right on the TRACK and CAR rows pick instead of moving focus.
+  else items.push({ onLeft: pickTrack(-1), onRight: pickTrack(1), onConfirm: pickTrack(1) }, { disabled: true }, { onLeft: pickCar(-1), onRight: pickCar(1), onConfirm: pickCar(1) });
   const { itemProps, setFocused } = useMenuFocus(items, 2);
 
   // Bought: the row turns into the result, so focus goes back to START.
@@ -87,12 +97,25 @@ export function PreRace({ state }: { state: UiState }) {
                 )}
               </Tile>
             ) : (
-              <Tile index={2} className="prerace-row" {...itemProps(2)}>
-                <span className="muted display">Track</span>
-                <Keycap label="←" />
-                <span className="display prerace-row-value">{race?.trackName ?? ''}</span>
-                <Keycap label="→" />
-              </Tile>
+              <>
+                <Tile index={2} className="prerace-row" {...itemProps(2)}>
+                  <span className="muted display">Track</span>
+                  <Keycap label="←" />
+                  <span className="display prerace-row-value">{race?.trackName ?? ''}</span>
+                  <Keycap label="→" />
+                </Tile>
+                <Tile index={3} className="prerace-row" {...itemProps(4)}>
+                  <span className="muted display">Car</span>
+                  <Keycap label="←" />
+                  <span className="prerace-row-value">
+                    <span className="display">{car.name}</span>{' '}
+                    <span className="muted num">
+                      {Math.round(car.base.maxSpeed * 3.6)} km/h · {car.base.maxHp} hp · {car.base.gunDps} dps
+                    </span>
+                  </span>
+                  <Keycap label="→" />
+                </Tile>
+              </>
             )}
           </div>
         </div>
