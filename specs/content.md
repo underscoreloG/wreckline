@@ -176,7 +176,7 @@ M1 quick race AI skills: 0.35, 0.55, 0.75. Names VEX, RAZOR, MOTH.
 | ai 2 | `#B65CFF` | violet |
 | ai 3 | `#F5D547` | yellow |
 
-Livery use: with procedural placeholder cars (M1) the whole body takes the livery color. With imported models (after WP14) the body keeps the model's own paint and the livery color tints the **roof plate** (roof panel + one big roof decal), which is what identifies a driver from the race camera. Same rule for rival colors in section 10.
+Livery use: with procedural placeholder cars (M1) the whole body takes the livery color. With imported models the body keeps the model's own paint and the livery color drives the driver marker (rim glow by default, user decision 2026-10-26; rule and constants in design.md section 1, "Car art"); the roof plate is gone (WP30). Same rule for rival colors in section 10. THE WARDEN races with its trim `#FF3355` as its color (marker, minimap), since its `#1A1A1A` body color would not show.
 
 ## 10. Rivals (M2, `src/content/rivals.ts`)
 

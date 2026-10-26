@@ -204,7 +204,7 @@ function rivalEntrant(id: number, driverId: string, save: SaveGame, tier: RaceTi
     id,
     driverId,
     name: def.name,
-    color: def.color,
+    color: driverId === BOSS.driverId ? BOSS.trim : def.color, // the boss body colour is near black: its glow and minimap dot use the trim
     carDefId: car.id,
     stats,
     mesh: { ...car.mesh, spikes },
