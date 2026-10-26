@@ -273,8 +273,11 @@ const doc = [
   ...items.map(({ src }) => `| ${src.name} | ${src.title.replace(/\|/g, '\\|')} | ${src.url} | ${src.licence}${LICENCE_NOTES[src.name] ? ` (${LICENCE_NOTES[src.name]})` : ''} |`),
   '',
 ].join('\n');
+// The "## Engines" section to the end is written by importEngines.mjs (WP28): keep it (CCR from WP28).
+const prev = fs.existsSync(DOC) ? fs.readFileSync(DOC, 'utf8') : '';
+const engines = prev.indexOf('\n## Engines');
 fs.mkdirSync(path.dirname(DOC), { recursive: true });
-fs.writeFileSync(DOC, doc);
+fs.writeFileSync(DOC, engines >= 0 ? doc + prev.slice(engines) : doc);
 
 if (total > MAX_TOTAL) fail('public/sfx is over 1.5 MB');
 if (bad) fail(`${bad} sound(s) outside their length, peak or loudness band`);

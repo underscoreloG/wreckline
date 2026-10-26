@@ -1,7 +1,7 @@
 # Wreckline - status
 Phase: 4 for M2 (wave C1 merged; waiting on the user's art and sound steps)   Size: L   Milestone: M1   Updated: 2026-10-25
 Integration pattern: merges of a running wave go into `integ/<wave>` so main stays put while workers run; main fast-forwards after the last merge.
-Next action: v0.7.0 released (WP14 cars, WP25 engines, WP26 lights/boost, WP27 dressing). Remaining: user playtest + listening session notes; GC + M2 release.
+Next action: WP28 merged (not pushed). User listens (recorded vs synth per car in ?harness=audio) and finds sounds for raven, scorch, wraith, viper, outlaw. Then release; GC + M2 release.
 Remote: origin = git@github.com:underscoreloG/wreckline.git (public since 2026-10-25; Pages source = GitHub Actions, set by the user; site will be https://underscorelog.github.io/wreckline/ - not yet deployed).
 Ledger edits stay uncommitted on main while a worker runs (workers check that main did not move).
 
@@ -58,7 +58,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | WP25 | Engine voice per car + recorded-engine bench (CCR-9) | C3 | subagent | opus high | merged | agent ab205967f2e015b92 | wp/25-engine-voices (2ab119e) | 545/545; 8 synth profiles within +-2.3 dB of raven, measurably distinct; harness sweeps + Mercedes bench; raceSession.test spy edit outside Owns accepted (needed for typecheck); not heard by anyone yet |
 | WP26 | Headlight beams and boost feel | C3 | subagent | opus high | merged | agent a2fda4656543d2088 | wp/26-lights-boost (dc1b3a3) | 552/552; +1 draw while boosting; beams on dark themes only (closes desert headlight note); feel constants in tuning log; not driven by the user yet |
 | WP27 | Track dressing (render only) | C3 | session | opus high | merged | session local_c748405a-c13f-41ef-81bb-1444956a3a71 | wp/27-track-dressing (72bdf5a) | 549/549 on branch; balance table identical; user OKed all 6 themes; tuning-log conflict with WP26 resolved keeping both |
-| WP28 | Recorded engines for BLAZE, ICEBERG, TITAN | C3 | subagent | opus high | todo (spec written, awaiting user go) | - | | 13 CC0 Freesound previews in art-incoming/engines (licences checked by brain); other 5 cars keep WP25 synth |
+| WP28 | Recorded engines for BLAZE, ICEBERG, TITAN | C3 | subagent | opus high | merged | agent aef3cd42207047fe9 | wp/28-recorded-engines (8fe8a8d) | 567/567; 13 CC0 loops 504 kB, manifest with loop points, rpm from firing frequency; Mercedes bench replaced by per-car recorded/synth switch; CCR importSfx keeps "## Engines" applied by brain; not heard by anyone yet |
 
 ## Helper agents (not WPs)
 | Task | When | Model | Effort |
@@ -83,6 +83,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | GC / M2 | - |
 
 ## Open
+- From WP28 (for the listening session): blaze off-load loops were recorded 17-34 dB quieter and lifted to match, may sound hissy off throttle; blaze 500_on runs ~646 rpm; iceberg step rpm and titan idle/low rest on the worker's hints; titan pitches its ~1870 rpm top loop up to x1.5. importSfx.mjs re-encodes are not byte-identical (mp3 bytes change on every run): do not commit a re-run unless a sound changed.
 - 2026-10-26 Engines: user finds the WP25 synth "synthetic", wants recordings. Safe for a public repo: CC0 Freesound only (blaze Mercedes 190E pack 9658, iceberg BMW 120d pack 22622, titan bus pack 43418), 13 HQ previews downloaded with user approval to art-incoming/engines (+ sources.csv). No safe source for raven, scorch, wraith (V8s), viper (V10/V12), outlaw (small engine): user searches. Leads not used: Sonniss GDC 2020 (Lexus LFA V10, Cayenne V8; licence forbids raw-file redistribution), Skril Studio packs (full on/off rpm sets; Unity/Fab licence, ask info@skrilstudio.com about a public web game).
 - From the art gate (2026-10-26, MINOR, not blocking): ICEBERG blue renders slate under the warm key light (a VIPER-style retint would fix it); TITAN barrel lies over the rear half of its plate, turret a plain box, yellow renders ochre; SCORCH and TITAN now share hue ~30 (told apart by silhouette, watch it). Not judged: cars on asphalt, garage lighting, turret turning in races.
 - 2026-10-25 User feedback, verbatim: "Car lights are kind of weird with 2 layers. small and big cone"; "Car speed boost, I would like the shinny things to be less visible and a better sensation of speed"; "Tracks, I would like them to be more sexy, anything we can do? I want more details on the side". Grill: two soft beams on dark themes; boost = camera kick + edge motion + road particles + exhaust flame; tracks = kerbs/barriers + ground + road surface + ambient life. -> WP26, WP27. File split: WP14 owns render index/carMesh/harness, WP26 fx/camera/post/particles, WP27 trackMesh/textures/props/scene/themes.
