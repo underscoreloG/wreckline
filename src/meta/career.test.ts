@@ -257,6 +257,14 @@ describe('beaten car types (CCR-10)', () => {
     expect([...after.beatenCars].sort()).toEqual(behind(save, offer, 2).sort());
   });
 
+  it('a player neither finished nor wrecked (quit, race ended early) beats nothing, even in 1st', () => {
+    const save = withPoints(23, 3);
+    const offer = offerOf(save, 'medium');
+    expect(applyRaceResult(save, offer, race(offer, 1, { finished: false, wrecked: false })).save.beatenCars).toEqual([]);
+    const kept = { ...save, beatenCars: ['outlaw'] };
+    expect(applyRaceResult(kept, offer, race(offer, 1, { finished: false, wrecked: false })).save.beatenCars).toEqual(['outlaw']);
+  });
+
   it('finishing ahead of THE WARDEN beats wraith', () => {
     const top = withPoints(1000, 2);
     const boss = offerOf(top, 'boss');

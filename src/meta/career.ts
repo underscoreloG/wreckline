@@ -257,7 +257,7 @@ function carOfDriver(save: SaveGame, driverId: string): string | null {
   return save.rivals.find((r) => r.driverId === driverId)?.carDefId ?? null;
 }
 
-/** beatenCars plus the car of every row placed after the player's (CCR-10): a win beats every car type in the race, wrecked or not. */
+/** beatenCars plus the car of every row placed after the player's (CCR-10): a win beats every car type in the race. The caller skips it for a quit race. */
 export function beatenAfter(save: SaveGame, result: RaceResult, playerPosition: number): string[] {
   const beaten = [...save.beatenCars];
   for (const r of result.rows) {
@@ -302,7 +302,8 @@ export function applyRaceResult(save: SaveGame, offer: RaceOffer, result: RaceRe
     wrecks: save.wrecks + row.wrecksCaused,
     cashEarned: save.cashEarned + payout.total,
     sabotage: null,
-    beatenCars: beatenAfter(save, result, row.position),
+    // A quit or unfinished race (player neither finished nor wrecked) beats nothing, so quitting while ahead unlocks nothing.
+    beatenCars: row.finished || row.wrecked ? beatenAfter(save, result, row.position) : [...save.beatenCars],
   };
   const rng = createRng(save.rngState);
   const simulated = { ...simulateOtherRivals(after, offer, rng), rngState: rng.state() };

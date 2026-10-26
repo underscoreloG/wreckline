@@ -156,6 +156,34 @@ describe('career session', () => {
     expect(career.finishRace(dnf).payout.prize).toBe(0);
   });
 
+  it('quit while 1st beats nothing (CCR-10 beat rule needs a finished or wrecked player)', () => {
+    const { career } = careerWith({});
+    const offer = career.ensureOffers()[0]!;
+    const r = career.selectOffer(offer.id, 9);
+    if (!r.ok) throw new Error(r.error);
+    const dnf = dnfResult(r.setup, createFakeSim(r.setup).snapshot(), createTally(4), resultFor(r.setup, 1));
+    expect(dnf.rows[0]).toMatchObject({ car: PLAYER_CAR_ID, position: 1, finished: false, wrecked: false });
+    expect(career.finishRace(dnf).beaten).toEqual([]);
+    expect(career.save!.beatenCars).toEqual([]);
+  });
+
+  it('finishRaceNow with the player unfinished beats nothing', () => {
+    const { career } = careerWith({});
+    const offer = career.ensureOffers()[0]!;
+    const r = career.selectOffer(offer.id, 9);
+    if (!r.ok) throw new Error(r.error);
+    const sim = createFakeSim(r.setup);
+    for (let i = 0; i < 300; i++) sim.step(new Map());
+    sim.debugFinishRace();
+    const result = sim.result()!;
+    const player = result.rows.find((x) => x.car === PLAYER_CAR_ID)!;
+    expect(player).toMatchObject({ finished: false, wrecked: false });
+    // Rows behind the player exist, so only the finished/wrecked rule keeps them from counting.
+    const playerFirst = { ...result, rows: [player, ...result.rows.filter((x) => x !== player)].map((x, i) => ({ ...x, position: i + 1 })) };
+    expect(career.finishRace(playerFirst).beaten).toEqual([]);
+    expect(career.save!.beatenCars).toEqual([]);
+  });
+
   it('winning the boss race reports the title once', () => {
     const { career } = careerWith({ points: 10_000 });
     const boss = career.ensureOffers().find((o) => o.tier === 'boss');
