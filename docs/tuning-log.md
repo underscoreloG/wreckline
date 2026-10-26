@@ -322,3 +322,40 @@ Worst mean increase +13 draws (budget +30), worst peak 113 (gate 150). Triangles
 fps: the browser pane throttles rAF to 1 fps, so live fps was not measurable. Stand-in: 120 debug steps each followed by a 1-pixel readPixels (GPU sync), median frame cost Scrapyard 5.8 -> 6.7 ms, Dockside 5.9 -> 7.2 ms (sim step + render at 3840x2160). New texture: one 512x512 RGBA canvas atlas (~1.3 MB with mipmaps). Bundle: 1831.9 -> 1839.2 kB gzip (+7.3 kB).
 
 Balance probe (`node scripts/balance/run.mjs`) identical before and after.
+
+## 2026-10-26 - Recorded engines for blaze, iceberg, titan (WP28)
+
+User: the WP25 synth engines "sound synthetic"; asked for real recordings. Only blaze, iceberg and titan have CC0 sources (Freesound HQ previews, `docs/sfx-sources.md`); the other 5 cars keep their synth profile. `node scripts/sfx/importEngines.mjs` cuts one loop per source into `public/sfx/engines/<car>/<slot>.mp3` and writes `manifest.json` (per step: rpm, load, loopStart/loopEnd measured on the decoded file). Adding a car later = its files, its `sources.csv` rows and one row in the script's `CARS`; the game reads only the manifest.
+
+Import table (rpm_est from the firing frequency, 4-stroke f = rpm / 60 * cylinders / 2, searched within +-40% of the page value or of a hint where the page states none; `by`: autocorrelation, or the strongest spectral line when the source has no clear period; seam = the wrap step of the decoded loop / its median step, limit 3; all loops at -19.6 LUFS decoded):
+
+| car | slot | load | src s | loop s | firing Hz (by, r) | rpm est | page / hint | src rms dBFS | src centroid Hz | peak dBFS | seam | kB |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| blaze | 500_on | on | 1.85 | 1.580 | 21.5 (acf 0.97) | 646 | 500 page | -15.3 | 2758 | -8.3 | 1.26 | 27.4 |
+| blaze | 2500_on | on | 4.75 | 2.911 | 85.5 (acf 0.87) | 2565 | 2500 page | -14.8 | 3943 | -8.4 | 0.31 | 48.2 |
+| blaze | 6500_on | on | 1.63 | 1.450 | 208.3 (acf 0.79) | 6250 | 6500 page | -18.4 | 4836 | -8.3 | 0.13 | 25.3 |
+| blaze | 500_off | off | 8.25 | 2.939 | 17.7 (acf 0.89) | 530 | 500 page | -50.7 | 3680 | -6.1 | 0.07 | 48.6 |
+| blaze | 2500_off | off | 4.00 | 2.964 | 82.3 (acf 0.67) | 2470 | 2500 page | -49.2 | 4759 | -7.0 | 0.55 | 49.0 |
+| blaze | 6500_off | off | 1.92 | 1.697 | 209.8 (fft 0.25) | 6295 | 6500 page | -34.8 | 5157 | -9.6 | 0.65 | 29.0 |
+| iceberg | idle | any | 3.12 | 2.831 | 27.9 (acf 0.97) | 836 | 800 hint | -19.0 | 2177 | -6.2 | 0.65 | 47.0 |
+| iceberg | low | any | 2.11 | 1.868 | 49.3 (acf 0.97) | 1478 | 1500 hint | -16.1 | 2970 | -7.1 | 0.64 | 31.9 |
+| iceberg | mid | any | 2.80 | 2.627 | 67.8 (acf 0.88) | 2035 | 2200 hint | -18.0 | 3379 | -8.2 | 0.95 | 43.7 |
+| iceberg | high | any | 2.04 | 1.858 | 84.9 (fft -0.02) | 2546 | 3000 hint | -15.6 | 3193 | -3.9 | 0.55 | 31.5 |
+| titan | idle | any | 9.35 | 2.959 | 29.6 (acf 0.71) | 592 | 600 hint | -18.7 | 2626 | -7.6 | 1.05 | 49.0 |
+| titan | low | any | 1.69 | 1.448 | 54.2 (acf 0.50) | 1085 | 1200 hint | -16.4 | 2872 | -8.4 | 0.56 | 25.3 |
+| titan | mid | any | 3.84 | 2.912 | 93.6 (fft 0.45) | 1872 | 2000 page | -9.8 | 2309 | -7.5 | 0.64 | 48.2 |
+
+`public/sfx/engines` 504.2 kB with the manifest (limit 1 MB). The manifest uses the estimates, so pitch stays continuous across the crossfades.
+
+By measurement only, not verified by ear:
+- blaze `500_on` runs at ~646 rpm, not 500 (its period is 46 ms; ~29% off the label). Every other blaze step is within 5% of its label.
+- Load labels: the "on" takes are 16-35 dB louder than the "off" takes at each rpm, as full load should be. Brighter is not confirmed: the off takes have the higher centroid, but at -35 to -51 dBFS RMS they sit near the recording's noise floor, so hiss dominates their spectrum. Matching steps to one loudness lifts the off loops by 17-34 dB; the off-throttle sound may be hissy.
+- titan: the 6-cylinder reading matches the page's ~2000 rpm for `mid` (1872); a 4-cylinder reading would give 2808. iceberg `high` and titan `mid` have no clear period (noisy), so their rpm comes from the strongest spectral line.
+
+In the game (`src/audio/recordedEngine.ts`, math in `bench.ts`): rpm01 0..1 maps the set's idle step (lowest estimate) to its top step, linearly, with no fake gearbox; above 1 (turbo overspeed) the pitch keeps rising up to 1.5x the top step. Equal-power crossfade between the two steps around rpm per load, and by throttle between on and off (blaze only); the throttle is smoothed (0.15 s) because the game's throttle flips per frame. `RECORDED_LEVEL` 5 on every loop.
+
+Offline check (`?harness=audio`, through the real bus, throttle on, 12 s held renders): rms vs raven's synth at rpm01 0.5 (-17.0 dBFS): blaze -0.6 dB, iceberg +1.1 dB, titan -1.1 dB. Peaks -4.5 to -7.5 dBFS. Seam metric (sharpest step within 2 ms of each predicted loop wrap / the render's 99.9th percentile step; a window of ordinary sound half a loop later as the control): 0.92-1.2 at the wraps against 0.75-1.23 for the controls, so no step at the loop points stands out.
+
+Cost: at most 4 loops per recorded engine (2 for one-load sets) plus the whine oscillator. Harness fake race with blaze, iceberg, titan, raven: max 15 voices (cap 48). Game career race with the same four cars (21 s, player on throttle and firing): at most 25 live Web Audio sources (18 buffer, 7 oscillators), no console errors. The WP25 Mercedes bench (file picker) is removed: the per-car "recorded / synth" switch next to each sweep button replaces it. Bundle 1649.2 -> 1649.1 kB gzip.
+
+Knobs for the listening session: `RECORDED_LEVEL` (all recorded cars), a per-step rpm in the manifest (pitch match between steps), `THROTTLE_TAU`, `MAX_PITCH_UP`.

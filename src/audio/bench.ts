@@ -1,65 +1,56 @@
-// Recorded-engine test bench (WP25, audio harness only): slot mapping and crossfade math for a rev-band set of loops,
-// the Mercedes 190E-16V dyno pack (Chippy569, freesound.org pack 9658, CC0) that the user picks from disk.
-export const BENCH_RPMS = [500, 2500, 6500] as const;
-export type BenchLoad = 'full' | 'zero';
-export const BENCH_LOADS: readonly BenchLoad[] = ['full', 'zero'];
+// Recorded engine math (WP28, from the WP25 test bench): crossfade a rev-band set of loops by rpm and throttle, and
+// map the game's rpm01 onto a set's rpm range. Pure functions, so they are tested without Web Audio.
+/** 'on' full load, 'off' zero load, 'any' a set recorded at one load only. */
+export type EngineLoad = 'on' | 'off' | 'any';
 
-export interface BenchSlot {
+export interface EngineStep {
   rpm: number;
-  load: BenchLoad;
+  load: EngineLoad;
 }
 
-/** rpm-major: 500 full, 500 zero, 2500 full, ... */
-export const BENCH_SLOTS: readonly BenchSlot[] = BENCH_RPMS.flatMap((rpm) => BENCH_LOADS.map((load) => ({ rpm, load })));
-
-export const slotName = (s: BenchSlot): string => `${s.rpm} ${s.load}`;
-
-/** rpm and load from a file name like `19_2500_D6.wav` (`<nn>_<rpm>_<mic>`); load is null when the name does not say. */
-export function parseBenchFile(name: string): { rpm: number; load: BenchLoad | null } | null {
-  const tokens = name
-    .replace(/\.[^.]*$/, '')
-    .toLowerCase()
-    .split(/[^a-z0-9]+/);
-  const rpm = BENCH_RPMS.find((r) => tokens.includes(String(r)));
-  if (rpm === undefined) return null;
-  const has = (re: RegExp): boolean => tokens.some((t) => re.test(t));
-  const load = has(/^(full|fullload|wot|onload|loaded)$/) ? 'full' : has(/^(zero|zeroload|noload|offload|unloaded)$/) ? 'zero' : null;
-  return { rpm, load };
-}
-
-export interface SlotMix {
+export interface StepMix {
   gain: number; // equal-power weight
   rate: number; // playbackRate, so the loop's pitch follows rpm
 }
 
+/** Most a loop is pitched up above the top step (turbo overspeed). */
+export const MAX_PITCH_UP = 1.5;
+
 /**
- * Per slot (BENCH_SLOTS order): equal-power crossfade between the two loaded rpm steps around `rpm` (the nearest one
- * alone outside them), and between full and zero load by throttle (0..1). A load with no files gives its share to the
- * other. Slots without a file get gain 0; with no file at all every gain is 0.
+ * Per step (same order as `steps`): inside each load, an equal-power crossfade between the two steps around `rpm`
+ * (the nearest one alone outside them); between on and off load an equal-power crossfade by throttle (0..1) when the
+ * set has both, else the load plays at full weight. Every step's rate is rpm / its own rpm.
  */
-export function benchMix(rpm: number, throttle: number, loaded: readonly boolean[]): SlotMix[] {
+export function stepMix(steps: readonly EngineStep[], rpm: number, throttle: number): StepMix[] {
   const t = Math.max(0, Math.min(1, throttle));
-  const mix = BENCH_SLOTS.map((s) => ({ gain: 0, rate: rpm / s.rpm }));
-  const loadsWithFiles = BENCH_LOADS.filter((load) => BENCH_SLOTS.some((s, i) => s.load === load && loaded[i]));
-  for (const load of loadsWithFiles) {
-    const loadGain = loadsWithFiles.length === 1 ? 1 : load === 'full' ? Math.sin((t * Math.PI) / 2) : Math.cos((t * Math.PI) / 2);
-    const steps = BENCH_SLOTS.flatMap((s, i) => (s.load === load && loaded[i] ? [i] : []));
-    const first = steps[0]!;
-    const last = steps[steps.length - 1]!;
-    if (rpm <= BENCH_SLOTS[first]!.rpm) mix[first]!.gain = loadGain;
-    else if (rpm >= BENCH_SLOTS[last]!.rpm) mix[last]!.gain = loadGain;
+  const mix = steps.map((s) => ({ gain: 0, rate: rpm / s.rpm }));
+  const both = steps.some((s) => s.load === 'on') && steps.some((s) => s.load === 'off');
+  for (const load of new Set(steps.map((s) => s.load))) {
+    const loadGain = !both || load === 'any' ? 1 : load === 'on' ? Math.sin((t * Math.PI) / 2) : Math.cos((t * Math.PI) / 2);
+    const idx = steps.flatMap((s, i) => (s.load === load ? [i] : [])).sort((a, b) => steps[a]!.rpm - steps[b]!.rpm);
+    const first = idx[0]!;
+    const last = idx[idx.length - 1]!;
+    if (rpm <= steps[first]!.rpm) mix[first]!.gain = loadGain;
+    else if (rpm >= steps[last]!.rpm) mix[last]!.gain = loadGain;
     else
-      for (let k = 0; k + 1 < steps.length; k++) {
-        const lo = BENCH_SLOTS[steps[k]!]!.rpm;
-        const hi = BENCH_SLOTS[steps[k + 1]!]!.rpm;
+      for (let k = 0; k + 1 < idx.length; k++) {
+        const lo = steps[idx[k]!]!.rpm;
+        const hi = steps[idx[k + 1]!]!.rpm;
         if (rpm < lo || rpm > hi) continue;
         const x = (rpm - lo) / (hi - lo);
-        mix[steps[k]!]!.gain = loadGain * Math.cos((x * Math.PI) / 2);
-        mix[steps[k + 1]!]!.gain = loadGain * Math.sin((x * Math.PI) / 2);
+        mix[idx[k]!]!.gain = loadGain * Math.cos((x * Math.PI) / 2);
+        mix[idx[k + 1]!]!.gain = loadGain * Math.sin((x * Math.PI) / 2);
         break;
       }
   }
   return mix;
+}
+
+/** rpm01 0..1 spans the set's idle step to its top step; above 1 the rpm keeps rising, capped at MAX_PITCH_UP x the top step. */
+export function setRpm(steps: readonly EngineStep[], rpm01: number): number {
+  const lo = Math.min(...steps.map((s) => s.rpm));
+  const hi = Math.max(...steps.map((s) => s.rpm));
+  return Math.min(lo + Math.max(0, rpm01) * (hi - lo), hi * MAX_PITCH_UP);
 }
 
 export const SWEEP_SECONDS = 4;

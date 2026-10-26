@@ -12,11 +12,12 @@ vi.mock('./engine', () => ({
   createEngineVoice: (_ctx: unknown, _dest: unknown, _now: number, profile: EngineProfile, index: number) => {
     const rec = { profile, index, sets: [] as EngineParams[] };
     made.push(rec);
-    return { alive: true, set: (p: EngineParams) => rec.sets.push(p), kill() {}, stop() {} };
+    return { alive: true, sources: 1, set: (p: EngineParams) => rec.sets.push(p), kill() {}, stop() {} };
   },
 }));
 vi.mock('./skid', () => ({ SKID_GAIN: 0.12, createSkidVoice: () => ({ set() {}, stop() {} }) }));
 vi.mock('./samples', () => ({ loadSamples: async () => {}, playSound: () => ({ end: 0, stop() {} }) }));
+vi.mock('./engineSets', () => ({ loadEngineSets: async () => {}, engineSet: () => undefined }));
 vi.mock('./bus', () => ({ buildBus: (ctx: unknown) => ({ ctx, master: { gain: {} }, sfx: { gain: {} }, race: {}, ui: {}, out: {} }) }));
 
 class FakeAudioContext {

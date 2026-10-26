@@ -1,0 +1,120 @@
+{
+  "cars": {
+    "blaze": {
+      "steps": [
+        {
+          "slot": "500_off",
+          "file": "blaze/500_off.mp3",
+          "rpm": 530,
+          "load": "off",
+          "loopStart": 0.05,
+          "loopEnd": 2.988548752834467
+        },
+        {
+          "slot": "2500_off",
+          "file": "blaze/2500_off.mp3",
+          "rpm": 2470,
+          "load": "off",
+          "loopStart": 0.05,
+          "loopEnd": 3.0137414965986395
+        },
+        {
+          "slot": "6500_off",
+          "file": "blaze/6500_off.mp3",
+          "rpm": 6295,
+          "load": "off",
+          "loopStart": 0.05,
+          "loopEnd": 1.746575963718821
+        },
+        {
+          "slot": "500_on",
+          "file": "blaze/500_on.mp3",
+          "rpm": 646,
+          "load": "on",
+          "loopStart": 0.05,
+          "loopEnd": 1.6301360544217687
+        },
+        {
+          "slot": "2500_on",
+          "file": "blaze/2500_on.mp3",
+          "rpm": 2565,
+          "load": "on",
+          "loopStart": 0.05,
+          "loopEnd": 2.9614512471655328
+        },
+        {
+          "slot": "6500_on",
+          "file": "blaze/6500_on.mp3",
+          "rpm": 6250,
+          "load": "on",
+          "loopStart": 0.05,
+          "loopEnd": 1.4995918367346939
+        }
+      ]
+    },
+    "iceberg": {
+      "steps": [
+        {
+          "slot": "idle",
+          "file": "iceberg/idle.mp3",
+          "rpm": 836,
+          "load": "any",
+          "loopStart": 0.05,
+          "loopEnd": 2.881473922902494
+        },
+        {
+          "slot": "low",
+          "file": "iceberg/low.mp3",
+          "rpm": 1478,
+          "load": "any",
+          "loopStart": 0.05,
+          "loopEnd": 1.9181632653061225
+        },
+        {
+          "slot": "mid",
+          "file": "iceberg/mid.mp3",
+          "rpm": 2035,
+          "load": "any",
+          "loopStart": 0.05,
+          "loopEnd": 2.6765986394557824
+        },
+        {
+          "slot": "high",
+          "file": "iceberg/high.mp3",
+          "rpm": 2546,
+          "load": "any",
+          "loopStart": 0.05,
+          "loopEnd": 1.9081632653061225
+        }
+      ]
+    },
+    "titan": {
+      "steps": [
+        {
+          "slot": "idle",
+          "file": "titan/idle.mp3",
+          "rpm": 592,
+          "load": "any",
+          "loopStart": 0.05,
+          "loopEnd": 3.008979591836735
+        },
+        {
+          "slot": "low",
+          "file": "titan/low.mp3",
+          "rpm": 1085,
+          "load": "any",
+          "loopStart": 0.05,
+          "loopEnd": 1.4983219954648526
+        },
+        {
+          "slot": "mid",
+          "file": "titan/mid.mp3",
+          "rpm": 1872,
+          "load": "any",
+          "loopStart": 0.05,
+          "loopEnd": 2.9615873015873015
+        }
+      ]
+    }
+  }
+}

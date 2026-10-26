@@ -7,11 +7,11 @@ import { getNoise } from './noise';
 // (lumpy idle) and a whine oscillator (turbo, or an always-on supercharger). Levels: MIX.engine.
 export const ENGINE_GAIN_PLAYER = MIX.engine.player;
 export const ENGINE_GAIN_AI = MIX.engine.ai;
-const TURBO_PITCH = 1.15;
-const WHINE_LEVEL = 0.25;
-const SMOOTH = 0.04; // s, setTargetAtTime constant per update for levels and pan
-const WRECK_DROP = 0.3; // s
-const WRECK_PITCH = 0.3; // frequency multiplier at the end of the drop
+export const TURBO_PITCH = 1.15;
+export const WHINE_LEVEL = 0.25;
+export const SMOOTH = 0.04; // s, setTargetAtTime constant per update for levels and pan
+export const WRECK_DROP = 0.3; // s
+export const WRECK_PITCH = 0.3; // frequency multiplier at the end of the drop
 const NOISE_OFFSET_STEP = 0.37; // s into the shared noise buffer per car, so exhausts do not hiss in unison
 const NOISE_IDLE = 0.6; // noise layer level off throttle, relative to on throttle
 
@@ -30,6 +30,8 @@ export interface EngineParams {
 
 export interface EngineVoice {
   readonly alive: boolean;
+  /** Live sources for the voice count: 1 for the synth (its oscillators are one voice), the playing loops for a recorded set; 0 once wrecked. */
+  readonly sources: number;
   set(p: EngineParams, now: number): void;
   /** Wreck: 0.3 s pitch drop to silence, then the oscillators stop. */
   kill(now: number): void;
@@ -102,6 +104,9 @@ export function createEngineVoice(ctx: BaseAudioContext, dest: AudioNode, now: n
   return {
     get alive() {
       return alive;
+    },
+    get sources() {
+      return alive ? 1 : 0;
     },
     set(p, t) {
       if (!alive) return;
