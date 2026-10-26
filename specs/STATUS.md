@@ -1,7 +1,7 @@
 # Wreckline - status
 Phase: 4 for M2 (wave C1 merged; waiting on the user's art and sound steps)   Size: L   Milestone: M1   Updated: 2026-10-26
 Integration pattern: merges of a running wave go into `integ/<wave>` so main stays put while workers run; main fast-forwards after the last merge.
-Next action: v0.7.1 released 2026-10-26 (WP28 recorded engines + viper pitch x0.5; recorded engines released before the user listened to them). Open: user listens (recorded vs synth for blaze/iceberg/titan, WP16 suspects) and finds sounds for raven, scorch, wraith, viper, outlaw. Then GC + M2 release.
+Next action: wave C4 (WP29, WP30) dispatched 2026-10-26. v0.7.1 released 2026-10-26 (WP28 recorded engines + viper pitch x0.5; recorded engines released before the user listened to them). Open: user listens (recorded vs synth for blaze/iceberg/titan, WP16 suspects) and finds sounds for raven, scorch, wraith, viper, outlaw. Then GC + M2 release.
 Remote: origin = git@github.com:underscoreloG/wreckline.git (public since 2026-10-25; Pages source = GitHub Actions, set by the user; site will be https://underscorelog.github.io/wreckline/ - not yet deployed).
 Ledger edits stay uncommitted on main while a worker runs (workers check that main did not move).
 
@@ -23,6 +23,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 - 2026-10-25 Finished cars cruise along the racing line at 60% pace (`cruiseInput`, WP07) and are immune: no damage, no wreck, no weapons, mines or pickups. WP07 owns the vehicle.ts/combat.ts edits for it.
 - 2026-10-24 Plan approved by the user. Repo initialised, spec committed on main as 0d8c5d5.
 - 2026-10-24 Spec review (`specs/REVIEW-2026-10-23.md`): items 1-21 fixed; recheck found 3 new blockers + 7 rework items, all fixed. Minors 22-31 partly fixed, rest open below.
+- 2026-10-26 Career: all 10 tracks from the first race. Car unlocks: finishing ahead of a car type beats it; scorch/titan/viper always buyable, 25% off once beaten; outlaw 3500, iceberg 4500, blaze 10500, wraith 20000 locked until beaten (wraith = beat THE WARDEN). Quick race: pick any of the 8 cars at stock spec. Roof plates removed, body tinted to the driver colour (WP29, WP30).
 - Still assumed: working title "Wreckline", career length target 18-35 races (WP12 can move it).
 
 ## Work packages
@@ -59,6 +60,8 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | WP26 | Headlight beams and boost feel | C3 | subagent | opus high | merged | agent a2fda4656543d2088 | wp/26-lights-boost (dc1b3a3) | 552/552; +1 draw while boosting; beams on dark themes only (closes desert headlight note); feel constants in tuning log; not driven by the user yet |
 | WP27 | Track dressing (render only) | C3 | session | opus high | merged | session local_c748405a-c13f-41ef-81bb-1444956a3a71 | wp/27-track-dressing (72bdf5a) | 549/549 on branch; balance table identical; user OKed all 6 themes; tuning-log conflict with WP26 resolved keeping both |
 | WP28 | Recorded engines for BLAZE, ICEBERG, TITAN | C3 | subagent | opus high | merged | agent aef3cd42207047fe9 | wp/28-recorded-engines (8fe8a8d) | 567/567; 13 CC0 loops 504 kB, manifest with loop points, rpm from firing frequency; Mercedes bench replaced by per-car recorded/synth switch; CCR importSfx keeps "## Engines" applied by brain; not heard by anyone yet |
+| WP29 | Car unlocks by beating, all career tracks, quick race car (CCR-10) | C4 | subagent | opus high | todo | - | wp/29-unlocks | |
+| WP30 | Body tint instead of roof plate | C4 | subagent | opus high | todo | - | wp/30-body-tint | |
 
 ## Helper agents (not WPs)
 | Task | When | Model | Effort |
