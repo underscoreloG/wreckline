@@ -1,7 +1,7 @@
 # Wreckline - status
 Phase: 4 for M2 (wave C1 merged; waiting on the user's art and sound steps)   Size: L   Milestone: M1   Updated: 2026-10-25
 Integration pattern: merges of a running wave go into `integ/<wave>` so main stays put while workers run; main fast-forwards after the last merge.
-Next action: WP28 merged (not pushed). User listens (recorded vs synth per car in ?harness=audio) and finds sounds for raven, scorch, wraith, viper, outlaw. Then release; GC + M2 release.
+Next action: WP28 merged (not pushed). Listening session started 2026-10-26: viper pitch x0.5 (by ear, committed). User continues listening (recorded vs synth per car in ?harness=audio) and finds sounds for raven, scorch, wraith, viper, outlaw. Then release; GC + M2 release.
 Remote: origin = git@github.com:underscoreloG/wreckline.git (public since 2026-10-25; Pages source = GitHub Actions, set by the user; site will be https://underscorelog.github.io/wreckline/ - not yet deployed).
 Ledger edits stay uncommitted on main while a worker runs (workers check that main did not move).
 

@@ -149,9 +149,9 @@ export const ENGINE_PROFILES: Readonly<Record<string, EngineProfile>> = {
   },
   viper: {
     ...RAVEN,
-    base: 110,
-    span: 330,
-    step: 25,
+    base: 55, // x0.5 after the listening session ("too high-pitched" twice); top now under blaze
+    span: 165,
+    step: 12,
     gears: 5,
     revTau: 0.025,
     sub: 0.1,

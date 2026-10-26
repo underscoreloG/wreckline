@@ -24,7 +24,7 @@ One profile per car in the car registry, keyed by `carDefId`, derived from the r
 | scorch | big-block hot rod: lowest and loudest burble, strong rumble |
 | blaze | high-revving sports four: brighter, revs high, thin bottom |
 | titan | big diesel truck: lowest pitch, heavy, slow rev |
-| viper | V10/V12 supercar scream: highest top end, smooth |
+| viper | V10/V12 supercar scream: smooth (top end under blaze since the 2026-10-26 listening session, see docs/tuning-log.md) |
 | wraith | supercharged V8: raven-like base plus an rpm-tracking supercharger whine, always on |
 
 Likely layers (worker's choice): pitch range and gear sweep per car, harmonic mix, lowpass base/throttle, a filtered-noise exhaust layer (one shared noise buffer), slow pitch/amp wobble for lumpy idles. Turbo keeps today's pitch lift and whine on top. Wreck keeps today's pitch drop.

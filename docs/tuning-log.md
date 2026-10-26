@@ -359,3 +359,13 @@ Offline check (`?harness=audio`, through the real bus, throttle on, 12 s held re
 Cost: at most 4 loops per recorded engine (2 for one-load sets) plus the whine oscillator. Harness fake race with blaze, iceberg, titan, raven: max 15 voices (cap 48). Game career race with the same four cars (21 s, player on throttle and firing): at most 25 live Web Audio sources (18 buffer, 7 oscillators), no console errors. The WP25 Mercedes bench (file picker) is removed: the per-car "recorded / synth" switch next to each sweep button replaces it. Bundle 1649.2 -> 1649.1 kB gzip.
 
 Knobs for the listening session: `RECORDED_LEVEL` (all recorded cars), a per-step rpm in the manifest (pitch match between steps), `THROTTLE_TAU`, `MAX_PITCH_UP`.
+
+## 2026-10-26 - Listening session: viper pitch
+
+User, by ear in `?harness=audio`: viper "too high-pitched", then "still too high" at x0.7, "ok now" at x0.5. Filter, noise and level untouched.
+
+| Where | Value | Before | After | Why |
+|---|---|---|---|---|
+| `src/audio/engineProfiles.ts` | viper base / span / step | 110 / 330 / 25 | 55 / 165 / 12 | x0.5: "too high-pitched"; top note 540 -> 296 Hz, now under blaze (370 Hz), so the WP25 "highest top end" target is dropped |
+
+Offline check after: viper rms -19.3 dBFS (-2.3 dB vs raven, unchanged); fundamental / centroid 116.5 Hz / 2234 Hz at rpm01 0.2 (was 234.0 / 2558), 152.5 Hz / 2362 Hz at 0.8 (was 309.0 / 2687); every pair still differs by > 5% in fundamental or centroid.
