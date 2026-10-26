@@ -1,7 +1,7 @@
 # Wreckline - status
 Phase: 4 for M2 (wave C1 merged; waiting on the user's art and sound steps)   Size: L   Milestone: M1   Updated: 2026-10-26
 Integration pattern: merges of a running wave go into `integ/<wave>` so main stays put while workers run; main fast-forwards after the last merge.
-Next action: v0.8.0 released 2026-10-26 (WP29 + WP30). Open: user listening notes and engine sources for raven, scorch, wraith, viper, outlaw; GC + M2 release.
+Next action: WP31 (twisty tracks pilot) dispatched 2026-10-26; user plays the pilot Scrapyard, then WP32. Open: listening notes, engine sources, README shots show roof plates, GC + M2.
 Remote: origin = git@github.com:underscoreloG/wreckline.git (public since 2026-10-25; Pages source = GitHub Actions, set by the user; site will be https://underscorelog.github.io/wreckline/ - not yet deployed).
 Ledger edits stay uncommitted on main while a worker runs (workers check that main did not move).
 
@@ -25,6 +25,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 - 2026-10-24 Spec review (`specs/REVIEW-2026-10-23.md`): items 1-21 fixed; recheck found 3 new blockers + 7 rework items, all fixed. Minors 22-31 partly fixed, rest open below.
 - 2026-10-26 Career: all 10 tracks from the first race. Car unlocks: finishing ahead of a car type beats it; scorch/titan/viper always buyable, 25% off once beaten; outlaw 3500, iceberg 4500, blaze 10500, wraith 20000 locked until beaten (wraith = beat THE WARDEN). Quick race: pick any of the 8 cars at stock spec. Roof plates removed; driver marker = rim glow (user pick over underglow), switchable with ?carMark (WP29, WP30).
 - 2026-10-26 No player-specific marker: rim glow for every car, the player included (user decision after seeing shots).
+- 2026-10-26 Tracks: rework all 10 Death Rally tight (user: "in death rally there are more small turns"), camera unchanged. Pilot WP31 (rules, test decoupling, Scrapyard), user plays it, then WP32 redraws the other 9 in three parallel workers.
 - Still assumed: working title "Wreckline", career length target 18-35 races (WP12 can move it).
 
 ## Work packages
@@ -63,6 +64,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | WP28 | Recorded engines for BLAZE, ICEBERG, TITAN | C3 | subagent | opus high | merged | agent aef3cd42207047fe9 | wp/28-recorded-engines (8fe8a8d) | 567/567; 13 CC0 loops 504 kB, manifest with loop points, rpm from firing frequency; Mercedes bench replaced by per-car recorded/synth switch; CCR importSfx keeps "## Engines" applied by brain; not heard by anyone yet |
 | WP29 | Car unlocks by beating, all career tracks, quick race car (CCR-10) | C4 | subagent | opus high | merged | agent a49fb57bd0b9f34b6 | wp/29-unlocks (f308176) | 587/587; greedy champion 15/16 in 21-38 (median 27 -> 25); quit or unfinished race beats nothing (fix round 1); owned car row shown OWNED; quick race AI stays on ravens; shots in ../wreckline-wt/wp29-shots |
 | WP30 | Driver marker instead of roof plate | C4 | subagent | opus high | merged | agent a85893ee2d181384a | wp/30-body-tint (f361fc1) | 591/591 on main; user changed full tint to "very light glow", then rim or underglow; user picked rim (default), `?carMark=rim|underglow|none`; draw calls 79.9 -> 72.0 avg (rim); boss colour CCR-b applied by brain (trim #FF3355 as entrant colour); player does not stand out more than rivals: user keeps rim for everybody, no player marker (2026-10-26) |
+| WP31 | Death Rally tight tracks: shape rules, test decoupling, Scrapyard pilot | C5 | subagent | opus high | todo | - | wp/31-twisty-pilot | |
 
 ## Helper agents (not WPs)
 | Task | When | Model | Effort |
