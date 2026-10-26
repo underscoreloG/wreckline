@@ -3,13 +3,14 @@ import { buildQuickRaceSetup } from '../content/quickRace';
 import type { Sim, SimEvent } from '../shared/contracts';
 import { SIM_DT } from '../shared/contracts';
 import { createFakeSim } from '../sim';
-import { sweepAt, SWEEP_SECONDS } from './bench';
-import { mountBenchPanel } from './benchPanel';
+import { setRpm, stepMix, sweepAt, SWEEP_SECONDS } from './bench';
 import { buildBus } from './bus';
-import { createEngineVoice, ENGINE_GAIN_PLAYER } from './engine';
+import { createEngineVoice, ENGINE_GAIN_PLAYER, type EngineVoice } from './engine';
 import { DEFAULT_PROFILE_ID, engineProfile } from './engineProfiles';
+import { engineSet, recordedCars, type EngineSet } from './engineSets';
 import { createAudioEngine } from './index';
 import { fundamentalHz, spectralCentroid } from './measure';
+import { createRecordedEngineVoice, loopOffset } from './recordedEngine';
 import { playSound, soundSource } from './samples';
 import { playSfx, SFX_NAMES, type SfxName } from './sfx';
 import { createSkidVoice, SKID_GAIN } from './skid';
@@ -29,6 +30,14 @@ const CHAR_AT = 1.2; // s, the voice has settled (slowest revTau x 3 after CHECK
 const CHAR_SAMPLES = 8192;
 const DISTINCT = 0.05; // two profiles closer than 5% on both fundamental and centroid at one rpm count as the same
 const SWEEP_SETS = 80; // scheduled set() calls per sweep
+// Recorded engines (WP28): level at three rpms on throttle, held long enough for every loop to wrap at least once.
+const RECORDED_RPMS = [0.2, 0.5, 0.8] as const;
+const RECORDED_SECONDS = 12;
+const WRAP_WINDOW = 0.002; // s around each loop wrap
+const STEP_PERCENTILE = 0.999;
+// Sharpest step at a wrap / the render's 99.9th percentile step. A window of ordinary sound scores about 1 (the
+// control: the same windows half a loop later); a discontinuity at the loop point would score several times that.
+const SEAM_OK = 1.5;
 
 export interface SoundCheck {
   name: string;
@@ -49,17 +58,59 @@ export interface ProfileCheck {
   ok: boolean; // audible, peak <= 0 dBFS, rms within +-3 dB of raven
 }
 
+export interface RecordedCheck {
+  car: string;
+  /** [rpm01, peak dBFS, rms dBFS, seam, seam control] per RECORDED_RPMS, throttle on. */
+  levels: [number, number, number, number, number][];
+  fromRavenDb: number; // rms at rpm01 0.5 vs raven's synth
+  ok: boolean; // peak <= 0 dBFS everywhere, rms within +-3 dB of raven, every seam <= SEAM_OK
+}
+
 const db = (v: number): number => (v > 0 ? 20 * Math.log10(v) : -Infinity);
 const round1 = (v: number): number => Math.round(v * 10) / 10;
 
-/** One engine voice with `carDefId`'s profile, held at rpm01 and throttle, through the real bus. */
-async function renderEngine(carDefId: string, rpm01: number, throttle: number, turbo = false): Promise<AudioBuffer> {
-  const off = new OfflineAudioContext(2, CHECK_RATE * CHECK_SECONDS, CHECK_RATE);
+/** `car`'s engine voice: its recorded set when asked and loaded, else its synth profile. */
+function engineVoice(ctx: BaseAudioContext, dest: AudioNode, now: number, car: string, recorded: boolean): EngineVoice {
+  const set = recorded ? engineSet(car) : undefined;
+  return set ? createRecordedEngineVoice(ctx, dest, now, set, engineProfile(car)) : createEngineVoice(ctx, dest, now, engineProfile(car));
+}
+
+/** One engine voice for `carDefId`, held at rpm01 and throttle, through the real bus. */
+async function renderEngine(carDefId: string, rpm01: number, throttle: number, turbo = false, recorded = false): Promise<AudioBuffer> {
+  const seconds = recorded ? RECORDED_SECONDS : CHECK_SECONDS;
+  const off = new OfflineAudioContext(2, CHECK_RATE * seconds, CHECK_RATE);
   const bus = buildBus(off);
-  const v = createEngineVoice(off, bus.race, CHECK_START, engineProfile(carDefId));
+  const v = engineVoice(off, bus.race, CHECK_START, carDefId, recorded);
   v.set({ rpm01, throttle, turbo, gain: ENGINE_GAIN_PLAYER, pan: 0 }, CHECK_START);
-  v.stop(CHECK_START + 1.5);
+  v.stop(recorded ? seconds - 0.1 : CHECK_START + 1.5);
   return off.startRendering();
+}
+
+/**
+ * Clicks at the loop points of a held recorded render: the sharpest sample step within 2 ms of every predicted wrap
+ * of every sounding loop, over the 99.9th percentile step of the whole steady render; and the same half a loop
+ * later, away from any wrap, as a control.
+ */
+function seamMetric(buf: AudioBuffer, set: EngineSet, rpm01: number): [wrap: number, control: number] {
+  const d = buf.getChannelData(0);
+  const from = Math.round((CHECK_START + 0.3) * CHECK_RATE);
+  const to = Math.round((RECORDED_SECONDS - 0.2) * CHECK_RATE);
+  const step = (i: number): number => Math.abs(d[i + 1]! - d[i]!);
+  const steps = Float64Array.from({ length: to - from }, (_v, k) => step(from + k)).sort();
+  const ref = steps[Math.floor(STEP_PERCENTILE * steps.length)]!;
+  const worst = [0, 0] as [number, number];
+  stepMix(set.steps, setRpm(set.steps, rpm01), 1).forEach((m, i) => {
+    if (m.gain <= 1e-3) return;
+    const s = set.steps[i]!;
+    const period = (s.loopEnd - s.loopStart) / m.rate;
+    for (let t = CHECK_START + (s.loopEnd - loopOffset(s, 0)) / m.rate; t * CHECK_RATE < to; t += period)
+      for (const j of [0, 1]) {
+        const c = Math.round((t + (j * period) / 2) * CHECK_RATE);
+        const w = Math.round(WRAP_WINDOW * CHECK_RATE);
+        for (let k = Math.max(from, c - w); k <= Math.min(to - 1, c + w); k++) worst[j] = Math.max(worst[j]!, step(k) / ref);
+      }
+  });
+  return worst;
 }
 
 /** Renders one sound through the real bus (master and sfx at 1) into an OfflineAudioContext and measures it. */
@@ -106,6 +157,25 @@ async function checkProfiles(): Promise<ProfileCheck[]> {
   for (const c of out) {
     c.fromRavenDb = round1(c.rmsDb - raven);
     c.ok = c.peakDb > -40 && c.peakDb <= 0 && Math.abs(c.fromRavenDb) <= PROFILE_MAX_DB_FROM_RAVEN;
+  }
+  return out;
+}
+
+/** Each loaded recorded set at RECORDED_RPMS on throttle: level, rms vs raven's synth at 0.5, seam metric. */
+async function checkRecorded(ravenRmsDb: number): Promise<RecordedCheck[]> {
+  const out: RecordedCheck[] = [];
+  for (const car of recordedCars()) {
+    const set = engineSet(car)!;
+    const levels: RecordedCheck['levels'] = [];
+    for (const rpm01 of RECORDED_RPMS) {
+      const buf = await renderEngine(car, rpm01, 1, false, true);
+      const m = measureLevels(buf);
+      const [wrap, control] = seamMetric(buf, set, rpm01).map((v) => Math.round(v * 100) / 100) as [number, number];
+      levels.push([rpm01, round1(m.peakDb), round1(m.rmsDb), wrap, control]);
+    }
+    const fromRavenDb = round1((levels.find(([r]) => r === PROFILE_LEVEL_RPM)?.[2] ?? -Infinity) - ravenRmsDb);
+    const ok = levels.every(([, peak, , seam]) => peak <= 0 && seam <= SEAM_OK) && Math.abs(fromRavenDb) <= PROFILE_MAX_DB_FROM_RAVEN;
+    out.push({ car, levels, fromRavenDb, ok });
   }
   return out;
 }
@@ -195,26 +265,33 @@ export function mountAudioHarness(root: HTMLElement): void {
     s.onclick = () => void playSynth(name);
   }
 
-  // A 4 s rev sweep per car with its own engine profile, scheduled ahead on the race bus.
+  // A 4 s rev sweep per car, scheduled ahead on the race bus: its recorded set (WP28) or its synth profile, picked
+  // by the switch next to it (both at the game's level, so the A/B is loudness-matched).
   const sweeps = el('div');
-  sweeps.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin:0 0 12px';
-  el('span', 'engine sweep:', sweeps);
-  const sweepCar = async (car: string): Promise<void> => {
+  sweeps.style.cssText = 'display:grid;grid-template-columns:repeat(4,max-content);gap:4px 8px;margin:0 0 12px';
+  const synthOnly = new Set<string>();
+  const sweepCar = async (car: string, recorded = !synthOnly.has(car)): Promise<void> => {
     await unlock();
+    await engine.samples();
     const bus = engine.bus();
     if (!bus) return;
     const t0 = bus.ctx.currentTime;
-    const v = createEngineVoice(bus.ctx, bus.race, t0, engineProfile(car));
+    const v = engineVoice(bus.ctx, bus.race, t0, car, recorded);
     for (let k = 0; k <= SWEEP_SETS; k++) {
       const t = (k / SWEEP_SETS) * SWEEP_SECONDS;
       v.set({ ...sweepAt(t), turbo: false, gain: ENGINE_GAIN_PLAYER, pan: 0 }, t0 + t);
     }
     v.stop(t0 + SWEEP_SECONDS + 0.1);
   };
+  const switches: [HTMLButtonElement, string][] = [];
   for (const car of Object.keys(CARS)) {
-    const b = el('button', car, sweeps);
+    const b = el('button', `sweep ${car}`, sweeps);
     b.dataset.sweep = car;
     b.onclick = () => void sweepCar(car);
+    const sw = el('button', '', sweeps);
+    sw.dataset.source = car;
+    sw.onclick = () => void (synthOnly.has(car) ? synthOnly.delete(car) : synthOnly.add(car));
+    switches.push([sw, car]);
   }
 
   const sliders = el('div');
@@ -242,7 +319,6 @@ export function mountAudioHarness(root: HTMLElement): void {
   raceBtn.style.cssText = 'margin:12px 0;display:block';
   const checkBtn = el('button', 'offline level check');
   const readout = el('pre');
-  const bench = mountBenchPanel(root, () => engine.bus(), unlock);
 
   let sim: Sim | null = null;
   let timer = 0;
@@ -254,6 +330,7 @@ export function mountAudioHarness(root: HTMLElement): void {
   let scratch = new Float32Array(0);
   let checks: SoundCheck[] = [];
   let profiles: ProfileCheck[] = [];
+  let recordedChecks: RecordedCheck[] = [];
 
   const newSim = (): Sim => createFakeSim(buildQuickRaceSetup({ seed: 1, laps: 3, aiCount: 3 }));
   const tick = (): void => {
@@ -308,6 +385,7 @@ export function mountAudioHarness(root: HTMLElement): void {
     checks = [];
     for (const name of [...SFX_NAMES, 'engine', 'engineTurbo', 'skid'] as const) checks.push(await checkSound(name));
     profiles = await checkProfiles();
+    recordedChecks = await checkRecorded(profiles.find((c) => c.car === DEFAULT_PROFILE_ID)?.rmsDb ?? 0);
     return checks;
   };
   checkBtn.onclick = () => void runChecks();
@@ -315,6 +393,10 @@ export function mountAudioHarness(root: HTMLElement): void {
   const draw = (): void => {
     for (const [b, name] of labels) {
       b.textContent = soundSource(name) === 'sample' ? 'sample' : 'sample (not loaded: plays synth)';
+    }
+    for (const [sw, car] of switches) {
+      sw.disabled = !engineSet(car);
+      sw.textContent = !engineSet(car) ? 'synth (no recording)' : synthOnly.has(car) ? 'synth' : 'recorded';
     }
     const snap = sim?.snapshot();
     readout.textContent = [
@@ -337,6 +419,17 @@ export function mountAudioHarness(root: HTMLElement): void {
               const same = sameSounding(profiles);
               return same.length ? `FAIL same-sounding (5%): ${same.join(', ')}` : 'ok   every pair differs by > 5% in fundamental or centroid';
             })(),
+          ]
+        : []),
+      ...(recordedChecks.length
+        ? [
+            '',
+            `recorded engines: peak / rms / seam (sharpest step at the loop wraps vs the render's ${STEP_PERCENTILE * 100}th percentile step, <= ${SEAM_OK}) at rpm01 ${RECORDED_RPMS.join(', ')} on throttle; rms vs raven's synth at ${PROFILE_LEVEL_RPM}`,
+            ...recordedChecks.map(
+              (c) =>
+                `${c.ok ? 'ok  ' : 'FAIL'} ${c.car.padEnd(15)} ${c.fromRavenDb >= 0 ? '+' : ''}${c.fromRavenDb} dB vs raven  ` +
+                c.levels.map(([r, peak, rmsDb, seam, control]) => `${r}: ${peak} / ${rmsDb} dBFS seam ${seam} (control ${control})`).join('  '),
+            ),
           ]
         : []),
     ].join('\n');
@@ -367,7 +460,8 @@ export function mountAudioHarness(root: HTMLElement): void {
     profiles: () => profiles,
     sameSounding: () => sameSounding(profiles),
     sweepCar,
-    bench,
+    recorded: () => recordedChecks,
+    engines: () => engine.engines(),
     state: () => engine.bus()?.ctx.state ?? 'locked',
     sources: () => Object.fromEntries(SFX_NAMES.map((n) => [n, soundSource(n)])),
   };

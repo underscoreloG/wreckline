@@ -3,6 +3,8 @@ import type { AudioEngine, CarId, CarState, PickupKind, RaceSnapshot, UiSound, V
 import { buildBus, fadeRace, setBusVolumes, type Bus } from './bus';
 import { createEngineVoice, ENGINE_GAIN_AI, ENGINE_GAIN_PLAYER, type EngineVoice } from './engine';
 import { DEFAULT_PROFILE_ID, engineProfile } from './engineProfiles';
+import { engineSet, loadEngineSets } from './engineSets';
+import { createRecordedEngineVoice } from './recordedEngine';
 import { loadSamples, playSound } from './samples';
 import { PITCH_JITTER, pitchRate, type SfxName } from './sfx';
 import { createSkidVoice, SKID_GAIN, type SkidVoice } from './skid';
@@ -22,6 +24,7 @@ const PICKUP_SFX: Readonly<Record<PickupKind, SfxName>> = { cash: 'pickupCash', 
 
 interface CarVoices {
   engine: EngineVoice;
+  recorded: boolean;
   skid: SkidVoice;
   lastSpeed: number;
   maxSpeed: number;
@@ -33,8 +36,10 @@ export interface AudioDebug {
   bus(): Bus | null;
   /** Plays one sound straight on the sfx bus (harness buttons). */
   play(name: SfxName): void;
-  /** Settles when every sample fetch has finished (loaded or fallen back to synth); null before unlock. */
+  /** Settles when every sample and recorded engine fetch has finished (loaded or fallen back to synth); null before unlock. */
   samples(): Promise<void> | null;
+  /** Per race car: which engine voice it plays. */
+  engines(): ('recorded' | 'synth')[];
 }
 
 export function createAudioEngine(): AudioEngine & AudioDebug {
@@ -52,7 +57,8 @@ export function createAudioEngine(): AudioEngine & AudioDebug {
   const damageLimit = new RateLimit(DAMAGE_SOUND_GAP);
   let samples: Promise<void> | null = null;
 
-  const persistent = (): number => (cars ? cars.reduce((n, c) => n + (c.engine.alive ? 2 : 1), 0) : 0);
+  // Engine sources (1 per synth, the playing loops of a recorded set) plus one skid per car.
+  const persistent = (): number => (cars ? cars.reduce((n, c) => n + c.engine.sources + 1, 0) : 0);
 
   const play = (dest: AudioNode, name: SfxName, gain: number, pan: number): Voice | null => {
     if (!ctx || gain <= 0) return null;
@@ -75,12 +81,17 @@ export function createAudioEngine(): AudioEngine & AudioDebug {
   const buildCars = (snapshot: RaceSnapshot, now: number): CarVoices[] => {
     if (!bus) return [];
     const { ctx: c, race } = bus;
-    return snapshot.cars.map((car, i) => ({
-      engine: createEngineVoice(c, race, now, engineProfile(raceCars[i]?.carDefId ?? DEFAULT_PROFILE_ID), i),
-      skid: createSkidVoice(c, race, now, i),
-      lastSpeed: Math.abs(car.speed),
-      maxSpeed: raceCars[i]?.maxSpeed ?? RPM_REF_SPEED,
-    }));
+    return snapshot.cars.map((car, i) => {
+      const id = raceCars[i]?.carDefId ?? DEFAULT_PROFILE_ID;
+      const set = engineSet(id);
+      return {
+        engine: set ? createRecordedEngineVoice(c, race, now, set, engineProfile(id), i) : createEngineVoice(c, race, now, engineProfile(id), i),
+        recorded: set !== undefined,
+        skid: createSkidVoice(c, race, now, i),
+        lastSpeed: Math.abs(car.speed),
+        maxSpeed: raceCars[i]?.maxSpeed ?? RPM_REF_SPEED,
+      };
+    });
   };
 
   return {
@@ -92,7 +103,14 @@ export function createAudioEngine(): AudioEngine & AudioDebug {
         bus.sfx.gain.value = sfx;
       }
       if (ctx.state !== 'running') await ctx.resume();
-      samples ??= loadSamples(ctx);
+      if (!samples) {
+        const c = ctx;
+        // Sets that load after this race's voices were built swap in at the next update.
+        const engines = loadEngineSets(c).then(() => {
+          if (cars?.some((v, i) => !v.recorded && engineSet(raceCars[i]?.carDefId ?? DEFAULT_PROFILE_ID))) stopCars(c.currentTime);
+        });
+        samples = Promise.all([loadSamples(c), engines]).then(() => undefined);
+      }
     },
 
     setVolumes(m, s) {
@@ -263,6 +281,7 @@ export function createAudioEngine(): AudioEngine & AudioDebug {
     voices: () => (ctx ? persistent() + pool.count(ctx.currentTime) : 0),
     bus: () => bus,
     samples: () => samples,
+    engines: () => (cars ? cars.map((c) => (c.recorded ? 'recorded' : 'synth')) : []),
     play(name) {
       if (bus) play(bus.sfx, name, 1, 0);
     },
