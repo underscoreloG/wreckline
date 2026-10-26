@@ -16,7 +16,7 @@
  * - s 1300-end   out of the hairpin, west to the line
  */
 import type { TrackDef } from '../../shared/contracts';
-import { type Corner, roundedLoop } from './dockside';
+import { type Corner, roundedLoop } from './roundedLoop';
 import { placeProps, type PropRule, type ScatterRule } from './placeProps';
 
 export const PINE_HOLLOW_CORNERS: readonly Corner[] = [

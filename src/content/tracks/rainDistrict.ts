@@ -19,7 +19,7 @@
  * - T15          s 1124-1165: R 86, r 21, onto the boulevard
  */
 import type { TrackDef } from '../../shared/contracts';
-import { type Corner, roundedLoop } from './dockside';
+import { type Corner, roundedLoop } from './roundedLoop';
 import { placeProps, type PropRule, type ScatterRule } from './placeProps';
 
 export const RAIN_DISTRICT_CORNERS: readonly Corner[] = [

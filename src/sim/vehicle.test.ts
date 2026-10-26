@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { buildQuickRaceSetup } from '../content/quickRace';
+import { SCRAPYARD_FIXTURE } from '../content/tracks/fixtures';
 import { getCar } from '../content/cars';
 import { computeStats } from '../content/economy';
 import { OFFROAD_MODS } from '../content/vehicle';
@@ -273,10 +274,10 @@ describe('applyDynamics', () => {
 });
 
 describe('finished cars (WP07, content.md section 7)', () => {
-  /** Scrapyard, both entrants scripted, green light on, car 1 parked far off the track. */
+  /** Scrapyard (frozen pre-WP31 fixture), both entrants scripted, green light on, car 1 parked far off the track. */
   function scrapyard() {
     const s = buildQuickRaceSetup({ seed: 5, aiCount: 1 });
-    const { sim, world } = createSimWithWorld({ ...s, entrants: s.entrants.map((e) => ({ ...e, ai: null })) });
+    const { sim, world } = createSimWithWorld({ ...s, track: SCRAPYARD_FIXTURE, entrants: s.entrants.map((e) => ({ ...e, ai: null })) });
     world.phase = 'racing';
     world.countdown = 0;
     placeAt(world, 1, { x: 5000, y: 5000 }, 0, 0);

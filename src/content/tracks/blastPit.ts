@@ -22,7 +22,7 @@
  * - s 1576-end   east side to the line
  */
 import type { TrackDef } from '../../shared/contracts';
-import { type Corner, roundedLoop } from './dockside';
+import { type Corner, roundedLoop } from './roundedLoop';
 import { placeProps, type PropRule, type ScatterRule } from './placeProps';
 
 export const BLAST_PIT_CORNERS: readonly Corner[] = [

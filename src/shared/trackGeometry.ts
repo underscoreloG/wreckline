@@ -9,6 +9,7 @@ import type {
   TrackValidation,
   Vec2,
 } from './contracts';
+import { angleWrap } from './math';
 
 /** Dense spline sub-steps per centerline segment, before arc-length reparametrization. */
 const SUBSTEPS = 200;
@@ -314,4 +315,76 @@ export function validateTrack(def: TrackDef): TrackValidation {
   }
 
   return { ok: errors.length === 0, errors, length: g.length, minRadius, minClearance };
+}
+
+/** Road shape numbers of a closed track (content.md section 12, "Track shape"). */
+export interface TrackShape {
+  /** Share of samples with k < 0.01 /m. */
+  nearStraightShare: number;
+  /** Entries into k > 0.025 /m around the closed loop. */
+  corners: number;
+  /** m, the longest run of k < 0.01 (wrapping over the start line). */
+  longestStraight: number;
+  /** Every run of k < 0.01: s of its first sample and its length in m, in s order. */
+  straights: { s: number; length: number }[];
+  /** Total |heading change| in degrees per 100 m. */
+  turnPer100m: number;
+  /** m, 1 / max k measured over a 4 m window. */
+  minRadius: number;
+}
+
+const SHAPE_WINDOW = 10; // m, the curvature window of every shape rule
+const SHAPE_RADIUS_WINDOW = 4; // m, the window of minRadius
+const NEAR_STRAIGHT_K = 0.01;
+const CORNER_K = 0.025;
+
+/**
+ * Shape metric on the uniform samples: k(s) = |wrapped heading(s + 10 m) - heading(s)| / 10 m, heading =
+ * atan2 of the sample tangent. A forward window, so a straight's run starts and ends a little early.
+ */
+export function trackShape(g: TrackGeometry): TrackShape {
+  const n = g.samples.length;
+  const ds = g.length / n;
+  const heading = g.samples.map((smp) => Math.atan2(smp.tangent.y, smp.tangent.x));
+  const kOver = (i: number, w: number): number => Math.abs(angleWrap(heading[(i + w) % n] - heading[i])) / (w * ds);
+  const w = Math.max(1, Math.round(SHAPE_WINDOW / ds));
+  const wr = Math.max(1, Math.round(SHAPE_RADIUS_WINDOW / ds));
+  const k = heading.map((_, i) => kOver(i, w));
+
+  let straightCount = 0;
+  let corners = 0;
+  let turn = 0;
+  let maxK = 0;
+  for (let i = 0; i < n; i++) {
+    if (k[i] < NEAR_STRAIGHT_K) straightCount++;
+    if (k[i] > CORNER_K && k[(i - 1 + n) % n] <= CORNER_K) corners++;
+    turn += Math.abs(angleWrap(heading[(i + 1) % n] - heading[i]));
+    maxK = Math.max(maxK, kOver(i, wr));
+  }
+
+  // Walk the loop from a curved sample so no straight is split by the wrap.
+  const straights: { s: number; length: number }[] = [];
+  const first = k.findIndex((v) => v >= NEAR_STRAIGHT_K);
+  if (first < 0) straights.push({ s: 0, length: g.length });
+  else {
+    let run = 0;
+    for (let j = 1; j <= n; j++) {
+      const i = (first + j) % n;
+      if (k[i] < NEAR_STRAIGHT_K) run++;
+      else if (run > 0) {
+        straights.push({ s: (((i - run) % n) + n) % n * ds, length: run * ds });
+        run = 0;
+      }
+    }
+    straights.sort((a, b) => a.s - b.s);
+  }
+
+  return {
+    nearStraightShare: straightCount / n,
+    corners,
+    longestStraight: straights.reduce((m, st) => Math.max(m, st.length), 0),
+    straights,
+    turnPer100m: ((turn * 180) / Math.PI / g.length) * 100,
+    minRadius: maxK > 0 ? 1 / maxK : Infinity,
+  };
 }

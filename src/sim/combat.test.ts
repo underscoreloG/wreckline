@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { PICKUP_REPAIR_HP, PICKUP_RESPAWN_SECONDS } from '../content/pickups';
 import { buildQuickRaceSetup } from '../content/quickRace';
+import { SCRAPYARD_FIXTURE } from '../content/tracks/fixtures';
 import {
   GUN_COOL_RATE,
   GUN_HEAT_PER_SHOT,
@@ -31,10 +32,13 @@ const FIRE: InputFrame = { ...NEUTRAL_INPUT, fire: true };
 const DROP: InputFrame = { ...NEUTRAL_INPUT, dropMine: true };
 const TURBO: InputFrame = { ...NEUTRAL_INPUT, turbo: true };
 
-/** Every entrant scripted (WP00 test rule), green light already on, cars parked away from the main straight. `stats` patches entrants by id. */
+/**
+ * Every entrant scripted (WP00 test rule), green light already on, cars parked away from the main straight. `stats` patches entrants by id.
+ * On the frozen pre-WP31 Scrapyard: the parking spots and test positions are s values on that layout.
+ */
 function make(stats: Record<number, Partial<CarStats>> = {}): { sim: Sim; world: SimWorld } {
   const s = buildQuickRaceSetup({ seed: 1, aiCount: 3 });
-  const { sim, world } = createSimWithWorld({ ...s, entrants: s.entrants.map((e) => ({ ...e, ai: null, stats: { ...e.stats, ...stats[e.id] } })) });
+  const { sim, world } = createSimWithWorld({ ...s, track: SCRAPYARD_FIXTURE, entrants: s.entrants.map((e) => ({ ...e, ai: null, stats: { ...e.stats, ...stats[e.id] } })) });
   world.phase = 'racing';
   world.countdown = 0;
   world.cars.forEach((c) => park(world, c.id));

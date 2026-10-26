@@ -222,27 +222,51 @@ Rivals' upgrade levels: `floor(skill * 2)` on every line (fuel included), capped
 
 ## 12. Tracks
 
-### Scrapyard (M1, `src/content/tracks/scrapyard.ts`)
+### Track shape (user decision 2026-10-26)
 
-Verified with the prototype validator: length ~1049 m, min radius ~16.6 m (at s ~685), min clearance ~49.9 m (needs >= 26).
+User: "currently in tracks there are a lot of straight lines, in death rally there are more small turns". Every track is redrawn as a **Death Rally tight track**: a chain of 15-40 m bends left and right with short links, a hairpin or two, one short start straight; camera unchanged. WP31 set the rules and redrew Scrapyard; WP32 redraws the other 9.
+
+**Metric** (`trackShape(geometry)` in `src/shared/trackGeometry.ts`), on the uniform ~1 m samples: heading = atan2 of the sample tangent, k(s) = |wrapped heading(s + 10 m) - heading(s)| / 10 m (a forward window: each straight's run starts and ends a few m early).
+
+| field | meaning |
+|---|---|
+| `nearStraightShare` | share of samples with k < 0.01 /m |
+| `corners` | entries into k > 0.025 /m, counted around the closed loop |
+| `longestStraight`, `straights` | runs of k < 0.01 (s of the first sample, length in m), wrapping over the start line |
+| `turnPer100m` | total \|heading change\| in degrees per 100 m |
+| `minRadius` | 1 / max k measured over a 4 m window |
+
+**Rules** for a tight track (checked by `src/content/tracks/shape.test.ts` for every TRACKS entry exported with `shape: 'tight'`):
+
+| rule | value |
+|---|---|
+| `nearStraightShare` | <= 0.25 |
+| every straight | <= 80 m; the one through the start line (it covers s 0) <= 100 m for the 8-car grid |
+| `corners` | >= 10 |
+| `turnPer100m` | >= 110 |
+| `minRadius` | >= 12 m (cars 3.8-5.3 m long, roads 13-16 m wide) |
+| `validateTrack` | passes (min radius >= width, walls never overlap, props outside walls) |
+| `referenceLapTime` | 24-32 s, the 0.55 AI median clean lap of the 16-seed soak, rounded to 0.5 s |
+
+Plus everything in "Track list" below (a hairpin, pickup mix, WP07 soak gates) except the straight >= 150 m and the length range: a tight track is about 850-1000 m. Measured on the pre-WP31 layouts (WP31 brief): near-straight 41-90%, corners 2-16, longest straight 192-1148 m, 36-81 deg per 100 m; no old track passes.
+
+How WP31 built Scrapyard, for WP32: a `roundedLoop` corner polygon with radius 22 (a few 24, 28 on the wiggles; under 22 the spline overshoot after a short link breaks `validateTrack`'s min radius >= width), links of 4-14 m, the hairpin as two back-to-back 90s whose vertices sit exactly 2 r apart (a gap leaves a flat in the middle and the 1/25 hairpin measure splits it). Pickups at lateral +-5.5 are outside the AI's line band (width / 2 - 1.6), so only a human goes for them. The soak numbers (wrecks, mine hits, timeouts) jump with any small edit: probe each candidate with `node scripts/balance/run.mjs --tracks <id> --skip-career` and the track's own test file before settling.
+
+### Scrapyard (M1 layout redrawn in WP31, `src/content/tracks/scrapyard.ts`)
+
+Tight track. 892 m, 22 checkpoints, min radius 14.7 m (shape metric) / 14.6 m (validateTrack), min clearance 43.3 m, near-straight 23.9%, 20 corners, longest straight 69 m (the start straight), 170 deg per 100 m, one hairpin (L 173 deg at s 402-472).
 
 ```ts
-id: 'scrapyard', name: 'Scrapyard', theme: 'scrapyard',
-width: 14, shoulder: 2, checkpointSpacing: 40, referenceLapTime: 27.5, // WP17 measured 27.70 s after tuning pass 1 (was 31)
-centerline: [
-  { x: 0, y: 0 }, { x: 120, y: 0 }, { x: 180, y: 20 }, { x: 205, y: 70 },
-  { x: 190, y: 130 }, { x: 140, y: 150 }, { x: 110, y: 190 }, { x: 130, y: 240 },
-  { x: 110, y: 290 }, { x: 60, y: 300 }, { x: 30, y: 260 }, { x: 40, y: 200 },
-  { x: 0, y: 170 }, { x: -60, y: 180 }, { x: -100, y: 140 }, { x: -90, y: 70 },
-  { x: -50, y: 20 },
-],
-pickups: [ // 12 since tuning pass 1 (user: "more bonuses"): cash 4, mines 3, turbo 3, repair 2
-  { kind: 'mines', s: 70, lateral: -3 }, { kind: 'cash', s: 150, lateral: -3 },
-  { kind: 'turbo', s: 230, lateral: 3 }, { kind: 'mines', s: 300, lateral: 3 },
-  { kind: 'repair', s: 360, lateral: -4 }, { kind: 'cash', s: 420, lateral: 4 },
-  { kind: 'mines', s: 520, lateral: -2 }, { kind: 'repair', s: 600, lateral: 0 },
-  { kind: 'cash', s: 700, lateral: -3 }, { kind: 'cash', s: 820, lateral: 0 },
-  { kind: 'turbo', s: 880, lateral: 3 }, { kind: 'turbo', s: 950, lateral: -2 },
+id: 'scrapyard', name: 'Scrapyard', theme: 'scrapyard', shape: 'tight',
+width: 14, shoulder: 4, checkpointSpacing: 40, referenceLapTime: 26, // WP31 measured 26.09 s (old layout 27.5)
+centerline: roundedLoop(SCRAPYARD_CORNERS, { x: 11, y: 0 }), // 21 corners, see the track file
+pickups: [ // 12: cash 4, mines 3, turbo 3, repair 2; lateral 5.5 = off the AI line
+  { kind: 'mines', s: 35, lateral: -5.5 }, { kind: 'cash', s: 110, lateral: -2 },
+  { kind: 'turbo', s: 180, lateral: 3.5 }, { kind: 'mines', s: 255, lateral: -5.5 },
+  { kind: 'repair', s: 330, lateral: -5.5 }, { kind: 'cash', s: 400, lateral: 5.5 },
+  { kind: 'mines', s: 475, lateral: -5.5 }, { kind: 'repair', s: 550, lateral: 5 },
+  { kind: 'cash', s: 620, lateral: 2 }, { kind: 'cash', s: 695, lateral: 5.5 },
+  { kind: 'turbo', s: 770, lateral: -2 }, { kind: 'turbo', s: 835, lateral: -5.5 },
 ],
 ```
 
@@ -251,21 +275,23 @@ Props are generated by `placeProps(base, rules)` (`src/content/tracks/placeProps
 | sFrom | sTo | every | side | offset | kind | scale |
 |---|---|---|---|---|---|---|
 | 0 | length | 60 | both (alternating) | 2.5 | lightPole | 1 |
-| 20 | 140 | 12 | left | 1.5 | tireStack | 1 |
-| 160 | 260 | 18 | right | 3 | container | 1 |
-| 300 | 420 | 10 | left | 2 | crate | 0.8-1.2 |
-| 450 | 560 | 25 | right | 4 | wreck | 1 |
-| 600 | 700 | 8 | both | 1.5 | barrel | 1 |
-| 720 | 900 | 22 | left | 3.5 | container | 1 |
-| 900 | 1040 | 14 | right | 2 | tireStack | 1 |
+| 20 | 120 | 12 | left | 1.5 | tireStack | 1 |
+| 135 | 220 | 18 | right | 3 | container | 1 |
+| 250 | 350 | 10 | left | 2 | crate | 0.8-1.2 |
+| 380 | 470 | 25 | right | 4 | wreck | 1 |
+| 500 | 590 | 8 | both | 1.5 | barrel | 1 |
+| 605 | 755 | 22 | left | 3.5 | container | 1 |
+| 755 | 880 | 14 | right | 2 | tireStack | 1 |
 
 Plus 6 `wreck` and 10 `crate` props scattered on the infield: accepted only if they are >= 6 m from both walls and >= 4 m from each other and from every rule prop (rejection sampling, max 200 tries, seed `hash(trackId) + 1`).
+
+The pre-WP31 layout (1049 m, referenceLapTime 27.5) lives on as `SCRAPYARD_FIXTURE` in `src/content/tracks/fixtures.ts` for the sim and AI tests.
 
 ### Track list and unlock order (10 tracks, user decision 2026-10-25)
 
 | # | id | name | theme | signature | built by |
 |---|---|---|---|---|---|
-| 1 | scrapyard | Scrapyard | scrapyard | flowing medium loop | WP00 |
+| 1 | scrapyard | Scrapyard | scrapyard | tight (WP31): a step down, wiggles, a hairpin at the end of a tongue into the infield, an elbow and a jog | WP00, WP31 |
 | 2 | dustBowl | Dust Bowl | desert | long sweepers, 218 m straight, hairpin | WP11 |
 | 3 | dockside | Dockside | docks | 90-degree corners, chicane, water straight | WP11 |
 | 4 | frostbite | Frostbite Pass | snow | narrow switchbacks between snowbanks and pines | WP22 |

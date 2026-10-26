@@ -19,7 +19,7 @@
  * - T7           s 1195-1332: R 87, r 79, onto the start straight
  */
 import type { TrackDef } from '../../shared/contracts';
-import { type Corner, roundedLoop } from './dockside';
+import { type Corner, roundedLoop } from './roundedLoop';
 import { placeProps, type PropRule, type ScatterRule } from './placeProps';
 
 export const REDROCK_CORNERS: readonly Corner[] = [
