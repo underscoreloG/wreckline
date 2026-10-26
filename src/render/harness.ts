@@ -31,6 +31,7 @@ type Stats = ReturnType<DebugRenderer['stats']>;
  * (fixed 60 Hz steps, accumulator, interpolation). roster=1 races all 8 roster cars instead of 4 ravens.
  * &lineup=1[&frame=1080]: every car side by side from the race camera (frame = show the center of a frame that many
  * px tall at its true pixel scale); &lineup=1&closeup=<id>[&top=1]: one car at garage distance.
+ * &lineup=1&car=<id>&colors=5C7CFF,C6FF3D,...: that car once per driver colour (same-model rivals, WP30).
  */
 export function mountRenderHarness(root: HTMLElement): void {
   const lineup = new URLSearchParams(window.location.search).get('lineup') === '1';
@@ -272,8 +273,10 @@ async function mount(root: HTMLElement): Promise<void> {
 async function mountLineup(root: HTMLElement): Promise<void> {
   const params = new URLSearchParams(window.location.search);
   const closeup = params.get('closeup');
-  const defs = Object.values(CARS).filter((d) => !closeup || d.id === closeup);
-  if (!defs.length) throw new Error(`unknown car '${closeup}'`);
+  const only = params.get('car');
+  const colors = params.get('colors')?.split(',').map((c) => `#${c}`);
+  const defs = only && colors ? colors.map(() => CARS[only]).filter(Boolean) : Object.values(CARS).filter((d) => !closeup || d.id === closeup);
+  if (!defs.length) throw new Error(`unknown car '${closeup ?? only}'`);
   await preloadCarModels(defs.map((d) => d.mesh));
 
   root.style.cssText += ';position:fixed;inset:0;margin:0;overflow:hidden;background:#0B0D10';
@@ -289,7 +292,7 @@ async function mountLineup(root: HTMLElement): Promise<void> {
   world.scene.add(ground);
   followShadow(world, 0, 0);
 
-  const liveries = [PLAYER_LIVERY, ...AI_LIVERIES];
+  const liveries = colors ?? [PLAYER_LIVERY, ...AI_LIVERIES];
   const cars = defs.map((def, i) => {
     const group = buildCarMesh(def.mesh, liveries[i % liveries.length]);
     const box = new THREE.Box3().setFromObject(group);
@@ -328,9 +331,9 @@ async function mountLineup(root: HTMLElement): Promise<void> {
   applyQuality(gl, world, 'high');
   const post = createPost(gl, world.scene, camera);
 
-  const labels = cars.map((c) => {
+  const labels = cars.map((c, i) => {
     const el = document.createElement('div');
-    el.textContent = c.def.id.toUpperCase();
+    el.textContent = colors ? `${c.def.id.toUpperCase()} ${colors[i]}` : c.def.id.toUpperCase();
     el.style.cssText = 'position:absolute;transform:translateX(-50%);color:#E8EAED;font:12px monospace;text-shadow:0 0 3px #000';
     if (!closeup) root.append(el);
     return el;
