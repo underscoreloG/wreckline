@@ -18,6 +18,8 @@ import { Pause } from './screens/Pause';
 import { PreRace } from './screens/PreRace';
 import { Results } from './screens/Results';
 import { Settings } from './screens/Settings';
+import { TimeTrialResults } from './screens/TimeTrialResults';
+import { TimeTrialSetup } from './screens/TimeTrialSetup';
 import { Title } from './screens/Title';
 import type { UiContextValue } from './uiContext';
 import { UiContext } from './uiContext';
@@ -52,6 +54,10 @@ function screenFor(state: UiState): ReactElement | null {
       return <Champion state={state} />;
     case 'story':
       return <StoryScene state={state} />;
+    case 'timeTrial':
+      return <TimeTrialSetup state={state} />;
+    case 'timeTrialResults':
+      return <TimeTrialResults state={state} />;
     default:
       // 'race' is HUD only.
       return null;

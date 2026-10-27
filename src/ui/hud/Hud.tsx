@@ -6,17 +6,24 @@ import { LapInfo } from './LapInfo';
 import { Minimap } from './Minimap';
 import { Position } from './Position';
 import { Speedo } from './Speedo';
+import { TimeTrialInfo } from './TimeTrialInfo';
 import { Vitals } from './Vitals';
 
 /** Race HUD, reads only HudState (15 Hz store updates); smoothing is CSS transitions. */
-/** `paused` hides the center stack so banners do not show through the pause menu. */
+/** `paused` hides the center stack so banners do not show through the pause menu. A time trial (WP40) shows its own lap readout, no position or vitals. */
 export function Hud({ hud, minimapPath, paused = false }: { hud: HudState; minimapPath: readonly Vec2[]; paused?: boolean }) {
   return (
     <div className="hud">
       <HitFlash amount={hud.hitFlash} />
       <div className="hud-tl">
-        <Position position={hud.position} carCount={hud.carCount} />
-        <LapInfo lap={hud.lap} laps={hud.laps} lapTime={hud.lapTime} bestLap={hud.bestLap} />
+        {hud.timeTrial ? (
+          <TimeTrialInfo lap={hud.lap} lapTime={hud.lapTime} trial={hud.timeTrial} />
+        ) : (
+          <>
+            <Position position={hud.position} carCount={hud.carCount} />
+            <LapInfo lap={hud.lap} laps={hud.laps} lapTime={hud.lapTime} bestLap={hud.bestLap} />
+          </>
+        )}
       </div>
       <div className="hud-tr">
         {minimapPath.length > 1 && <Minimap path={minimapPath} cars={hud.minimap.cars} />}
@@ -24,15 +31,17 @@ export function Hud({ hud, minimapPath, paused = false }: { hud: HudState; minim
       </div>
       {!paused && <Banner countdown={hud.countdown} banner={hud.banner} wrongWay={hud.wrongWay} />}
       <div className="hud-bl">
-        <Vitals
-          hp={hud.hp}
-          maxHp={hud.maxHp}
-          turbo={hud.turbo}
-          turboActive={hud.turboActive}
-          mines={hud.mines}
-          gunHeat={hud.gunHeat}
-          gunOverheated={hud.gunOverheated}
-        />
+        {!hud.timeTrial && (
+          <Vitals
+            hp={hud.hp}
+            maxHp={hud.maxHp}
+            turbo={hud.turbo}
+            turboActive={hud.turboActive}
+            mines={hud.mines}
+            gunHeat={hud.gunHeat}
+            gunOverheated={hud.gunOverheated}
+          />
+        )}
       </div>
       <div className="hud-br">
         <Speedo kmh={hud.speedKmh} />

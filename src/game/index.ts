@@ -6,6 +6,7 @@ import { QUICK_RACE_CASH_VALUE } from '../content/economy';
 import { buildQuickRaceSetup } from '../content/quickRace';
 import { reversedId, TRACKS } from '../content/tracks';
 import { createInputSource } from '../input';
+import { ghostKey, loadGhost, offerGhost } from '../meta/ghost';
 import type { KeyValueStore } from '../meta/save';
 import type { GameCommand, GameStore, InputFrame, RaceResult, RaceSetup, Renderer, Settings, UiState, Vec2 } from '../shared/contracts';
 import { buildTrackGeometry } from '../shared/trackGeometry';
@@ -19,6 +20,8 @@ import { transition, type Effect, type MachineInput } from './machine';
 import { createRaceSession, type RaceSession } from './raceSession';
 import { loadSettings, quickTrackOrFirst, saveSettings, type SettingsStorage } from './settings';
 import { createGameStore } from './store';
+import { buildTimeTrialSetup, createTimeTrialRun, type TimeTrialRun } from './timeTrial';
+import { createRestartKeys } from './timeTrialKeys';
 import { createTitleBackdrop, type TitleBackdrop } from './titleBackdrop';
 
 export interface GameHandle {
@@ -102,6 +105,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
   const input = createInputSource(window);
   const audio = createAudioEngine();
   const career = createCareerSession(careerStorage(), (text) => toast(text, 'info')); // CCR-4: tow toast; toast is defined below and only called from command handlers
+  const ghosts = careerStorage(); // time trial best laps (WP40), one key per track, direction and car
   const initial: UiState = {
     screen: 'boot',
     previousScreen: null,
@@ -117,6 +121,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
     lastPayout: null,
     toast: null,
     story: null,
+    timeTrial: null,
   };
   audio.setVolumes(initial.settings.masterVolume, initial.settings.sfxVolume, initial.settings.musicVolume);
 
@@ -127,7 +132,9 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
   let backdropGen = 0;
   let override: Partial<InputFrame> | null = null;
   let debugDriven = false;
-  let mode: 'quick' | 'career' = 'quick';
+  let mode: 'quick' | 'career' | 'timeTrial' = 'quick';
+  let trialRun: TimeTrialRun | null = null; // from START on the time trial setup screen to its next setup
+  let ghostOn = true; // pause menu toggle, kept for the page session
   let justChampion = false;
   let unlocked: string[] = []; // tracks the last career race unlocked, announced on the hub
   let beaten: string[] = []; // car types the last career race beat for the first time, announced on the hub (CCR-10)
@@ -157,10 +164,12 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
     switch (cmd.type) {
       case 'setSetting':
         applySettings(cmd.patch);
-        // Quick race CAR picker (CCR-10) and REVERSE toggle (CCR-14): rebuild the shown setup with the pick.
-        if ((cmd.patch.quickCarId !== undefined || cmd.patch.quickReversed !== undefined) && mode === 'quick' && screen === 'preRace' && setup) {
-          setup = quickSetup(setup.seed);
+        // Quick race CAR picker (CCR-10) and REVERSE toggle (CCR-14): rebuild the shown setup with the pick. The time
+        // trial setup screen shares them (WP40).
+        if ((cmd.patch.quickCarId !== undefined || cmd.patch.quickReversed !== undefined) && pickerScreen(screen) && setup) {
+          setup = modeSetup(setup.seed);
           store.set({ race: raceInfo(setup) });
+          if (mode === 'timeTrial') publishTrialSetup();
         }
         // CCR-13: a quick race restarted after a difficulty change (pause, settings) gets the new AI. `?race=1` keeps its setup.
         if (cmd.patch.difficulty !== undefined && mode === 'quick' && setup && params.get('race') !== '1') setup = quickSetup(setup.seed);
@@ -178,6 +187,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
         publishCareer();
         break;
       case 'navigate':
+        if (screen === 'title' && cmd.screen === 'timeTrial') mode = 'timeTrial';
         if (screen === 'career' && cmd.screen === 'raceSelect') {
           career.ensureOffers();
           publishCareer();
@@ -205,10 +215,20 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
         return;
       }
       case 'setQuickTrack': {
-        if (mode !== 'quick' || screen !== 'preRace' || !TRACKS[cmd.trackId] || !setup) return;
+        if (!pickerScreen(screen) || !TRACKS[cmd.trackId] || !setup) return;
         applySettings({ quickTrackId: cmd.trackId });
-        setup = quickSetup(setup.seed);
+        setup = modeSetup(setup.seed);
         store.set({ race: raceInfo(setup) });
+        if (mode === 'timeTrial') publishTrialSetup();
+        return;
+      }
+      case 'toggleGhost': {
+        if (mode !== 'timeTrial') return;
+        ghostOn = !ghostOn;
+        if (trialRun) trialRun.ghostOn = ghostOn;
+        const tt = store.getState().timeTrial;
+        if (tt) store.set({ timeTrial: { ...tt, ghost: ghostOn } });
+        if (loop.isPaused()) session?.redraw();
         return;
       }
       case 'buyUpgrade':
@@ -248,8 +268,15 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
       case 'startQuickRace':
         mode = 'quick';
         break;
+
       case 'continueStory':
       case 'back':
+        // Leaving the time trial setup for the title ends the mode's UI state (WP40).
+        if (cmd.type === 'back' && screen === 'timeTrial') {
+          run(cmd);
+          store.set({ timeTrial: null });
+          return;
+        }
         if (screen !== 'story') break;
         run(cmd);
         justChampion = false;
@@ -288,6 +315,33 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
       carId: carOrStarter(store.getState().settings.quickCarId).id,
       difficulty: store.getState().settings.difficulty,
     });
+  // WP40: the time trial setup screen shares the quick race pickers and their remembered picks.
+  const trialSetup = (seed: number): RaceSetup =>
+    buildTimeTrialSetup({ seed, trackId: quickTrackId(store.getState().settings), carId: carOrStarter(store.getState().settings.quickCarId).id, autoplay });
+  const modeSetup = (seed: number): RaceSetup => (mode === 'timeTrial' ? trialSetup(seed) : quickSetup(seed));
+  const pickerScreen = (screen: UiState['screen']): boolean => (mode === 'quick' && screen === 'preRace') || (mode === 'timeTrial' && screen === 'timeTrial');
+  const trialKey = (s: RaceSetup): string => ghostKey(s.track.id, s.entrants[0]?.carDefId ?? '');
+  /** The setup screen: the stored best for the shown track, direction and car, no laps yet. */
+  const publishTrialSetup = (): void => {
+    if (!setup) return;
+    store.set({ timeTrial: { best: loadGhost(ghosts, trialKey(setup))?.time ?? null, ghost: ghostOn, laps: [], newBest: false } });
+  };
+  const publishTrialRun = (r: TimeTrialRun): void => {
+    store.set({ timeTrial: { best: r.best?.time ?? null, ghost: r.ghostOn, laps: [...r.laps], newBest: r.newBest } });
+  };
+  const createTrialRun = (s: RaceSetup): TimeTrialRun => {
+    const key = trialKey(s);
+    const r = createTimeTrialRun({
+      track: buildTrackGeometry(s.track),
+      best: loadGhost(ghosts, key),
+      ghostOn,
+      onLap(lap, improved) {
+        if (improved && !offerGhost(ghosts, key, lap)) toast('Best lap not saved: browser storage is full or blocked', 'error');
+        publishTrialRun(r);
+      },
+    });
+    return r;
+  };
 
   const startBackdrop = async (): Promise<void> => {
     const g = ++backdropGen;
@@ -313,6 +367,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
       onHud: (hud) => {
         if (g === sessionGen) store.set({ hud });
       },
+      trial: mode === 'timeTrial' ? (trialRun ?? undefined) : undefined,
     });
     if (g !== sessionGen) {
       created.dispose();
@@ -344,13 +399,22 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
         setup = quickSetup(randomSeed());
         store.set({ race: raceInfo(setup), hud: null, results: null, lastPayout: null, selectedOffer: null });
         break;
+      case 'buildTimeTrialSetup':
+        setup = trialSetup(randomSeed());
+        trialRun = null;
+        store.set({ race: raceInfo(setup), hud: null, results: null, lastPayout: null, selectedOffer: null });
+        publishTrialSetup();
+        break;
       case 'startSession':
+        if (setup && mode === 'timeTrial') trialRun ??= createTrialRun(setup);
         if (setup) startSession(setup).catch(report);
         break;
       case 'restartSession':
         if (!setup) break;
         disposeSession();
-        setup = { ...setup, seed: randomSeed() };
+        // A time trial restart keeps its seed, so the race music does not change track on every R (WP40).
+        if (mode === 'timeTrial') trialRun?.restart();
+        else setup = { ...setup, seed: randomSeed() };
         startSession(setup).catch(report);
         break;
       case 'disposeSession':
@@ -405,7 +469,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
     const screen = store.getState().screen;
     const hidden = !autoPauseOff && !debugDriven && document.visibilityState === 'hidden';
     const music = hidden || screen === 'paused' || screen === 'boot' ? 'off' : screen === 'race' ? 'race' : 'menu';
-    const prefetch = screen === 'race' || screen === 'paused' || screen === 'preRace' || (screen === 'story' && !justChampion);
+    const prefetch = screen === 'race' || screen === 'paused' || screen === 'preRace' || screen === 'timeTrial' || (screen === 'story' && !justChampion);
     audio.setMusic(music, prefetch ? setup?.seed : undefined);
   };
 
@@ -420,7 +484,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
   };
 
   const run = (mi: MachineInput): void => {
-    const t = transition({ ...store.getState(), career: mode === 'career', champion: justChampion }, mi);
+    const t = transition({ ...store.getState(), career: mode === 'career', champion: justChampion, timeTrial: mode === 'timeTrial' }, mi);
     if (!t) return;
     store.set({ screen: t.screen, previousScreen: t.previousScreen });
     syncTitleArt();
@@ -434,7 +498,14 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
       if (session.isOver() && store.getState().screen === 'race') run({ type: 'raceOver' });
     } else backdrop?.step();
   };
+  // WP40: R restarts a time trial while driving or paused; gamepad Select while driving (a paused loop does not poll it,
+  // the pause menu has RESTART).
+  const restartKeys = createRestartKeys(window, () => {
+    const screen = store.getState().screen;
+    if (mode === 'timeTrial' && (screen === 'race' || screen === 'paused')) store.dispatch({ type: 'restartRace' });
+  });
   const onRender = (alpha: number, dt: number): void => {
+    if (mode === 'timeTrial') restartKeys.poll();
     if (session) session.render(alpha, dt);
     else backdrop?.render(alpha, dt);
   };
@@ -543,6 +614,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
       window.removeEventListener('blur', autoPause);
       document.removeEventListener('visibilitychange', onVisibility);
       uninstallDebug();
+      restartKeys.dispose();
       stopBackdrop();
       disposeSession();
       document.body.classList.remove('title-art');

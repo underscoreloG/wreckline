@@ -5,6 +5,7 @@ import { FollowCamera } from './camera';
 import { buildCarParts, CarRig, disposeTree, type CarPose } from './carMesh';
 import { preloadCarModels } from './carModel';
 import { Fx, type CarFrame } from './fx';
+import { buildGhostCar, type GhostCar } from './ghostCar';
 import { interpolatePose, type Pose } from './interp';
 import { createPost, type Post } from './post';
 import { buildProps } from './props';
@@ -78,6 +79,7 @@ export async function createRenderer(opts: RendererOptions): Promise<Renderer> {
   let fpsT = performance.now();
   let followCar = opts.playerCar;
   let freeCamera = false;
+  let ghost: GhostCar | null = null;
 
   const applySize = (): void => {
     gl.setPixelRatio(quality === 'high' ? Math.min(size.pr, MAX_PIXEL_RATIO) : 1);
@@ -222,6 +224,20 @@ export async function createRenderer(opts: RendererOptions): Promise<Renderer> {
 
     setCameraShake(on) {
       shake = on;
+    },
+
+    setGhost(pose) {
+      if (!ghost) {
+        // Built hidden on the first call (a time trial calls it every frame from the start), its programs compiled
+        // off the frame like the race's up front, so a first best lap mid-run does not hitch.
+        const me = opts.entrants[opts.playerCar];
+        if (!me) return;
+        ghost = buildGhostCar(me.mesh, me.color);
+        world.scene.add(ghost.group);
+        gl.compileAsync(ghost.group, follow.camera, world.scene).catch(() => {});
+      }
+      if (pose) ghost.setPose(pose);
+      else ghost.group.visible = false;
     },
 
     stats() {

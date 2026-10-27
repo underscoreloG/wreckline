@@ -235,9 +235,15 @@ export interface EntrantSetup {
 export interface RaceSetup {
   seed: number; // uint32
   track: TrackDef;
-  laps: number; // 1..9
-  entrants: EntrantSetup[]; // 2..8, entrants[i].id === i, entrants[0] is the player
-  countdownSeconds: number; // 3
+  laps: number; // 1..9; a time trial sets a count it never reaches (CCR-15)
+  entrants: EntrantSetup[]; // 2..8, entrants[i].id === i, entrants[0] is the player; a time trial has the player alone (CCR-15)
+  countdownSeconds: number; // 3; 0 in a time trial (CCR-15)
+  /**
+   * CCR-15: 'timeTrial' = the player alone, laps without end, no pickups (track.pickups empty), no mines or rocket
+   * fuel carried, the gun input cleared by the game. The sim does not read it: the setup data does all of that.
+   * Omitted = 'race'.
+   */
+  mode?: 'race' | 'timeTrial';
 }
 
 export interface RaceResultRow {
@@ -397,10 +403,19 @@ export interface Renderer {
   resize(width: number, height: number, pixelRatio: number): void;
   setQuality(q: Quality): void;
   setCameraShake(on: boolean): void;
+  /** CCR-15: draws the time trial ghost (a translucent copy of the player's car, no shadow, no lights) at this sim pose, null hides it. */
+  setGhost(pose: GhostPose | null): void;
   /** geometries/textures = THREE renderer.info.memory, so leak checks can compare across races. */
   stats(): { drawCalls: number; triangles: number; fps: number; geometries: number; textures: number };
   /** Frees this race's scene, geometries, materials and textures. The WebGLRenderer itself stays cached per canvas. */
   dispose(): void;
+}
+
+/** CCR-15: a time trial ghost pose, sim units (contracts header). */
+export interface GhostPose {
+  x: number;
+  y: number;
+  heading: number;
 }
 
 // createRenderer(opts: RendererOptions): Promise<Renderer>
@@ -556,7 +571,10 @@ export type Screen =
   | 'standings'
   | 'champion'
   // CCR-12
-  | 'story';
+  | 'story'
+  // CCR-15: time trial setup (track, direction, car) and the lap list after quitting
+  | 'timeTrial'
+  | 'timeTrialResults';
 
 export interface KillFeedItem {
   id: number;
@@ -586,6 +604,22 @@ export interface HudState {
   minimap: { cars: { id: CarId; pos: Vec2; color: string; wrecked: boolean }[] };
   killFeed: KillFeedItem[];
   hitFlash: number; // 0..1, decays; player took damage
+  timeTrial?: TimeTrialHud; // CCR-15: set in a time trial only
+}
+
+/** CCR-15: the time trial readout. */
+export interface TimeTrialHud {
+  best: number | null; // stored best lap for this track, direction and car
+  last: number | null; // last completed lap of this run
+  delta: number | null; // s, current lap minus the best lap at the same distance, + = slower; null without a best or before the line
+}
+
+/** CCR-15: the time trial in progress (from its setup screen to its results), null otherwise. */
+export interface TimeTrialState {
+  best: number | null; // stored best lap for the picked track, direction and car
+  ghost: boolean; // ghost of the best lap shown, pause menu toggle, default on
+  laps: number[]; // completed laps since the setup screen, restarts included, in order
+  newBest: boolean; // a lap of these beat the best stored when the setup screen opened
 }
 
 export interface UiState {
@@ -610,6 +644,7 @@ export interface UiState {
   lastPayout: Payout | null;
   toast: { id: number; text: string; kind: 'info' | 'error' | 'cash' } | null;
   story: StoryScene | null; // the scene on the 'story' screen (CCR-12)
+  timeTrial?: TimeTrialState | null; // CCR-15
 }
 
 export type GameCommand =
@@ -634,7 +669,8 @@ export type GameCommand =
   | { type: 'buyTurbo'; seconds: number }
   | { type: 'buySabotage' } // for state.selectedOffer, on the preRace screen (CCR-5)
   | { type: 'setQuickTrack'; trackId: string } // quick race pre-race track picker, persisted in Settings.quickTrackId (CCR-6)
-  | { type: 'continueStory' }; // after the last line of the story scene; 'back' skips the whole scene (CCR-12)
+  | { type: 'continueStory' } // after the last line of the story scene; 'back' skips the whole scene (CCR-12)
+  | { type: 'toggleGhost' }; // time trial pause menu (CCR-15). TIME TRIAL on the title = navigate 'timeTrial'; its pickers reuse setQuickTrack and the quick* settings
 
 export interface GameStore {
   getState(): UiState;

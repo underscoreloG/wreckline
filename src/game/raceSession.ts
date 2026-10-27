@@ -4,6 +4,7 @@ import { NEUTRAL_INPUT, PLAYER_CAR_ID, SIM_HZ } from '../shared/contracts';
 import { createSim } from '../sim';
 import { createTally, tallyEvent, type RaceTally } from './careerSession';
 import { createHudMemo, deriveHud } from './hud';
+import { clearWeapons, type TimeTrialRun } from './timeTrial';
 
 /** The live race stays on screen this long after the player finishes or wrecks, then results (WP19). */
 export const PLAYER_DONE_DELAY_TICKS = Math.round(1.5 * SIM_HZ);
@@ -18,6 +19,8 @@ export interface RaceSessionOptions {
   input: InputSource;
   audio: AudioEngine;
   onHud(hud: HudState): void;
+  /** WP40: a time trial's run (ghost, laps, HUD readout); the weapon inputs are cleared. */
+  trial?: TimeTrialRun;
 }
 
 export interface RaceSession {
@@ -47,7 +50,7 @@ export interface RaceSession {
 
 /** One race: sim, renderer, player input, audio and HUD derivation, with the two event buffers. */
 export async function createRaceSession(opts: RaceSessionOptions): Promise<RaceSession> {
-  const { setup, input, audio } = opts;
+  const { setup, input, audio, trial } = opts;
   const sim = createSim(setup);
   audio.setRaceCars(setup.entrants.map((e) => ({ carDefId: e.carDefId, maxSpeed: e.stats.maxSpeed })));
   let renderer: Renderer;
@@ -83,6 +86,7 @@ export async function createRaceSession(opts: RaceSessionOptions): Promise<RaceS
 
   const flushHud = (): void => {
     hud = deriveHud(curr, hudEvents, hud, setup, memo);
+    if (trial) hud = trial.decorateHud(hud, curr);
     hudEvents.length = 0;
     opts.onHud(hud);
   };
@@ -94,18 +98,22 @@ export async function createRaceSession(opts: RaceSessionOptions): Promise<RaceS
     step() {
       if (!playerIsAi) {
         Object.assign(merged, input.poll(), override);
+        if (trial) clearWeapons(merged);
         inputs.set(PLAYER_CAR_ID, merged);
       }
-      for (const e of sim.step(inputs)) {
+      const events = sim.step(inputs);
+      for (const e of events) {
         renderEvents.push(e);
         tallyEvent(tally, e);
       }
       prev = curr;
       curr = sim.snapshot();
+      trial?.onTick(curr, events);
       const p = curr.cars[PLAYER_CAR_ID];
       if (doneTick === null && (curr.phase === 'finished' || p?.finished || p?.wrecked)) doneTick = curr.tick;
     },
     render(alpha, dt) {
+      if (trial) renderer.setGhost(trial.ghostPose(prev, curr, alpha));
       renderer.render(prev, curr, alpha, renderEvents, dt);
       audio.update(curr, renderEvents, PLAYER_CAR_ID);
       for (const e of renderEvents) hudEvents.push(e);
@@ -113,6 +121,7 @@ export async function createRaceSession(opts: RaceSessionOptions): Promise<RaceS
       if (++frames % HUD_EVERY_N_FRAMES === 0) flushHud();
     },
     redraw() {
+      if (trial) renderer.setGhost(trial.ghostPose(prev, curr, 1));
       renderer.render(prev, curr, 1, [], 0);
     },
     flushHud,
