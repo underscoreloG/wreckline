@@ -8,6 +8,7 @@ export type Effect =
   | 'startBackdrop'
   | 'stopBackdrop'
   | 'buildSetup'
+  | 'buildTimeTrialSetup'
   | 'startSession'
   | 'restartSession'
   | 'disposeSession'
@@ -30,12 +31,14 @@ export interface MachineState extends Pick<UiState, 'screen' | 'previousScreen'>
   career?: boolean;
   /** The career race that just finished won the title (until the ending scene is left). */
   champion?: boolean;
+  /** The race in progress (or just quit) is a time trial (WP40). */
+  timeTrial?: boolean;
 }
 
 const CAREER_SUBSCREENS: readonly Screen[] = ['garage', 'shop', 'raceSelect', 'standings'];
 
 /**
- * Screen state machine (WP08 table, career rows from WP10, story rows from WP36). Returns null when the input does nothing
+ * Screen state machine (WP08 table, career rows from WP10, story rows from WP36, time trial rows from WP40). Returns null when the input does nothing
  * on this screen. The title shows its key art (WP36): the live backdrop runs on the other menu screens only.
  */
 export function transition(from: MachineState, input: MachineInput): Transition | null {
@@ -48,6 +51,15 @@ export function transition(from: MachineState, input: MachineInput): Transition 
       if (t === 'startQuickRace') return go('preRace', ['startBackdrop', 'buildSetup']);
       if (t === 'newCareer' || t === 'continueCareer') return go('career', ['startBackdrop']);
       if (input.type === 'navigate' && (input.screen === 'controls' || input.screen === 'settings')) return go(input.screen, [], 'title');
+      if (input.type === 'navigate' && input.screen === 'timeTrial') return go('timeTrial', ['startBackdrop', 'buildTimeTrialSetup']);
+      return null;
+    case 'timeTrial':
+      if (t === 'startRace') return go('race', ['stopBackdrop', 'unlockAudio', 'startSession']);
+      if (t === 'back') return go('title', ['stopBackdrop']);
+      return null;
+    case 'timeTrialResults':
+      // The quit run stays frozen behind the lap list, as a race behind its results.
+      if (t === 'continueFromResults' || t === 'back') return go('timeTrial', ['disposeSession', 'startBackdrop', 'buildTimeTrialSetup']);
       return null;
     case 'preRace':
       // A career race starts after its story scene (WP36).
@@ -63,12 +75,17 @@ export function transition(from: MachineState, input: MachineInput): Transition 
       if (t === 'pause') return go('paused', ['pauseLoop']);
       // The loop pauses behind the results screen: no render, no audio.update restarting engine sounds after stopRace.
       if (t === 'raceOver') return go('results', ['showResults', 'pauseLoop']);
+      // The time trial restart key works while driving.
+      if (t === 'restartRace' && from.timeTrial) return go('race', ['restartSession']);
       return null;
     case 'paused':
       if (t === 'resume' || t === 'back') return go('race', ['resumeLoop']);
       // A career race cannot be re-rolled.
       if (t === 'restartRace') return from.career ? null : go('race', ['restartSession']);
-      if (t === 'quitRace') return from.career ? go('career', ['disposeSession', 'startBackdrop']) : go('title', ['disposeSession']);
+      if (t === 'quitRace') {
+        if (from.timeTrial) return go('timeTrialResults');
+        return from.career ? go('career', ['disposeSession', 'startBackdrop']) : go('title', ['disposeSession']);
+      }
       if (input.type === 'navigate' && input.screen === 'settings') return go('settings', [], 'paused');
       return null;
     case 'results':

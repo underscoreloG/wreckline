@@ -59,7 +59,29 @@ const CAREER: [Screen, Screen | null, { career?: boolean; champion?: boolean }, 
   ['champion', null, {}, { type: 'navigate', screen: 'title' }, 'title', null, ['stopBackdrop']],
 ];
 
+// WP40 time trial rows: [from, previous, flags, input, to, previous after, effects]
+const TIME_TRIAL: [Screen, Screen | null, { timeTrial?: boolean }, MachineInput, Screen, Screen | null, string[]][] = [
+  ['title', null, {}, { type: 'navigate', screen: 'timeTrial' }, 'timeTrial', null, ['startBackdrop', 'buildTimeTrialSetup']],
+  ['timeTrial', null, { timeTrial: true }, { type: 'startRace' }, 'race', null, ['stopBackdrop', 'unlockAudio', 'startSession']],
+  ['timeTrial', null, { timeTrial: true }, { type: 'back' }, 'title', null, ['stopBackdrop']],
+  // The restart key works while driving and from the pause menu.
+  ['race', null, { timeTrial: true }, { type: 'restartRace' }, 'race', null, ['restartSession']],
+  ['paused', null, { timeTrial: true }, { type: 'restartRace' }, 'race', null, ['restartSession']],
+  ['paused', null, { timeTrial: true }, { type: 'quitRace' }, 'timeTrialResults', null, []],
+  ['timeTrialResults', null, { timeTrial: true }, { type: 'continueFromResults' }, 'timeTrial', null, ['disposeSession', 'startBackdrop', 'buildTimeTrialSetup']],
+  ['timeTrialResults', null, { timeTrial: true }, { type: 'back' }, 'timeTrial', null, ['disposeSession', 'startBackdrop', 'buildTimeTrialSetup']],
+];
+
 describe('machine', () => {
+  it.each(TIME_TRIAL)('time trial: %s (prev %s, %o) + %o -> %s', (screen, prev, flags, input, to, prevAfter, effects) => {
+    expect(transition({ ...from(screen, prev), ...flags }, input)).toEqual({ screen: to, previousScreen: prevAfter, effects });
+  });
+
+  it('the restart key does nothing in a race', () => {
+    expect(transition(from('race'), { type: 'restartRace' })).toBeNull();
+    expect(transition({ ...from('race'), career: true }, { type: 'restartRace' })).toBeNull();
+  });
+
   it.each(CAREER)('career: %s (prev %s, %o) + %o -> %s', (screen, prev, flags, input, to, prevAfter, effects) => {
     expect(transition({ ...from(screen, prev), ...flags }, input)).toEqual({ screen: to, previousScreen: prevAfter, effects });
   });

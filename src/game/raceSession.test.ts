@@ -12,6 +12,7 @@ vi.mock('../render', () => ({
     resize: vi.fn(),
     setQuality: vi.fn(),
     setCameraShake: vi.fn(),
+    setGhost: vi.fn(),
     stats: () => ({ drawCalls: 0, triangles: 0, fps: 0, geometries: 0, textures: 0 }),
     dispose: vi.fn(),
   }),

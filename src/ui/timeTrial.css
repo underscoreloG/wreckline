@@ -1,0 +1,53 @@
+/* WP40 time trial: setup best lap, HUD delta, lap list. */
+
+.tt-best {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.tt-best-time {
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.tt-delta {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.35rem 0.75rem;
+}
+
+.tt-delta.faster {
+  color: var(--cash);
+}
+
+.tt-delta.slower {
+  color: var(--danger);
+}
+
+.tt-new-best {
+  color: var(--accent);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.tt-laps-wrap {
+  max-height: 22rem;
+  overflow-y: auto;
+}
+
+.results-table tr.tt-best-lap td {
+  background: rgba(46, 230, 166, 0.08);
+  color: var(--cash);
+}
+
+.results-table tr.tt-best-lap td:first-child {
+  box-shadow: inset 3px 0 0 var(--cash);
+}
