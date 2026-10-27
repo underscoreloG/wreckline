@@ -6,7 +6,7 @@ import { applyRaceResult, buildCareerRaceSetup, generateOffers, newCareer, newly
 import { loadSave, writeSave, type KeyValueStore } from '../meta/save';
 import { buyCar, buyMines, buySabotage, buyTurbo, buyUpgrade, freeTowIfStuck, LOCKED_TEXT, repair, type ShopFail, type ShopResult } from '../meta/shop';
 import { endingScene, storySceneFor, withSceneSeen } from '../meta/story';
-import type { GameCommand, Payout, RaceOffer, RaceResult, RaceResultRow, RaceSetup, RaceSnapshot, SaveGame, SimEvent, StoryScene } from '../shared/contracts';
+import type { Difficulty, GameCommand, Payout, RaceOffer, RaceResult, RaceResultRow, RaceSetup, RaceSnapshot, SaveGame, SimEvent, StoryScene } from '../shared/contracts';
 import { PLAYER_CAR_ID } from '../shared/contracts';
 
 export type ShopCommand = Extract<GameCommand, { type: 'buyUpgrade' | 'buyCar' | 'repair' | 'buyMines' | 'buyTurbo' }>;
@@ -42,7 +42,8 @@ export interface CareerSession {
   continueCareer(): boolean;
   /** Generates the round's offers once, then returns the same ones until a race is run. */
   ensureOffers(): RaceOffer[];
-  selectOffer(offerId: string, seed: number): { ok: true; setup: RaceSetup } | { ok: false; error: string };
+  /** `difficulty` (CCR-13) shifts the rivals' driving, default 'normal'. */
+  selectOffer(offerId: string, seed: number, difficulty?: Difficulty): { ok: true; setup: RaceSetup } | { ok: false; error: string };
   shop(cmd: ShopCommand): CareerOutcome;
   /** Buys a sabotage for the selected offer and persists; the caller rebuilds the race setup (selectOffer) so it applies. */
   buySabotage(): { ok: true; target: string; pct: number } | { ok: false; error: string };
@@ -126,12 +127,12 @@ export function createCareerSession(storage: KeyValueStore, notify: (text: strin
       }
       return offers;
     },
-    selectOffer(offerId, seed) {
+    selectOffer(offerId, seed, difficulty = 'normal') {
       const offer = offers?.find((o) => o.id === offerId);
       if (!save || !offer) return { ok: false, error: 'Offer not available' };
       if (save.hp <= 0) return { ok: false, error: REPAIR_FIRST };
       selected = offer;
-      return { ok: true, setup: buildCareerRaceSetup(save, offer, seed) };
+      return { ok: true, setup: buildCareerRaceSetup(save, offer, seed, difficulty) };
     },
     shop(cmd) {
       if (!save) return { ok: false, error: 'No career in progress' };

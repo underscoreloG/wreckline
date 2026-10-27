@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
   showFps: false,
   quickTrackId: null,
   quickCarId: null,
+  difficulty: 'normal',
 };
 
 export interface SettingsStorage {
@@ -46,6 +47,8 @@ export function loadSettings(storage: SettingsStorage | null): Settings {
     quickTrackId: typeof r.quickTrackId === 'string' ? r.quickTrackId : d.quickTrackId,
     // Kept as stored like quickTrackId; an unknown id falls back to the starter where it is used (carOrStarter).
     quickCarId: typeof r.quickCarId === 'string' ? r.quickCarId : d.quickCarId,
+    // Settings saved before CCR-13 have no difficulty: they get 'normal'.
+    difficulty: r.difficulty === 'easy' || r.difficulty === 'normal' || r.difficulty === 'hard' ? r.difficulty : d.difficulty,
   };
 }
 

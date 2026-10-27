@@ -162,6 +162,8 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
           setup = quickSetup(setup.seed);
           store.set({ race: raceInfo(setup) });
         }
+        // CCR-13: a quick race restarted after a difficulty change (pause, settings) gets the new AI. `?race=1` keeps its setup.
+        if (cmd.patch.difficulty !== undefined && mode === 'quick' && setup && params.get('race') !== '1') setup = quickSetup(setup.seed);
         return;
       case 'newCareer':
         if (screen !== 'title' && screen !== 'champion') return;
@@ -183,7 +185,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
         break;
       case 'selectOffer': {
         if (screen !== 'raceSelect') return;
-        const r = career.selectOffer(cmd.offerId, randomSeed());
+        const r = career.selectOffer(cmd.offerId, randomSeed(), store.getState().settings.difficulty);
         if (!r.ok) return fail(r.error);
         setup = r.setup;
         store.set({ race: raceInfo(setup), hud: null, results: null, selectedOffer: cmd.offerId, lastPayout: null });
@@ -196,7 +198,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
         if (!r.ok) return fail(r.error);
         audio.ui('buy');
         // The setup was built at selectOffer, before the purchase: rebuild it (same seed) so the target starts damaged.
-        const s = career.selectOffer(offerId, setup.seed);
+        const s = career.selectOffer(offerId, setup.seed, store.getState().settings.difficulty);
         if (s.ok) setup = s.setup;
         publishCareer();
         if (career.lastWriteOk) toast(`Sabotaged: ${r.target} -${r.pct}%`, 'info');
@@ -279,6 +281,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
       autoplay,
       trackId: quickTrackOrFirst(store.getState().settings.quickTrackId, Object.keys(TRACKS)),
       carId: carOrStarter(store.getState().settings.quickCarId).id,
+      difficulty: store.getState().settings.difficulty,
     });
 
   const startBackdrop = async (): Promise<void> => {
@@ -514,6 +517,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
       aiCount: Math.min(7, Math.max(1, intParam(params, 'ai') ?? QUICK_AI)),
       trackId: params.get('track') ?? undefined,
       autoplay,
+      difficulty: store.getState().settings.difficulty,
     });
     store.set({ screen: 'race', previousScreen: null, race: raceInfo(setup) });
     syncMusic();

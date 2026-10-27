@@ -1,6 +1,7 @@
-import type { RaceOffer, RaceResult, RaceResultRow, SaveGame, UpgradeKind, UpgradeLevels } from '../shared/contracts';
+import type { Difficulty, RaceOffer, RaceResult, RaceResultRow, SaveGame, UpgradeKind, UpgradeLevels } from '../shared/contracts';
 import { PLAYER_CAR_ID } from '../shared/contracts';
 import { createRng, hashString, type Rng } from '../shared/rng';
+import { skillForDifficulty } from '../content/ai';
 import { CARS, getCar } from '../content/cars';
 import { computeStats, REPAIR_COST_PER_HP, TIER_MULT } from '../content/economy';
 import { BOSS, rivalSpikesLevel, rivalUpgradeLevel } from '../content/rivals';
@@ -39,6 +40,8 @@ export interface CareerSimOptions {
   model?: ResultsModel;
   /** Player driver skill (default PLAYER_DRIVER_SKILL), for sensitivity runs. */
   driverSkill?: number;
+  /** CCR-13: the rivals drive at their difficulty-shifted skill (default 'normal'); their upgrades stay on their own skill. */
+  difficulty?: Difficulty;
   /** Called after each race with the save after it and the offer raced (probe traces). */
   trace?: (save: SaveGame, offer: RaceOffer) => void;
 }
@@ -88,22 +91,22 @@ export function strength(driverSkill: number, carDefId: string, levels: UpgradeL
 
 export const playerSkill = (save: SaveGame, driverSkill = PLAYER_DRIVER_SKILL): number => strength(driverSkill, save.carDefId, save.upgrades);
 
-function rivalSkill(save: SaveGame, driverId: string): number {
+function rivalSkill(save: SaveGame, driverId: string, difficulty: Difficulty): number {
   const def = driverId === BOSS.driverId ? BOSS : save.rivals.find((r) => r.driverId === driverId);
   if (!def) return 0;
   const level = rivalUpgradeLevel(def.skill);
-  return strength(def.skill, def.carDefId, { engine: level, tires: level, armor: level, gun: level, fuel: level, spikes: rivalSpikesLevel(def.skill) });
+  return strength(skillForDifficulty(def.skill, difficulty), def.carDefId, { engine: level, tires: level, armor: level, gun: level, fuel: level, spikes: rivalSpikesLevel(def.skill) });
 }
 
 /** Skill-vs-field model: 1 + rivals with a higher strength. */
-const predictedPosition = (save: SaveGame, offer: RaceOffer, driverSkill: number): number =>
-  1 + offer.rivals.filter((d) => rivalSkill(save, d) > playerSkill(save, driverSkill)).length;
+const predictedPosition = (save: SaveGame, offer: RaceOffer, driverSkill: number, difficulty: Difficulty): number =>
+  1 + offer.rivals.filter((d) => rivalSkill(save, d, difficulty) > playerSkill(save, driverSkill)).length;
 
-export function chooseOffer(save: SaveGame, offers: RaceOffer[], policy: CareerPolicy, driverSkill = PLAYER_DRIVER_SKILL): RaceOffer {
+export function chooseOffer(save: SaveGame, offers: RaceOffer[], policy: CareerPolicy, driverSkill = PLAYER_DRIVER_SKILL, difficulty: Difficulty = 'normal'): RaceOffer {
   const medium = offers.find((o) => o.tier === 'medium') as RaceOffer;
   if (policy === 'safe') return medium;
   // Offers come easy, medium, hard|boss: take the highest tier predicted top 2, else easy.
-  return [...offers].reverse().find((o) => predictedPosition(save, o, driverSkill) <= 2) ?? offers[0];
+  return [...offers].reverse().find((o) => predictedPosition(save, o, driverSkill, difficulty) <= 2) ?? offers[0];
 }
 
 /** One shop visit, each item at most once: repair, then the next car (cheapest buyable of a higher tier) if affordable, then one level per line in priority order engine > armor > tires > gun > fuel > spikes. */
@@ -136,10 +139,10 @@ export function shopVisit(save: SaveGame): SaveGame {
   return s;
 }
 
-function simulateResult(save: SaveGame, offer: RaceOffer, model: ResultsModel, rng: Rng, driverSkill: number): RaceResult {
+function simulateResult(save: SaveGame, offer: RaceOffer, model: ResultsModel, rng: Rng, driverSkill: number, difficulty: Difficulty): RaceResult {
   const drivers = [PLAYER_DRIVER_ID, ...offer.rivals];
   const order = finishOrder(
-    drivers.map((d) => skillWeight(d === PLAYER_DRIVER_ID ? playerSkill(save, driverSkill) : rivalSkill(save, d))),
+    drivers.map((d) => skillWeight(d === PLAYER_DRIVER_ID ? playerSkill(save, driverSkill) : rivalSkill(save, d, difficulty))),
     rng,
   );
   const maxHp = computeStats(getCar(save.carDefId), save.upgrades).maxHp;
@@ -174,6 +177,7 @@ export function simulateCareer(seed: number, policy: CareerPolicy, options: Care
   const maxRaces = options.maxRaces ?? CAREER_SIM_MAX_RACES;
   const model = options.model ?? DEFAULT_RESULTS_MODEL;
   const driverSkill = options.driverSkill ?? PLAYER_DRIVER_SKILL;
+  const difficulty = options.difficulty ?? 'normal';
   // Own stream for race outcomes so the save's offer RNG stays exactly what the game would draw.
   const rng = createRng(hashString(`careerSim:${seed >>> 0}`));
   let save = newCareer(seed);
@@ -181,8 +185,8 @@ export function simulateCareer(seed: number, policy: CareerPolicy, options: Care
   while (run.races < maxRaces && !save.championWon) {
     save = shopVisit(save);
     const gen = generateOffers(save);
-    const offer = chooseOffer(gen.save, gen.offers, policy, driverSkill);
-    const { save: after, payout } = applyRaceResult(gen.save, offer, simulateResult(gen.save, offer, model, rng, driverSkill));
+    const offer = chooseOffer(gen.save, gen.offers, policy, driverSkill, difficulty);
+    const { save: after, payout } = applyRaceResult(gen.save, offer, simulateResult(gen.save, offer, model, rng, driverSkill, difficulty));
     save = after;
     options.trace?.(save, offer);
     run.races++;

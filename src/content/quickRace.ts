@@ -1,5 +1,5 @@
-import type { EntrantSetup, RaceSetup } from '../shared/contracts';
-import { AUTOPLAY_SKILL, profileForSkill, QUICK_RACE_AI_NAMES, QUICK_RACE_AI_SKILLS, QUICK_RACE_EXTRA_AI_SKILL } from './ai';
+import type { Difficulty, EntrantSetup, RaceSetup } from '../shared/contracts';
+import { aiProfile, AUTOPLAY_SKILL, profileForSkill, QUICK_RACE_AI_NAMES, QUICK_RACE_AI_SKILLS, QUICK_RACE_EXTRA_AI_SKILL } from './ai';
 import { getCar, STARTER_CAR_ID } from './cars';
 import { computeStats, QUICK_RACE_LOADOUT } from './economy';
 import { AI_LIVERIES, PLAYER_LIVERY } from './liveries';
@@ -15,6 +15,8 @@ export interface QuickRaceOptions {
   autoplay?: boolean;
   /** The player's car (CCR-10), stock: upgrades 0. Omitted = the starter. The AI cars stay stock starters. */
   carId?: string;
+  /** CCR-13: shifts the AI drivers' skill (not the autoplay player's). Default 'normal'. */
+  difficulty?: Difficulty;
 }
 
 /** Quick race: the player (entrant 0) in a stock `carId` (default raven) and `aiCount` AI drivers in stock ravens. */
@@ -51,7 +53,7 @@ export function buildQuickRaceSetup(opts: QuickRaceOptions): RaceSetup {
     if (!rival) throw new Error(`no rival identity for AI ${i}`);
     const skill = QUICK_RACE_AI_SKILLS[i] ?? QUICK_RACE_EXTRA_AI_SKILL;
     const color = AI_LIVERIES[i] ?? rival.color;
-    entrants.push(entrant(i + 1, rival.driverId, rival.name, color, profileForSkill(skill)));
+    entrants.push(entrant(i + 1, rival.driverId, rival.name, color, aiProfile(skill, opts.difficulty ?? 'normal')));
   }
 
   return {

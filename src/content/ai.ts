@@ -1,4 +1,4 @@
-import type { AiProfile } from '../shared/contracts';
+import type { AiProfile, Difficulty } from '../shared/contracts';
 
 // content.md section 8. profileForSkill interpolates linearly between these rows. cornerSpeedFactor multiplies the racing
 // line's planned corner speed, which is below what the car holds (WP37: above 1 from skill 0.5 up, capped at top speed).
@@ -12,6 +12,11 @@ export const AI_ANCHORS: readonly AiProfile[] = [
 
 export const AI_SKILL_MIN = 0;
 export const AI_SKILL_MAX = 1.1;
+
+/** CCR-13: added to every AI entrant's skill before profileForSkill (content.md section 8). Normal is the tuning as is. */
+export const EASY_SKILL_OFFSET = -0.2;
+export const HARD_SKILL_OFFSET = 0.15;
+export const DIFFICULTY_SKILL_OFFSET: Readonly<Record<Difficulty, number>> = { easy: EASY_SKILL_OFFSET, normal: 0, hard: HARD_SKILL_OFFSET };
 
 /** The boss gets this maxSpeed multiplier on top of its car stats. */
 export const BOSS_MAX_SPEED_MULT = 1;
@@ -43,3 +48,10 @@ export function profileForSkill(skill: number): AiProfile {
     rubberBand: mix(a.rubberBand, b.rubberBand),
   };
 }
+
+/** The skill an AI drives at on `difficulty`: skill + DIFFICULTY_SKILL_OFFSET, clamped to 0..1.1. */
+export const skillForDifficulty = (skill: number, difficulty: Difficulty): number =>
+  Math.min(AI_SKILL_MAX, Math.max(AI_SKILL_MIN, skill + DIFFICULTY_SKILL_OFFSET[difficulty]));
+
+/** Every AI entrant's profile (quick race, career, later modes): the difficulty shift, then profileForSkill. */
+export const aiProfile = (skill: number, difficulty: Difficulty): AiProfile => profileForSkill(skillForDifficulty(skill, difficulty));

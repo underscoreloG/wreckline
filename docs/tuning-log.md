@@ -629,3 +629,48 @@ The tight-track `referenceLapTime` rule moves from 24-32 s to 21-28 s (measured 
 - Wall impacts rose on every track but Pine Hollow (1.3-2.9 -> 2.2-4.2 per race, Dockside 4.19 the highest, under the 4.5 flag; Scrapyard 4.37 at 48 seeds). Solo laps hit no wall at any skill: the hits are traffic.
 - The wraith and viper (level 5) at skills 0.95 and 1.1 lap solo with no wall hits on 6 tracks.
 - Pine Hollow stays the weakest spread track (0.86 at 48 seeds): in its open bends the 0.35 is only 4.5% slower than the 0.75 (6-9.5% on the other tracks).
+
+## 2026-10-27 - Difficulty Easy / Normal / Hard (WP38, CCR-13)
+
+User: "top3 and 7 as a new mode in the menu", difficulty choice "Everywhere, same rewards"; "It needs to be competitive without making it too hard and make grinds for hours". Every AI entrant's skill is shifted before `profileForSkill`, clamped to [0, 1.1]; rewards, rival stats and ladder points are unchanged.
+
+### Changed values
+
+| Where | Value | Before | After | Why |
+|---|---|---|---|---|
+| `src/content/ai.ts` | `DIFFICULTY_SKILL_OFFSET` easy / normal / hard | - | -0.2 / 0 / +0.15 | WP38 brief; normal is the WP37 tuning exactly |
+| `src/game/settings.ts` | `Settings.difficulty` default | - | 'normal' | saved settings without it migrate to 'normal' |
+
+### Normal = main
+
+`node scripts/balance/run.mjs` on the branch: 8/8, the table identical to main line for line, and the raw probe JSON (12 files) identical apart from the new `cleanLaps` field.
+
+### Easy and hard (`run.mjs --difficulty easy|normal|hard`, 10 tracks x 16 seeds x 4 starts, report only)
+
+Median clean lap / `referenceLapTime` by quick race skill before the shift, start 0 grid, mean over the 10 tracks:
+
+| Skill | Easy (drives at) | Normal | Hard (drives at) |
+|---|---|---|---|
+| 0.35 | 1.053 (0.15) | 1.031 | 0.997 (0.5) |
+| 0.55 | 1.035 (0.35) | 1.000 | 0.967 (0.7) |
+| 0.75 | 1.002 (0.55) | 0.965 | 0.961 (0.9) |
+
+| Metric | Easy | Normal | Hard | Target (normal) |
+|---|---|---|---|---|
+| Wrecks per AI race | 0.36-1.02 (avg 0.50) | 0.31-1.23 (avg 0.64) | 0.45-1.56 (avg 0.90) | 0.2-2.0 |
+| Gun damage share | 0.52 | 0.54 | 0.62 | 0.45-0.65 |
+| Mine hits per race | 1.86 | 1.88 | 1.75 | 0.8-3 |
+| Spread 0.75 vs 0.35, worst track | 0.58 (pineHollow) | 0.97 (pineHollow) | 0.13 (pineHollow) | >= 0.8 |
+| Lap delta vs reference (the 0.55 slot, shifted) | 1.15 s | 0.23 s | 1.32 s | <= 1 s |
+| Career greedy champion in 18-35 | 15/16, races 17-33, median 24 | 15/16, 21-38, median 25 | 16/16, 24-34, median 29 | >= 14/16 |
+| Career safe | never | never | never | 25-50 or never |
+| Greedy cash by race 5 | 10300 | 10250 | 9600 | >= 1000 |
+
+The lap delta and spread targets are normal-only gates: the lap row measures the shifted 0.55 slot, so it moves by design.
+
+### Notes
+
+- Hard mostly closes the field up rather than raising the top: the WP37 curve is flat above 0.75 (cornerSpeedFactor 1.12 at 0.75 and 1.0), so the 0.75 slot at 0.9 laps only 0.4% faster than on normal, while the 0.35 and 0.55 slots gain 3.4% and 3.3%. Spread per track on hard 0.13-1.30 (Pine Hollow 0.13, Dust Bowl 0.64, Blast Pit 0.77).
+- Easy slows every slot 2-4%; the 0.75 slot lands at a good human's pace (1.002 x reference, about P x 1.03).
+- Career on easy: the first rivals (skill 0.1-0.2) all clamp to 0, so they drive alike; their stats still differ.
+- Career greedy row moves as expected but by little: easy one race shorter (median 24), hard four longer (median 29). careerSim (`CareerSimOptions.difficulty`) shifts the rivals' driver strength only, like the game.

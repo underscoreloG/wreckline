@@ -1,6 +1,6 @@
-import type { CarId, RaceSetup } from '../../src/shared/contracts';
+import type { CarId, Difficulty, RaceSetup } from '../../src/shared/contracts';
 import { SIM_HZ } from '../../src/shared/contracts';
-import { profileForSkill } from '../../src/content/ai';
+import { aiProfile } from '../../src/content/ai';
 import { getCar } from '../../src/content/cars';
 import { computeStats } from '../../src/content/economy';
 import { rivalSpikesLevel, rivalUpgradeLevel } from '../../src/content/rivals';
@@ -25,6 +25,8 @@ export interface ProbeRaceOptions {
   start: number;
   laps?: number;
   loadout?: ProbeLoadout;
+  /** CCR-13: every car drives at its PROBE_SKILLS skill shifted by the difficulty (default 'normal'); rival loadouts stay on the unshifted skill. */
+  difficulty?: Difficulty;
 }
 
 export interface ProbeRace {
@@ -37,20 +39,25 @@ export interface ProbeRace {
   mineHits: number;
   gunDamage: number;
   totalDamage: number;
-  /** Finishing position per car, with the skill it drove at. */
+  /** Finishing position per car, with its PROBE_SKILLS skill (before the difficulty shift). */
   places: { car: CarId; skill: number; position: number }[];
   /** Clean flying laps (no damage, no impact) of the 0.55 cars. */
   mediumCleanLaps: number[];
+  /** Clean flying laps of every car, by PROBE_SKILLS skill. */
+  cleanLaps: { skill: number; lap: number }[];
   /** Metres wrecks travelled more than SHOVE_AFTER s after wrecking (WP24's shove metric), and the longest run above SHOVE_SPEED (s). */
   shove: number;
   longestShove: number;
 }
 
+const probeSkills = (start: number): number[] => PROBE_SKILLS.map((_, i) => PROBE_SKILLS[(i + start) % PROBE_SKILLS.length] ?? MEDIUM_SKILL);
+
 export function probeSetup(opts: ProbeRaceOptions): RaceSetup {
   const setup = soakSetup({ trackId: opts.trackId, seed: opts.seed, laps: opts.laps ?? 3 });
+  const skills = probeSkills(opts.start);
   setup.entrants.forEach((e, i) => {
-    const skill = PROBE_SKILLS[(i + opts.start) % PROBE_SKILLS.length] ?? MEDIUM_SKILL;
-    e.ai = profileForSkill(skill);
+    const skill = skills[i] ?? MEDIUM_SKILL;
+    e.ai = aiProfile(skill, opts.difficulty ?? 'normal');
     if (opts.loadout === 'rival') {
       const level = rivalUpgradeLevel(skill);
       const spikes = rivalSpikesLevel(skill);
@@ -62,14 +69,15 @@ export function probeSetup(opts: ProbeRaceOptions): RaceSetup {
   return setup;
 }
 
-export const runProbeRace = (opts: ProbeRaceOptions): ProbeRace => ({ trackId: opts.trackId, seed: opts.seed, start: opts.start, ...runRace(probeSetup(opts)) });
+export const runProbeRace = (opts: ProbeRaceOptions): ProbeRace => ({ trackId: opts.trackId, seed: opts.seed, start: opts.start, ...runRace(probeSetup(opts), probeSkills(opts.start)) });
 
-/** One headless race with the extra counters WP12 needs (damage by source, mine hits). Call initPhysics() first. */
-export function runRace(setup: RaceSetup): Omit<ProbeRace, 'trackId' | 'seed' | 'start'> {
+/** One headless race with the extra counters WP12 needs (damage by source, mine hits). `skills` labels each car (default: its profile skill). Call initPhysics() first. */
+export function runRace(setup: RaceSetup, skills = setup.entrants.map((e) => e.ai?.skill ?? 0)): Omit<ProbeRace, 'trackId' | 'seed' | 'start'> {
   const sim = createSim(setup);
   const noInputs = new Map<CarId, never>();
   const dirty = setup.entrants.map(() => false);
   const mediumCleanLaps: number[] = [];
+  const cleanLaps: { skill: number; lap: number }[] = [];
   let wrecks = 0;
   const wreckedAt = new Map<CarId, number>();
   const lastPos = new Map<CarId, { x: number; y: number }>();
@@ -103,7 +111,10 @@ export function runRace(setup: RaceSetup): Omit<ProbeRace, 'trackId' | 'seed' | 
         wreckedAt.set(e.car, ticks);
       }
       else if (e.type === 'lapCompleted') {
-        if (e.lap > 1 && !dirty[e.car] && setup.entrants[e.car]?.ai?.skill === MEDIUM_SKILL) mediumCleanLaps.push(e.lapTime);
+        if (e.lap > 1 && !dirty[e.car]) {
+          if (skills[e.car] === MEDIUM_SKILL) mediumCleanLaps.push(e.lapTime);
+          cleanLaps.push({ skill: skills[e.car] ?? 0, lap: e.lapTime });
+        }
         dirty[e.car] = false;
       }
     }
@@ -135,8 +146,9 @@ export function runRace(setup: RaceSetup): Omit<ProbeRace, 'trackId' | 'seed' | 
     mineHits,
     gunDamage,
     totalDamage,
-    places: result.rows.map((r) => ({ car: r.car, skill: setup.entrants[r.car]?.ai?.skill ?? 0, position: r.position })),
+    places: result.rows.map((r) => ({ car: r.car, skill: skills[r.car] ?? 0, position: r.position })),
     mediumCleanLaps,
+    cleanLaps,
     shove,
     longestShove,
   };

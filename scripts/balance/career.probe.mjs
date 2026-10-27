@@ -7,8 +7,9 @@ const env = process.env;
 const seeds = Number(env.BALANCE_SEEDS ?? 16);
 const out = env.BALANCE_OUT ?? 'balance-out';
 const driver = env.BALANCE_DRIVER ? Number(env.BALANCE_DRIVER) : undefined;
+const difficulty = env.BALANCE_DIFFICULTY;
 
 it('career probe', () => {
   mkdirSync(out, { recursive: true });
-  for (const policy of ['greedy', 'safe']) writeFileSync(join(out, `career-${policy}.json`), JSON.stringify(careerSummary(policy, seeds, driver)));
+  for (const policy of ['greedy', 'safe']) writeFileSync(join(out, `career-${policy}.json`), JSON.stringify(careerSummary(policy, seeds, driver, undefined, difficulty)));
 });

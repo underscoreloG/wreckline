@@ -170,6 +170,8 @@ Rubber banding is mild and only in easy and medium races (user decision 2026-10-
 
 M1 quick race AI skills: 0.35, 0.55, 0.75. Names VEX, RAZOR, MOTH.
 
+**Difficulty (user decision 2026-10-27, CCR-13, "Everywhere, same rewards"):** `Settings.difficulty` easy / normal / hard (default normal) shifts every AI entrant's skill by `DIFFICULTY_SKILL_OFFSET` (easy -0.2, normal 0, hard +0.15), clamped to [0, 1.1], before `profileForSkill`: `aiProfile(skill, difficulty)` in `src/content/ai.ts`, used by quick race, career rivals and THE WARDEN, and any later mode that builds AI entrants. Normal is the table above unchanged. The boss drives at 1.1 on hard and 0.9 on easy. Only the driving changes: rival upgrade levels and spikes, ladder points, prizes, points and prices stay on the rival's own skill; the hard/boss rubber band rule above is unchanged (easy and medium races keep the shifted profile's band). Set in Settings, applied from the next race (a quick race restart included); the pre-race screen shows it. The `?autoplay=1` player driver is not shifted. Measured in docs/tuning-log.md (WP38).
+
 ## 9. Liveries (M1 and rival colors)
 
 | slot | color | use |
