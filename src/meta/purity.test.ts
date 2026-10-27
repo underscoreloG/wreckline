@@ -6,6 +6,7 @@ import { chooseOffer, playerSkill, shopVisit } from './careerSim';
 import { simulateOtherRivals } from './offSim';
 import { parseSave, writeSave } from './save';
 import { buyCar, buyMines, buySabotage, buyTurbo, buyUpgrade, canAfford, carOffer, repair, shopCars } from './shop';
+import { endingScene, passedBeats, storySceneFor, withSceneSeen } from './story';
 
 function deepFreeze<T>(v: T): T {
   if (typeof v === 'object' && v !== null) {
@@ -61,7 +62,10 @@ describe('purity (test 7)', () => {
           buildCareerRaceSetup(save, o, 7);
           applyRaceResult(save, o, result);
           simulateOtherRivals(save, o, createRng(1));
+          withSceneSeen(save, storySceneFor(save, o).id);
         }
+        endingScene(save);
+        passedBeats(save);
         shopCars(save);
         carOffer(save, 'blaze');
         canAfford(save, 10);

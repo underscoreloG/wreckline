@@ -199,6 +199,31 @@ describe('career session', () => {
     expect(career.finishRace(resultFor(r2.setup, 1)).champion).toBe(false);
   });
 
+  it('story scenes are stored as seen and persisted when shown (CCR-12)', () => {
+    const storage = memoryStorage();
+    const career = createCareerSession(storage);
+    career.newCareer(3);
+    expect(() => career.playStory()).toThrow();
+    const offer = career.ensureOffers()[0]!;
+    expect(career.selectOffer(offer.id, 1).ok).toBe(true);
+    expect(career.playStory().id).toBe('beat-intro');
+    expect(loadSave(storage)!.storySeen).toEqual(['beat-intro']);
+    // Quitting after the scene does not replay it: the next scene of the same race is the track scene.
+    expect(career.playStory().id).toBe(offer.trackId);
+    expect(career.playEnding()).toBeNull();
+  });
+
+  it('the ending plays once after the title win (CCR-12)', () => {
+    const { career, storage } = careerWith({ points: 10_000, racesRun: 30, storySeen: ['beat-intro', 'beat-vex', 'beat-razor', 'beat-duchess', 'beat-warden'] });
+    const boss = career.ensureOffers().find((o) => o.tier === 'boss')!;
+    const r = career.selectOffer(boss.id, 5);
+    if (!r.ok) throw new Error(r.error);
+    expect(career.finishRace(resultFor(r.setup, 1)).champion).toBe(true);
+    expect(career.playEnding()?.id).toBe('beat-ending');
+    expect(loadSave(storage)!.storySeen).toContain('beat-ending');
+    expect(career.playEnding()).toBeNull();
+  });
+
   it('free tow: a wrecked player with no cash is towed on load and can race again', () => {
     const { career, storage, notices } = careerWith({ hp: 0, cash: 0 });
     expect(notices).toEqual([TOWED]);

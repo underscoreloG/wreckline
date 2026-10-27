@@ -5,7 +5,8 @@ import { getTrack } from '../content/tracks';
 import { applyRaceResult, buildCareerRaceSetup, generateOffers, newCareer, newlyBeaten, newlyUnlocked, sabotageTarget } from '../meta/career';
 import { loadSave, writeSave, type KeyValueStore } from '../meta/save';
 import { buyCar, buyMines, buySabotage, buyTurbo, buyUpgrade, freeTowIfStuck, LOCKED_TEXT, repair, type ShopFail, type ShopResult } from '../meta/shop';
-import type { GameCommand, Payout, RaceOffer, RaceResult, RaceResultRow, RaceSetup, RaceSnapshot, SaveGame, SimEvent } from '../shared/contracts';
+import { endingScene, storySceneFor, withSceneSeen } from '../meta/story';
+import type { GameCommand, Payout, RaceOffer, RaceResult, RaceResultRow, RaceSetup, RaceSnapshot, SaveGame, SimEvent, StoryScene } from '../shared/contracts';
 import { PLAYER_CAR_ID } from '../shared/contracts';
 
 export type ShopCommand = Extract<GameCommand, { type: 'buyUpgrade' | 'buyCar' | 'repair' | 'buyMines' | 'buyTurbo' }>;
@@ -51,6 +52,10 @@ export interface CareerSession {
    * `beaten` the car types it beat for the first time, minus the starter and the player's own (one hub message each, CCR-10).
    */
   finishRace(result: RaceResult): { payout: Payout; champion: boolean; unlocked: string[]; beaten: string[] };
+  /** The story scene before the selected offer's race (CCR-12), stored as seen and persisted as it is shown. */
+  playStory(): StoryScene;
+  /** The ending scene after the title win, stored as seen and persisted; null when there is none to play. */
+  playEnding(): StoryScene | null;
 }
 
 export function createCareerSession(storage: KeyValueStore, notify: (text: string) => void = () => {}): CareerSession {
@@ -150,6 +155,19 @@ export function createCareerSession(storage: KeyValueStore, notify: (text: strin
       selected = null;
       persistChecked(r.save);
       return { payout: r.payout, champion: !before.championWon && r.save.championWon, unlocked: newlyUnlocked(before, r.save), beaten: newlyBeaten(before, r.save) };
+    },
+    playStory() {
+      if (!save || !selected) throw new Error('no career race selected');
+      const scene = storySceneFor(save, selected);
+      const next = withSceneSeen(save, scene.id);
+      if (next !== save) persist(next);
+      return scene;
+    },
+    playEnding() {
+      const scene = save && endingScene(save);
+      if (!save || !scene) return null;
+      persist(withSceneSeen(save, scene.id));
+      return scene;
     },
   };
 }

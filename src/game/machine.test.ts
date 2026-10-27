@@ -8,18 +8,19 @@ const from = (screen: Screen, previousScreen: Screen | null = null) => ({ screen
 
 // WP08 state machine table: [from, previous, input, to, previous after, effects]
 const TABLE: [Screen, Screen | null, MachineInput, Screen, Screen | null, string[]][] = [
-  ['boot', null, { type: 'booted' }, 'title', null, ['startBackdrop']],
-  ['title', null, { type: 'startQuickRace' }, 'preRace', null, ['buildSetup']],
+  // WP36: the title shows its key art, the live backdrop runs on the other menu screens.
+  ['boot', null, { type: 'booted' }, 'title', null, []],
+  ['title', null, { type: 'startQuickRace' }, 'preRace', null, ['startBackdrop', 'buildSetup']],
   ['preRace', null, { type: 'startRace' }, 'race', null, ['stopBackdrop', 'unlockAudio', 'startSession']],
-  ['preRace', null, { type: 'back' }, 'title', null, []],
+  ['preRace', null, { type: 'back' }, 'title', null, ['stopBackdrop']],
   ['race', null, { type: 'pause' }, 'paused', null, ['pauseLoop']],
   ['paused', null, { type: 'resume' }, 'race', null, ['resumeLoop']],
   ['paused', null, { type: 'back' }, 'race', null, ['resumeLoop']],
   ['paused', null, { type: 'restartRace' }, 'race', null, ['restartSession']],
-  ['paused', null, { type: 'quitRace' }, 'title', null, ['disposeSession', 'startBackdrop']],
+  ['paused', null, { type: 'quitRace' }, 'title', null, ['disposeSession']],
   ['paused', null, { type: 'navigate', screen: 'settings' }, 'settings', 'paused', []],
   ['race', null, { type: 'raceOver' }, 'results', null, ['showResults', 'pauseLoop']],
-  ['results', null, { type: 'continueFromResults' }, 'title', null, ['disposeSession', 'startBackdrop']],
+  ['results', null, { type: 'continueFromResults' }, 'title', null, ['disposeSession']],
   ['results', null, { type: 'restartRace' }, 'race', null, ['restartSession']],
   ['title', null, { type: 'navigate', screen: 'controls' }, 'controls', 'title', []],
   ['title', null, { type: 'navigate', screen: 'settings' }, 'settings', 'title', []],
@@ -30,26 +31,32 @@ const TABLE: [Screen, Screen | null, MachineInput, Screen, Screen | null, string
 
 // WP10 career rows: [from, previous, career flags, input, to, previous after, effects]
 const CAREER: [Screen, Screen | null, { career?: boolean; champion?: boolean }, MachineInput, Screen, Screen | null, string[]][] = [
-  ['title', null, {}, { type: 'newCareer' }, 'career', null, []],
-  ['title', null, {}, { type: 'continueCareer' }, 'career', null, []],
+  ['title', null, {}, { type: 'newCareer' }, 'career', null, ['startBackdrop']],
+  ['title', null, {}, { type: 'continueCareer' }, 'career', null, ['startBackdrop']],
   ['career', null, {}, { type: 'navigate', screen: 'garage' }, 'garage', 'career', []],
   ['career', null, {}, { type: 'navigate', screen: 'shop' }, 'shop', 'career', []],
   ['career', null, {}, { type: 'navigate', screen: 'raceSelect' }, 'raceSelect', 'career', []],
   ['career', null, {}, { type: 'navigate', screen: 'standings' }, 'standings', 'career', []],
-  ['career', null, {}, { type: 'navigate', screen: 'title' }, 'title', null, []],
-  ['career', null, {}, { type: 'back' }, 'title', null, []],
+  ['career', null, {}, { type: 'navigate', screen: 'title' }, 'title', null, ['stopBackdrop']],
+  ['career', null, {}, { type: 'back' }, 'title', null, ['stopBackdrop']],
   ['garage', 'career', {}, { type: 'back' }, 'career', null, []],
   ['shop', 'career', {}, { type: 'back' }, 'career', null, []],
   ['standings', 'career', {}, { type: 'back' }, 'career', null, []],
   ['raceSelect', 'career', {}, { type: 'back' }, 'career', null, []],
   ['raceSelect', 'career', {}, { type: 'selectOffer', offerId: '0-easy' }, 'preRace', 'raceSelect', []],
   ['preRace', 'raceSelect', { career: true }, { type: 'back' }, 'raceSelect', null, []],
-  ['preRace', 'raceSelect', { career: true }, { type: 'startRace' }, 'race', null, ['stopBackdrop', 'unlockAudio', 'startSession']],
+  // WP36: the story scene, then the race; SPACE after the last line or ESC (back) leaves it.
+  ['preRace', 'raceSelect', { career: true }, { type: 'startRace' }, 'story', null, ['stopBackdrop', 'unlockAudio', 'showStory']],
+  ['story', null, { career: true }, { type: 'continueStory' }, 'race', null, ['startSession']],
+  ['story', null, { career: true }, { type: 'back' }, 'race', null, ['startSession']],
   ['paused', null, { career: true }, { type: 'quitRace' }, 'career', null, ['disposeSession', 'startBackdrop']],
   ['results', null, { career: true }, { type: 'continueFromResults' }, 'career', null, ['disposeSession', 'startBackdrop']],
-  ['results', null, { career: true, champion: true }, { type: 'continueFromResults' }, 'champion', null, ['disposeSession', 'startBackdrop']],
+  // The title win: the ending scene, then the champion screen (WP36).
+  ['results', null, { career: true, champion: true }, { type: 'continueFromResults' }, 'story', null, ['disposeSession', 'showEnding']],
+  ['story', null, { career: true, champion: true }, { type: 'continueStory' }, 'champion', null, ['startBackdrop']],
+  ['story', null, { career: true, champion: true }, { type: 'back' }, 'champion', null, ['startBackdrop']],
   ['champion', null, {}, { type: 'newCareer' }, 'career', null, []],
-  ['champion', null, {}, { type: 'navigate', screen: 'title' }, 'title', null, []],
+  ['champion', null, {}, { type: 'navigate', screen: 'title' }, 'title', null, ['stopBackdrop']],
 ];
 
 describe('machine', () => {
@@ -75,6 +82,9 @@ describe('machine', () => {
     expect(transition(from('paused'), { type: 'raceOver' })).toBeNull();
     expect(transition(from('results'), { type: 'pause' })).toBeNull();
     expect(transition(from('preRace'), { type: 'restartRace' })).toBeNull();
+    expect(transition(from('story'), { type: 'pause' })).toBeNull();
+    expect(transition(from('story'), { type: 'startRace' })).toBeNull();
+    expect(transition(from('preRace'), { type: 'continueStory' })).toBeNull();
   });
 });
 

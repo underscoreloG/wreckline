@@ -1,6 +1,7 @@
 import { getCar } from '../content/cars';
 import { buildQuickRaceSetup } from '../content/quickRace';
 import { generateOffers, newCareer } from '../meta/career';
+import { storySceneFor } from '../meta/story';
 import type { HudState, Payout, RaceResult, SaveGame, Screen, UiState, Vec2 } from '../shared/contracts';
 import { buildTrackGeometry } from '../shared/trackGeometry';
 
@@ -103,7 +104,7 @@ const RESULTS: RaceResult = {
   ],
 };
 
-export const CAREER_SCREENS: readonly Screen[] = ['career', 'garage', 'shop', 'raceSelect', 'standings', 'champion'];
+export const CAREER_SCREENS: readonly Screen[] = ['career', 'garage', 'shop', 'raceSelect', 'standings', 'champion', 'story'];
 
 /** Mid-career save from the real meta functions: some upgrades, a damaged car, points on the board. */
 function careerSave(screen: Screen): SaveGame {
@@ -136,7 +137,7 @@ const PAYOUT: Payout = { prize: 350, wreckBonus: 250, pickups: 300, total: 900, 
 export function fixtureState(screen: Screen, hud: HudFixture = 'mid', career = CAREER_SCREENS.includes(screen)): UiState {
   const save = career ? careerSave(screen) : null;
   const offers = save ? generateOffers(save).offers : null;
-  const sub = screen !== 'career' && screen !== 'champion' && CAREER_SCREENS.includes(screen);
+  const sub = screen !== 'career' && screen !== 'champion' && screen !== 'story' && CAREER_SCREENS.includes(screen);
   return {
     screen,
     previousScreen: screen === 'settings' || screen === 'controls' ? 'title' : sub ? 'career' : null,
@@ -151,5 +152,7 @@ export function fixtureState(screen: Screen, hud: HudFixture = 'mid', career = C
     selectedOffer: offers && screen === 'results' ? (offers[0]?.id ?? null) : null,
     lastPayout: career && screen === 'results' ? PAYOUT : null,
     toast: null,
+    // The mid-career save's scene before its medium race (CCR-12).
+    story: save && offers && screen === 'story' ? storySceneFor(save, offers[1]!) : null,
   };
 }
