@@ -31,6 +31,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 - 2026-10-27 Music (user): top 6 CC0 race tracks (Darkness Road, System Overload, Hot Roadway, Awake!, Glutton, Hyperflight Racing) + Hyperton for menus; "in the background as a support not too loud": music >= 10 LU under the race SFX at default, musicVolume default 0.5 (CCR-11).
 - 2026-10-27 Story art (user): all 16 Gemini images kept as they are (story-art/, git-ignored, imported to public/story/*.webp by WP36); WP36 dispatched after WP35 merges.
 - 2026-10-27 AI pace (user): "more challenging, with the same car, they feel kind of slow ... competitive without making it too hard and make grinds for hours"; chose "Top AI matches you" (0.75 = good human pace P, 0.55 P x 1.03, 0.35 P x 1.07); user best Scrapyard lap about 23-24 s (P = 0.90 x old 0.55 lap). Cause: cornerSpeedFactor 0.78-0.97 on tracks that are now 75%+ corners.
+- 2026-10-27 Genre comparison (user picked): difficulty setting everywhere with same rewards; time trial any car, best lap + ghost per track+direction+car; reversed tracks in quick race, trial and career; arena "like a destruction derby thing": last car standing, 3 arenas, standalone mode. Sequential WP38 -> WP39 -> WP40 -> WP41 (shared contracts, machine, title menu).
 
 ## Work packages
 | WP | Name | Wave | Dispatch | Model | Status | Agent/session id | Branch | Notes |
@@ -76,7 +77,11 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | WP34 | Gun retune for tight tracks (gun share 0.36 -> 0.45-0.65) + shared hairpin test helper | C5 | subagent | opus high | merged | agent acb7ad7f9cf37a3c9 | wp/34-gun-retune (eaf6d5e) | 643/643 and 8/8 (brain re-ran); GUN_CONE 10 -> 30 deg, MINE_USE_SCALE 0.6 -> 0.55; gun share 0.36 -> 0.51, mines 2.83 -> 2.49, wrecks avg 0.42 -> 0.68; windowHairpins helper in trackTestKit; AI tracers may start outside the 7 deg aim assist (not seen in play) |
 | WP35 | Background music: 6 CC0 race tracks + Hyperton menu, music volume (CCR-11) | C5 | subagent | opus high | merged | agent a777fb8c78ebc004b | wp/35-music (13b038f) | 648/648 (brain re-ran), bundle 1863.4 kB; 7 CC0 tracks Opus 96k, -14.8 LUFS, 8.9 MB in public/music; race mix -16.2 LUFS, music 12.1-12.6 LU under at default, menu 15.1 LU under; Settings Music volume row works by keyboard (brain checked); loops of systemOverload and hyperflight are musical edits: need a listen; importEngines.mjs re-run wipes "## Music" in sfx-sources.md |
 | WP36 | Career story scenes: 6 beats + 10 track scenes, StoryScene screen (CCR-12 SaveGame v4); title-menu key art replaces the live title race | C5 | subagent | opus high | merged | agent a22bc7dd9fa716aa8 | wp/36-story (79f738d) | 671/671 (brain re-ran), bundle 1868.3 kB; 17 WebP 3.2 MB; CCR-12 SaveGame v4 (storySeen, bossLosses) + StoryLine/StoryScene/UiState.story/continueStory (brain accepts); title art, 0 draw calls on title; flow in machine.ts; migrated saves count beats at bestRank as seen; ending path tested in unit tests only; VEX "same car as me" assumes a raven |
-| WP37 | AI pace: competitive with a good human in the same car | C5 | subagent | opus high | running | - | wp/37-ai-pace | |
+| WP37 | AI pace: competitive with a good human in the same car | C5 | subagent | opus high | running | agent afdb5f2f25f340b61 | wp/37-ai-pace | |
+| WP38 | Difficulty Easy/Normal/Hard everywhere, same rewards (CCR-13) | C6 | subagent | opus high | todo (after WP37) | - | wp/38-difficulty | |
+| WP39 | Reversed tracks in quick race, trial and career (CCR-14) | C6 | subagent | opus high | todo (after WP38) | - | wp/39-reverse | |
+| WP40 | Time trial with best-lap ghost per track+direction+car (CCR-15) | C6 | subagent | opus high | todo (after WP39) | - | wp/40-time-trial | |
+| WP41 | Arena mode: last car standing, 3 arenas, sudden death at 120 s (CCR-16) | C6 | subagent | opus high | todo (after WP40) | - | wp/41-arena | |
 
 ## Helper agents (not WPs)
 | Task | When | Model | Effort |
