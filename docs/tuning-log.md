@@ -427,3 +427,31 @@ Soak gate (scrapyard.test.ts, `runSoak` seeds 1-16): wrecks 1.25 per race, wall 
 - The soak on a tight track is chaotic: moving one corner by 1-2 m or changing one radius by 1-2 m swung mine hits between 2.5 and 4.9, wrecks between 0.14 and 1.0, and once produced a timeout (an AI glued to a wreck lying in the shoulder against the outer wall, see the WP31 report). Probe every candidate with run.mjs and the track's test file; expect to try a few.
 - On the wiggle-heavy drafts mine hits ran 3.6-4.8 per race (nearly every drop hits: followers sit nose to tail on one line). Scrapyard lands at 2.50, but with 10 tight tracks the all-track mine row (target <= 3) is at risk: the first knob is `MINE_USE_SCALE` (ai.ts).
 - Gun damage share drops on tight tracks (0.37 here, 0.21-0.37 on the drafts): the 10 deg gun cone rarely lines up in bends. The all-track row (0.53, floor 0.45) will fall as WP32 lands; `AGGRESSION_SCALE` or the cone are the knobs.
+
+## 2026-10-27 - The other 9 tracks redrawn Death Rally tight (WP32a/b/c), AI wreck at the wall (WP33)
+
+User: "Scrapyard feels right. Merge WP31 and redraw the other 9 tracks the same way." Three workers redrew three tracks each to the content.md section 12 rules; per-track numbers are in content.md "Tight layouts (WP32)".
+
+### Changed values
+
+| Where | Value | Before | After | Why |
+|---|---|---|---|---|
+| 9 track files | centerline | spline / corner polygons, 1130-1608 m (Junkyard 834) | `roundedLoop` tight layouts, 857-946 m, Junkyard 836, Blast Pit 1046 | tight rules: near-straight 19.7-24.4%, 16-23 corners, longest straight 53-75 m (all the start), 137-181 deg per 100 m |
+| 9 track files | `referenceLapTime` | 23-41.5 s | 24-28.5 s | soak median clean lap of the 0.55 AI |
+| dustBowl | `shoulder` | 3 | 4 | the WP31 finding: 2-3 m doubles the wall hits |
+| frostbite, blastPit | `shoulder` | 4 | 5 | wall impacts per race 5.03 -> 2.38 (Frostbite draft), 4.14 -> 2.66 (Blast Pit) |
+| 9 track files | pickups | 10-17 per track | 11-13, mixed on and off the AI line | WP31 pattern |
+| `src/render/themes/docks.ts` | `water.point` | (170, 322) | (160, 256) | the new quay |
+| `REDROCK_CRANE_S`, `BLAST_PIT_CRANE_S` | s | 745, 1118 | 416, 833 | the new hairpin apexes |
+| `src/sim/ai.ts` (WP33) | `WRECK_WALL_NEAR` 5 m, `WRECK_ESCAPE_ANGLE` 20 deg, `WRECK_REVERSE_MIN` 0.5 s, `WRECK_REGLUE_TIME` 5 s, `WRECK_REVERSE_STEP` 2 s, `WRECK_TRIES_MAX` 2 | - | new | glued to a wreck on its own side near the wall, the AI reverses nose to the open side, then passes on that side; repeated glue reverses longer (at most twice). New test: past the wreck in 5.1 s (old code 7.2-7.6 s) |
+
+### Balance after the merge (`node scripts/balance/run.mjs`, main, all 10 tracks tight)
+
+7/8: wrecks 0.27-0.66 (avg 0.42), mine hits 2.83 (<= 3), spread worst 0.84 (pineHollow), lap delta worst 0.25 s (pineHollow), career rows pass, 0 timeouts. **Gun damage share 0.36, target 0.45-0.65: FAIL** (per track 0.27-0.41, Neon Mile lowest: the 10 deg gun cone rarely lines up in bends). Retune in WP34.
+
+### Notes
+
+- The soak on tight tracks is chaotic: each layout was picked from 4-16 probed variants; a 1-2 m edit swings wall hits by 1-3 and wrecks by up to 0.5.
+- Bends of r 28-34 are taken flat at about 31 m/s, at the lateral grip limit, and become wall hotspots; r 22 or r 40+ ran clean (WP32a).
+- With every mine pickup off the line, mine hits still run 2.7-4.0 per race from the 3-mine loadout alone; layout moves it most.
+- WP33 CCR, not fixed: an AI stuck nose-in, square to the wall in the shoulder, can loop its 1 s reverse forever (6 timeouts in 3840 races on jittered Scrapyards); a car glued to a wreck mid-track in a hairpin; a car pinned with no motion at a hairpin wall. 0 timeouts on the shipped layouts.

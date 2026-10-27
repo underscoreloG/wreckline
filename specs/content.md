@@ -224,7 +224,7 @@ Rivals' upgrade levels: `floor(skill * 2)` on every line (fuel included), capped
 
 ### Track shape (user decision 2026-10-26)
 
-User: "currently in tracks there are a lot of straight lines, in death rally there are more small turns". Every track is redrawn as a **Death Rally tight track**: a chain of 15-40 m bends left and right with short links, a hairpin or two, one short start straight; camera unchanged. WP31 set the rules and redrew Scrapyard; WP32 redraws the other 9.
+User: "currently in tracks there are a lot of straight lines, in death rally there are more small turns". Every track is redrawn as a **Death Rally tight track**: a chain of 15-40 m bends left and right with short links, a hairpin or two, one short start straight; camera unchanged. WP31 set the rules and redrew Scrapyard; WP32a/b/c redrew the other 9 (merged 2026-10-27). Length budget (so Blast Pit stays the longest): Junkyard Sprint 750-850 m, Blast Pit 1010-1060 m, every other track 850-990 m.
 
 **Metric** (`trackShape(geometry)` in `src/shared/trackGeometry.ts`), on the uniform ~1 m samples: heading = atan2 of the sample tangent, k(s) = |wrapped heading(s + 10 m) - heading(s)| / 10 m (a forward window: each straight's run starts and ends a few m early).
 
@@ -292,18 +292,34 @@ The pre-WP31 layout (1049 m, referenceLapTime 27.5) lives on as `SCRAPYARD_FIXTU
 | # | id | name | theme | signature | built by |
 |---|---|---|---|---|---|
 | 1 | scrapyard | Scrapyard | scrapyard | tight (WP31): a step down, wiggles, a hairpin at the end of a tongue into the infield, an elbow and a jog | WP00, WP31 |
-| 2 | dustBowl | Dust Bowl | desert | long sweepers, 218 m straight, hairpin | WP11 |
-| 3 | dockside | Dockside | docks | 90-degree corners, chicane, water straight | WP11 |
-| 4 | frostbite | Frostbite Pass | snow | narrow switchbacks between snowbanks and pines | WP22 |
-| 5 | neonMile | Neon Mile | city | city block grid: four long straights, tight right-angle corners, billboards; its hairpin is a U-turn round the last block | WP22 |
-| 6 | redrock | Redrock Quarry | quarry | wide fast curves with a pinch point where a crane outside the wall swings its jib over the road; the hairpin is that pinch point | WP22 |
-| 7 | junkyardSprint | Junkyard Sprint | scrapyard | short and violent: under 1000 m, hairpin at each end, made for ramming | WP23a |
-| 8 | pineHollow | Pine Hollow | snow | fast forest sweepers with one blind kink; hairpin at the far end of the forest | WP23a |
-| 9 | rainDistrict | Rain District | city | chicane chain through narrow streets, one 200 m boulevard; hairpin turnaround at the end of the boulevard | WP23b |
-| 10 | blastPit | Blast Pit | quarry | double loop (no crossing) around two pits, longest track; hairpin between the pits | WP23b |
+| 2 | dustBowl | Dust Bowl | desert | tight (WP32a), the most open: wider bends r 22-45, a sweeper chain, a hairpin at the tip of a tongue | WP11, WP32a |
+| 3 | dockside | Dockside | docks | tight (WP32a): square 90-degree steps round container stacks, a chicane, a 61 m quay along the sea, a hairpin | WP11, WP32a |
+| 4 | frostbite | Frostbite Pass | snow | tight (WP32a): narrow wiggles between snowbanks and pines, three switchback hairpins | WP22, WP32a |
+| 5 | neonMile | Neon Mile | city | tight (WP32b): right-angle staircases round city blocks, billboards; its hairpin is a U-turn round the last block | WP22, WP32b |
+| 6 | redrock | Redrock Quarry | quarry | tight (WP32b): flowing quarry bends; the pinch hairpin under the crane at the end of a spur | WP22, WP32b |
+| 7 | junkyardSprint | Junkyard Sprint | scrapyard | tight (WP32c): the shortest (750-850 m), a hairpin at each end, made for ramming | WP23a, WP32c |
+| 8 | pineHollow | Pine Hollow | snow | tight (WP32c): forest sweeper chains with one blind kink; hairpin at the far end of the forest | WP23a, WP32c |
+| 9 | rainDistrict | Rain District | city | tight (WP32b): chicane chain through narrow streets; the boulevard is the start straight, hairpin turnaround at its end | WP23b, WP32b |
+| 10 | blastPit | Blast Pit | quarry | tight (WP32c): the longest (1010-1060 m), one big loop with an S-tongue into the cut; hairpin under the crane | WP23b, WP32c |
 
 Themes are visual only: no surface or grip rules (user decision). Every track follows the constraints below (each has at least one hairpin: a turn of at least 150 deg with radius under 25 m, placed as listed), the pickup density of tuning pass 1 (about one per 90 m: 10-14 pickups, up to 18 above 1400 m), and the AI health gates of WP07 (all 16 soak races finish or end by rule, no car stuck more than twice, wrecks 0.2-2.0 per race). Wall impacts per race are report-only (Scrapyard 2.9, Dust Bowl 2.8, Dockside 3.6); flag anything above 4.5.
 
-### Dust Bowl and Dockside (M2)
+### Tight layouts (WP32, merged 2026-10-27)
 
-Designed by WP11 (and the WP22/WP23 tracks) under these constraints: length 1100-1500 m (Junkyard Sprint 800-1000 m, Blast Pit up to 1700 m), width 13-16, min radius >= width, min clearance >= width + 2*shoulder + 8, at least one straight >= 150 m, at least one hairpin (radius < 25 m), pickups as in the track list rules above, every kind at least twice and cash the most common. Must pass `validateTrack`.
+All built with `roundedLoop` like Scrapyard; corner lists, pickups and prop rules live in each track file's header and body. Shape metric values (content.md "Track shape" rules), probe = `node scripts/balance/run.mjs` on main after the merge (64 races per track).
+
+| track | length m | width / shoulder | near-straight | corners | longest straight (start) m | deg/100 m | min radius m | hairpins | ref lap s | pickups | wrecks | walls | mines | gun share |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| dustBowl | 898 | 15 / 4 | 22.5% | 18 | 68 | 149 | 15.7 | 1 | 25 | 12 | 0.36 | 1.64 | 2.95 | 0.41 |
+| dockside | 881 | 13 / 4 | 23.5% | 18 | 69 | 181 | 14.6 | 1 | 26.5 | 12 | 0.41 | 2.09 | 2.69 | 0.30 |
+| frostbite | 857 | 13 / 5 | 22.6% | 18 | 75 | 173 | 15.0 | 3 | 25 | 12 | 0.27 | 2.45 | 2.81 | 0.30 |
+| neonMile | 906 | 14 / 4 | 20.8% | 17 | 53 | 173 | 15.6 | 1 | 26 | 12 | 0.45 | 1.92 | 2.88 | 0.27 |
+| redrock | 922 | 16 / 4 | 23.5% | 18 | 58 | 137 | 19.1 | 1 | 25 | 12 | 0.41 | 2.73 | 3.17 | 0.37 |
+| junkyardSprint | 836 | 14 / 4 | 22.6% | 16 | 56 | 161 | 14.6 | 2 | 24 | 11 | 0.30 | 2.97 | 2.98 | 0.37 |
+| pineHollow | 944 | 14 / 4 | 24.4% | 20 | 55 | 138 | 19.6 | 1 | 25 | 12 | 0.66 | 2.78 | 2.69 | 0.41 |
+| rainDistrict | 899 | 14 / 4 | 19.7% | 21 | 61 | 172 | 16.3 | 1 | 25.5 | 12 | 0.44 | 2.52 | 2.80 | 0.37 |
+| blastPit | 1046 | 16 / 5 | 20.7% | 23 | 54 | 149 | 16.4 | 1 | 28.5 | 13 | 0.48 | 2.66 | 2.88 | 0.38 |
+
+Landmarks kept: Dockside's sea (theme `water` point (160, 256), normal (0, 1); 79 m of outer wall within 3 m of it) and more light poles than Scrapyard; Neon Mile more light poles than Scrapyard, Rain District more than Neon Mile; `REDROCK_CRANE_S` 416 and `BLAST_PIT_CRANE_S` 833 at their hairpin apexes. Pickups: every kind at least twice, cash the most common, a mix on and off the AI line (off-line = opposite side of the racing line, about lateral `width / 2 - 1.5`).
+
+The pre-WP32 constraints (WP11/WP22/WP23: length 1100-1500 m, a straight >= 150 m) no longer apply; a pre-WP31 Rain District lives on as `RAIN_DISTRICT_FIXTURE` for the AI tests.
