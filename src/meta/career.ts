@@ -9,6 +9,7 @@ import {
   RANKS_PER_UNLOCK,
   SABOTAGE_PRICE_FRACTION,
   STARTING_CAREER,
+  OFFER_TRACK_STEP,
   TIER_TRACK_INDEX,
   TRACKS_AT_START,
 } from '../content/economy';
@@ -107,7 +108,7 @@ function makeOffer(save: SaveGame, tier: RaceTier, rivals: string[], trackIds: r
   return {
     id: `${save.racesRun}-${tier}`,
     tier,
-    trackId: trackIds[(save.racesRun + TIER_TRACK_INDEX[tier]) % trackIds.length],
+    trackId: trackIds[(save.racesRun * OFFER_TRACK_STEP + TIER_TRACK_INDEX[tier]) % trackIds.length],
     laps: t.laps,
     rivals,
     prizes: [...t.prizes],

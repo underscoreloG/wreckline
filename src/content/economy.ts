@@ -115,5 +115,7 @@ export const CAREER_TIERS: Readonly<Record<RaceTier, CareerTier>> = {
   boss: { laps: 5, prizes: [10000, 0, 0, 0], points: [0, 0, 0, 0], cashPickupValue: 0, wreckBonus: 0 },
 };
 
-/** Track rotation index per tier: tracks[(racesRun + index) % 3]. */
+/** Track rotation index per tier: tracks[(racesRun * OFFER_TRACK_STEP + index) % tracks.length]. */
 export const TIER_TRACK_INDEX: Readonly<Record<RaceTier, number>> = { easy: 0, medium: 1, hard: 2, boss: 2 };
+/** Tracks the offers move on per race: 3, so each round shows three tracks not offered the round before (user 2026-10-27: "only 3 tracks" when it moved by 1). */
+export const OFFER_TRACK_STEP = 3;

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { RaceOffer, RaceResult, RaceResultRow, SaveGame } from '../shared/contracts';
 import { profileForSkill } from '../content/ai';
 import { getCar } from '../content/cars';
-import { computeStats } from '../content/economy';
+import { computeStats, OFFER_TRACK_STEP } from '../content/economy';
 import { RIVALS } from '../content/rivals';
 import { TRACKS } from '../content/tracks';
 import { applyRaceResult, buildCareerRaceSetup, generateOffers, ladder, newCareer, newlyBeaten, rankOf } from './career';
@@ -97,13 +97,17 @@ describe('offers (test 2)', () => {
     expect(generateOffers(withPoints(23)).offers[0].rivals).toEqual(['r01', 'r02', 'r03']);
   });
 
-  it('rotates three different tracks and advances the rng', () => {
-    const ids = ['a', 'b', 'c'];
-    for (let racesRun = 0; racesRun < 6; racesRun++) {
+  it('rotates three different tracks, none offered the round before, and advances the rng', () => {
+    const ids = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+    let prev: string[] = [];
+    for (let racesRun = 0; racesRun < 12; racesRun++) {
       const save = { ...newCareer(3), racesRun };
       const { offers, save: next } = generateOffers(save, ids);
-      expect(offers.map((o) => o.trackId)).toEqual([0, 1, 2].map((t) => ids[(racesRun + t) % 3]));
+      const tracks = offers.map((o) => o.trackId);
+      expect(tracks).toEqual([0, 1, 2].map((t) => ids[(racesRun * OFFER_TRACK_STEP + t) % ids.length]));
+      expect(tracks.filter((t) => prev.includes(t))).toEqual([]);
       expect(next.rngState).not.toBe(save.rngState);
+      prev = tracks;
     }
     const real = Object.keys(TRACKS);
     expect(generateOffers(newCareer(3)).offers.map((o) => o.trackId)).toEqual([0, 1, 2].map((t) => real[t % real.length]));

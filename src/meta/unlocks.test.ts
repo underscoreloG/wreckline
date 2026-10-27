@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RaceResult, SaveGame } from '../shared/contracts';
-import { TRACKS_AT_START } from '../content/economy';
+import { OFFER_TRACK_STEP, TRACKS_AT_START } from '../content/economy';
 import { TRACKS } from '../content/tracks';
 import { applyRaceResult, generateOffers, newCareer, newlyUnlocked, rankOf, unlockedTrackIds } from './career';
 
@@ -29,7 +29,7 @@ describe('track unlocks (content.md section 11)', () => {
       const unlocked = unlockedTrackIds(at(bestRank), IDS);
       for (let racesRun = 0; racesRun < 12; racesRun++) {
         const { offers } = generateOffers(at(bestRank, { racesRun, points: 23 }), IDS);
-        expect(offers.map((o) => o.trackId)).toEqual([0, 1, 2].map((t) => unlocked[(racesRun + t) % unlocked.length]));
+        expect(offers.map((o) => o.trackId)).toEqual([0, 1, 2].map((t) => unlocked[(racesRun * OFFER_TRACK_STEP + t) % unlocked.length]));
       }
     }
   });
