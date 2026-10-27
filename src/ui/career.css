@@ -345,6 +345,17 @@
   font-size: 1.25rem;
 }
 
+/* Reversed layout (CCR-14). */
+.offer-rev {
+  margin-left: 0.5rem;
+  padding: 0 0.3rem;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  color: var(--accent);
+  font-size: 0.7rem;
+  vertical-align: middle;
+}
+
 .offer-outline {
   display: block;
   height: 6.5rem;

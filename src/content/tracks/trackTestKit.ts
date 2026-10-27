@@ -88,8 +88,9 @@ export function windowHairpins(def: TrackDef): Run[] {
  * The content checks every track shares (WP11-WP23 pattern), registered inside the caller's describe:
  * pickup mix, stable props, the 16-seed soak (WP07 finishing rules) and referenceLapTime = the 0.55 AI
  * median clean lap within 0.25 s with wrecks inside the WP07 gate. `tag` prefixes the logged numbers.
+ * `rules` null skips the props check: a reversed layout (WP39) keeps its forward track's props.
  */
-export function trackContentTests(def: TrackDef, rules: readonly PropRule[], scatter: readonly ScatterRule[], tag: string): void {
+export function trackContentTests(def: TrackDef, rules: readonly PropRule[] | null, scatter: readonly ScatterRule[], tag: string): void {
   it('pickups: 10-14 (up to 18 above 1400 m), every kind at least twice, cash the most common', () => {
     const count = (k: string) => def.pickups.filter((p) => p.kind === k).length;
     expect(def.pickups.length).toBeGreaterThanOrEqual(10);
@@ -98,12 +99,14 @@ export function trackContentTests(def: TrackDef, rules: readonly PropRule[], sca
     for (const k of ['repair', 'mines', 'turbo']) expect(count('cash')).toBeGreaterThan(count(k));
   });
 
-  it('placeProps output is stable', () => {
-    const base = { ...def, props: [] };
-    const a = placeProps(base, rules, scatter);
-    expect(placeProps(base, rules, scatter)).toEqual(a);
-    expect(a).toEqual(def.props);
-  });
+  if (rules) {
+    it('placeProps output is stable', () => {
+      const base = { ...def, props: [] };
+      const a = placeProps(base, rules, scatter);
+      expect(placeProps(base, rules, scatter)).toEqual(a);
+      expect(a).toEqual(def.props);
+    });
+  }
 
   const results: SoakStats[] = [];
   const raceTimeLimit = 3 * def.referenceLapTime * 1.6;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { TRACKS } from '../content/tracks';
+import { REVERSED_TRACKS, TRACKS } from '../content/tracks';
 import type { TrackGeometry } from '../shared/contracts';
 import { buildTrackGeometry, propRadius } from '../shared/trackGeometry';
 import { BANNER_LEN, BARRIER, CLUTTER_RADIUS, NEON_SIZE, outerLateral, planDressing, STAND, type Placed } from './dressing';
@@ -8,7 +8,8 @@ import { buildDressing } from './dressingMesh';
 import type { WorldTextures } from './textures';
 import { themeFor } from './themes';
 
-const tracks = Object.values(TRACKS).map((def) => ({ def, g: buildTrackGeometry(def), theme: themeFor(def.theme) }));
+// WP39: the reversed layouts too, since stands, banners and the grid follow the start line.
+const tracks = [...Object.values(TRACKS), ...Object.values(REVERSED_TRACKS)].map((def) => ({ def, g: buildTrackGeometry(def), theme: themeFor(def.theme) }));
 
 /** Points of a piece's footprint: centre plus both ends along local x. */
 function footprint(p: Placed, len: number): { x: number; y: number }[] {
@@ -23,7 +24,8 @@ function expectClear(g: TrackGeometry, p: { x: number; y: number }, r: number, w
   expect(lat - r, `${g.def.id} ${what} at (${p.x.toFixed(1)}, ${p.y.toFixed(1)}) overlaps the walls`).toBeGreaterThanOrEqual(outerLateral(g) - 1e-6);
   for (const q of g.def.props) {
     const d = Math.hypot(q.pos.x - p.x, q.pos.y - p.y);
-    expect(d, `${g.def.id} ${what} overlaps prop ${q.kind}`).toBeGreaterThanOrEqual(propRadius(q.kind) * q.scale + r - 1e-6);
+    // expect only on a miss: it is the slow part of this loop over every piece and prop (20 tracks since WP39).
+    if (d < propRadius(q.kind) * q.scale + r - 1e-6) expect(d, `${g.def.id} ${what} overlaps prop ${q.kind}`).toBeGreaterThanOrEqual(propRadius(q.kind) * q.scale + r - 1e-6);
   }
 }
 

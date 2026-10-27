@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { TrackDef } from '../../shared/contracts';
 import { buildTrackGeometry, trackShape, validateTrack } from '../../shared/trackGeometry';
-import { TRACKS } from './index';
+import { REVERSED_TRACKS, TRACKS } from './index';
 
 /** Death Rally tight track rules (content.md section 12, "Track shape", user decision 2026-10-26). */
 const TIGHT = {
@@ -16,7 +16,8 @@ const TIGHT = {
 
 /** A track opts in with `shape: 'tight'` on its exported TrackDef (WP31: Scrapyard first, the rest in WP32). */
 const isTight = (def: TrackDef): boolean => (def as { shape?: string }).shape === 'tight';
-const tight = Object.values(TRACKS).filter(isTight);
+// WP39: the reversed layouts follow the same rules as their forward tracks.
+const tight = [...Object.values(TRACKS), ...Object.values(REVERSED_TRACKS)].filter(isTight);
 
 describe('Death Rally tight tracks (WP31)', () => {
   it('Scrapyard opts in; the opted-in list is logged', () => {

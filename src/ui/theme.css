@@ -525,6 +525,10 @@ body.title-art #game {
   color: var(--danger);
 }
 
+.prerace-on {
+  color: var(--accent);
+}
+
 /* ------------------------------------------------------------ pause */
 
 .pause-screen {

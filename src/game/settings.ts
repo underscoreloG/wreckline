@@ -13,6 +13,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
   quickTrackId: null,
   quickCarId: null,
   difficulty: 'normal',
+  quickReversed: false,
 };
 
 export interface SettingsStorage {
@@ -49,6 +50,8 @@ export function loadSettings(storage: SettingsStorage | null): Settings {
     quickCarId: typeof r.quickCarId === 'string' ? r.quickCarId : d.quickCarId,
     // Settings saved before CCR-13 have no difficulty: they get 'normal'.
     difficulty: r.difficulty === 'easy' || r.difficulty === 'normal' || r.difficulty === 'hard' ? r.difficulty : d.difficulty,
+    // Settings saved before CCR-14 have no quickReversed: the forward layout.
+    quickReversed: bool(r.quickReversed, d.quickReversed),
   };
 }
 

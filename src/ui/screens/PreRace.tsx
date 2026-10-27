@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { carOrStarter, CARS } from '../../content/cars';
-import { TRACKS } from '../../content/tracks';
+import { baseTrackId, TRACKS } from '../../content/tracks';
 import { sabotageTarget } from '../../meta/career';
 import type { UiState } from '../../shared/contracts';
 import { Button } from '../components/Button';
@@ -14,8 +14,8 @@ import { useUi } from '../uiContext';
 import { formatCash, Tile } from './career/parts';
 
 /**
- * START / BACK, then compact rows under START: the quick race TRACK and CAR pickers (left/right),
- * or the career SABOTAGE row. START keeps the default focus, so a stray Enter never spends cash.
+ * START / BACK, then compact rows under START: the quick race TRACK picker, REVERSE toggle and CAR picker
+ * (left/right), or the career SABOTAGE row. START keeps the default focus, so a stray Enter never spends cash.
  */
 export function PreRace({ state }: { state: UiState }) {
   const { dispatch } = useUi();
@@ -27,11 +27,15 @@ export function PreRace({ state }: { state: UiState }) {
   const target = career ? sabotageTarget(save, offer).name : '';
 
   const trackIds = Object.keys(TRACKS);
-  const trackIndex = Math.max(0, trackIds.indexOf(race?.trackId ?? ''));
+  // The shown setup may be the reversed layout '<id>~r' (CCR-14): the picker moves over the base tracks.
+  const baseId = baseTrackId(race?.trackId ?? '');
+  const trackIndex = Math.max(0, trackIds.indexOf(baseId));
   const pickTrack = (d: number) => () => {
     const id = trackIds[(trackIndex + d + trackIds.length) % trackIds.length];
-    if (id && id !== race?.trackId) dispatch({ type: 'setQuickTrack', trackId: id });
+    if (id && id !== baseId) dispatch({ type: 'setQuickTrack', trackId: id });
   };
+  const reversed = state.settings.quickReversed;
+  const toggleReverse = () => dispatch({ type: 'setSetting', patch: { quickReversed: !reversed } });
   // Quick race car (CCR-10): every car in registry order, stock, remembered in settings.quickCarId.
   const carIds = Object.keys(CARS);
   const car = carOrStarter(state.settings.quickCarId);
@@ -43,8 +47,15 @@ export function PreRace({ state }: { state: UiState }) {
 
   const items: MenuItem[] = [{ onConfirm: () => dispatch({ type: 'startRace' }) }, { onConfirm: () => dispatch({ type: 'back' }) }];
   if (career) items.push({ disabled: sabotaged !== null, onConfirm: () => dispatch({ type: 'buySabotage' }) });
-  // Index 3 is an empty, disabled grid cell, so left/right on the TRACK and CAR rows pick instead of moving focus.
-  else items.push({ onLeft: pickTrack(-1), onRight: pickTrack(1), onConfirm: pickTrack(1) }, { disabled: true }, { onLeft: pickCar(-1), onRight: pickCar(1), onConfirm: pickCar(1) });
+  // Indices 3 and 5 are empty, disabled grid cells, so left/right on the TRACK, REVERSE and CAR rows pick instead of moving focus.
+  else
+    items.push(
+      { onLeft: pickTrack(-1), onRight: pickTrack(1), onConfirm: pickTrack(1) },
+      { disabled: true },
+      { onLeft: toggleReverse, onRight: toggleReverse, onConfirm: toggleReverse },
+      { disabled: true },
+      { onLeft: pickCar(-1), onRight: pickCar(1), onConfirm: pickCar(1) },
+    );
   const { itemProps, setFocused } = useMenuFocus(items, 2);
 
   // Bought: the row turns into the result, so focus goes back to START.
@@ -101,10 +112,16 @@ export function PreRace({ state }: { state: UiState }) {
                 <Tile index={2} className="prerace-row" {...itemProps(2)}>
                   <span className="muted display">Track</span>
                   <Keycap label="←" />
-                  <span className="display prerace-row-value">{race?.trackName ?? ''}</span>
+                  <span className="display prerace-row-value">{TRACKS[baseId]?.name ?? ''}</span>
                   <Keycap label="→" />
                 </Tile>
                 <Tile index={3} className="prerace-row" {...itemProps(4)}>
+                  <span className="muted display">Reverse</span>
+                  <Keycap label="←" />
+                  <span className={`display prerace-row-value${reversed ? ' prerace-on' : ''}`}>{reversed ? 'On' : 'Off'}</span>
+                  <Keycap label="→" />
+                </Tile>
+                <Tile index={4} className="prerace-row" {...itemProps(6)}>
                   <span className="muted display">Car</span>
                   <Keycap label="←" />
                   <span className="prerace-row-value">

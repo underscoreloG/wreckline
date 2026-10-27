@@ -4,10 +4,10 @@ import { createAudioEngine } from '../audio';
 import { carOrStarter, getCar } from '../content/cars';
 import { QUICK_RACE_CASH_VALUE } from '../content/economy';
 import { buildQuickRaceSetup } from '../content/quickRace';
-import { TRACKS } from '../content/tracks';
+import { reversedId, TRACKS } from '../content/tracks';
 import { createInputSource } from '../input';
 import type { KeyValueStore } from '../meta/save';
-import type { GameCommand, GameStore, InputFrame, RaceResult, RaceSetup, Renderer, UiState, Vec2 } from '../shared/contracts';
+import type { GameCommand, GameStore, InputFrame, RaceResult, RaceSetup, Renderer, Settings, UiState, Vec2 } from '../shared/contracts';
 import { buildTrackGeometry } from '../shared/trackGeometry';
 import { initPhysics } from '../sim';
 import { App } from '../ui/App';
@@ -157,8 +157,8 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
     switch (cmd.type) {
       case 'setSetting':
         applySettings(cmd.patch);
-        // Quick race CAR picker (CCR-10): rebuild the shown setup with the picked car.
-        if (cmd.patch.quickCarId !== undefined && mode === 'quick' && screen === 'preRace' && setup) {
+        // Quick race CAR picker (CCR-10) and REVERSE toggle (CCR-14): rebuild the shown setup with the pick.
+        if ((cmd.patch.quickCarId !== undefined || cmd.patch.quickReversed !== undefined) && mode === 'quick' && screen === 'preRace' && setup) {
           setup = quickSetup(setup.seed);
           store.set({ race: raceInfo(setup) });
         }
@@ -273,13 +273,18 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
     if (loop.isPaused()) session?.redraw();
   };
 
+  // The remembered track, reversed with the REVERSE toggle (CCR-14).
+  const quickTrackId = (st: Settings): string | undefined => {
+    const id = quickTrackOrFirst(st.quickTrackId, Object.keys(TRACKS));
+    return id !== undefined && st.quickReversed ? reversedId(id) : id;
+  };
   const quickSetup = (seed: number): RaceSetup =>
     buildQuickRaceSetup({
       seed,
       laps: QUICK_LAPS,
       aiCount: QUICK_AI,
       autoplay,
-      trackId: quickTrackOrFirst(store.getState().settings.quickTrackId, Object.keys(TRACKS)),
+      trackId: quickTrackId(store.getState().settings),
       carId: carOrStarter(store.getState().settings.quickCarId).id,
       difficulty: store.getState().settings.difficulty,
     });

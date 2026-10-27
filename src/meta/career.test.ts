@@ -4,8 +4,8 @@ import { aiProfile, profileForSkill } from '../content/ai';
 import { getCar } from '../content/cars';
 import { computeStats, OFFER_TRACK_STEP } from '../content/economy';
 import { RIVALS } from '../content/rivals';
-import { TRACKS } from '../content/tracks';
-import { applyRaceResult, buildCareerRaceSetup, generateOffers, ladder, newCareer, newlyBeaten, rankOf } from './career';
+import { REVERSED_TRACKS, TRACKS } from '../content/tracks';
+import { applyRaceResult, buildCareerRaceSetup, generateOffers, ladder, newCareer, newlyBeaten, offerReversed, rankOf } from './career';
 
 const withPoints = (points: number, rngState = 1): SaveGame => ({ ...newCareer(rngState), points });
 
@@ -118,6 +118,34 @@ describe('offers (test 2)', () => {
     expect([easy.laps, medium.laps, hard.laps]).toEqual([3, 4, 5]);
     expect(medium.prizes).toEqual([1800, 1050, 450, 0]);
     expect(hard.points).toEqual([10, 6, 3, 1]);
+  });
+});
+
+describe('reversed offers (CCR-14)', () => {
+  it('one offer per round is reversed, rotating hard, medium, easy: about one in three, never all three', () => {
+    let reversed = 0;
+    for (let racesRun = 0; racesRun < 60; racesRun++) {
+      for (const points of [0, 100]) {
+        const save = { ...withPoints(points), racesRun };
+        const { offers } = generateOffers(save);
+        expect(offers.filter((o) => o.reversed)).toHaveLength(1);
+        expect(offers.map((o) => o.reversed)).toEqual(offers.map((o) => offerReversed(racesRun, o.tier)));
+        // Deterministic: the same save gives the same directions.
+        expect(generateOffers(structuredClone(save)).offers.map((o) => o.reversed)).toEqual(offers.map((o) => o.reversed));
+        if (points === 0) reversed += offers.filter((o) => o.reversed).length;
+      }
+    }
+    expect(reversed / (60 * 3)).toBeCloseTo(1 / 3, 9);
+    expect([0, 1, 2].map((r) => generateOffers({ ...newCareer(1), racesRun: r }).offers.findIndex((o) => o.reversed))).toEqual([2, 1, 0]);
+  });
+
+  it('a reversed offer races the reversed layout of its track, a forward one the track itself', () => {
+    const save = withPoints(23);
+    for (const offer of generateOffers(save).offers) {
+      const setup = buildCareerRaceSetup(save, { ...offer, reversed: true }, 1);
+      expect(setup.track).toBe(REVERSED_TRACKS[`${offer.trackId}~r`]);
+      expect(buildCareerRaceSetup(save, { ...offer, reversed: false }, 1).track).toBe(TRACKS[offer.trackId]);
+    }
   });
 });
 
