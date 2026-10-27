@@ -74,7 +74,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | WP33 | AI glued to a wreck at the wall reverses away from it (WP31 CCR) | C5 | subagent | opus high | merged | agent a5fc8c4621552f92b | wp/33-ai-wreck-wall (77e66e3) | 621/621 (brain re-ran); glued at the wall: reverse nose to the open side, escalation x2; new test 5.1 s vs old 7.2-7.6 s; 8/8, wrecks and timeouts unchanged; CCR: nose-in square to the wall in the shoulder loops forever (most likely WP32 timeout), hairpin mid-track glue, no-motion pin |
 | WP34 | Gun retune for tight tracks (gun share 0.36 -> 0.45-0.65) + shared hairpin test helper | C5 | subagent | opus high | merged | agent acb7ad7f9cf37a3c9 | wp/34-gun-retune (eaf6d5e) | 643/643 and 8/8 (brain re-ran); GUN_CONE 10 -> 30 deg, MINE_USE_SCALE 0.6 -> 0.55; gun share 0.36 -> 0.51, mines 2.83 -> 2.49, wrecks avg 0.42 -> 0.68; windowHairpins helper in trackTestKit; AI tracers may start outside the 7 deg aim assist (not seen in play) |
 | WP35 | Background music: 6 CC0 race tracks + Hyperton menu, music volume (CCR-11) | C5 | subagent | opus high | running | agent a777fb8c78ebc004b | wp/35-music | |
-| WP36 | Career story scenes: 6 beats + 10 track scenes, StoryScene screen (CCR-12 SaveGame v4) | C5 | subagent | opus high | todo (after WP35 merge) | - | wp/36-story | |
+| WP36 | Career story scenes: 6 beats + 10 track scenes, StoryScene screen (CCR-12 SaveGame v4); title-menu key art replaces the live title race | C5 | subagent | opus high | todo (after WP35 merge) | - | wp/36-story | |
 
 ## Helper agents (not WPs)
 | Task | When | Model | Effort |

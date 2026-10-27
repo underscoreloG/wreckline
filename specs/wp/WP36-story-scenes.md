@@ -1,13 +1,13 @@
-# WP36 - Career story scenes (CCR-12)
+# WP36 - Career story scenes (CCR-12) and the title screen key art
 
-**User requests (2026-10-27), verbatim:** "when in career, would it be possible to add some story? Like we should have an endgoal and each race we have some kind of frame with people and stuff behind (related to the race track or whatever) and some kind of conversation going ... and then space to continue. I don't want any voice, just a frame with some text below like the old game." Then, after generating the art in Gemini: "Keep all 16 images as they are; spec the story scenes WP and dispatch it once the music WP is merged."
+**User requests (2026-10-27), verbatim:** "when in career, would it be possible to add some story? Like we should have an endgoal and each race we have some kind of frame with people and stuff behind (related to the race track or whatever) and some kind of conversation going ... and then space to continue. I don't want any voice, just a frame with some text below like the old game." Then, after generating the art in Gemini: "Keep all 16 images as they are; spec the story scenes WP and dispatch it once the music WP is merged." And for the title screen: "Use title-menu as the title screen background instead of the live race; add it to WP36."
 
 Read first: `SPEC.md`, **`specs/story.md` (the story bible: every line, trigger, stage rule and UI rule; it is the source of truth for text)**, `specs/contracts.ts` (SaveGame, Screen, RaceOffer), `src/meta/career.ts` (`rankOf`, `generateOffers`, `applyRaceResult`), `src/meta/save.ts` (+tests, migrations), `src/game/index.ts` and `src/game/store.ts` (screen flow: raceSelect -> preRace -> race -> results, champion), `src/ui/screens/PreRace.tsx`, `src/ui/screens/career/*`, `src/ui/fixtures.ts`, `src/content/rivals.ts`, the music hook-up WP35 added (`setMusic`), `specs/design.md` (UI tokens, fonts).
-Owns: `src/content/story.ts` (new: all lines and scene data), `src/meta/story.ts` (new: pure scene picking) + test, `src/ui/screens/career/StoryScene.tsx` (new) + any small UI test, the story hook-up in `src/game/index.ts` / `src/game/store.ts`, `src/meta/save.ts` + `src/meta/career.ts` (the CCR-12 fields only), `scripts/assets/importStory.mjs` (new), `public/story/**` (new), both contracts copies (CCR-12 only), `specs/story.md` (only to correct a line that cannot work, say which).
+Owns: `src/content/story.ts` (new: all lines and scene data), `src/meta/story.ts` (new: pure scene picking) + test, `src/ui/screens/career/StoryScene.tsx` (new) + any small UI test, the story hook-up in `src/game/index.ts` / `src/game/store.ts`, `src/meta/save.ts` + `src/meta/career.ts` (the CCR-12 fields only), `scripts/assets/importStory.mjs` (new), `public/story/**` (new), `src/ui/screens/Title.tsx` and the `.title-screen` rules in `src/ui/theme.css` (section 5), the title backdrop start/stop in `src/game/index.ts` (section 5; leave `src/game/titleBackdrop.ts` in place if the champion screen still uses it), both contracts copies (CCR-12 only), `specs/story.md` (only to correct a line that cannot work, say which).
 Dispatch: subagent (opus, effort high), after WP35 (music) is merged. Branch `wp/36-story`, worktree `../wreckline-wt/wp36`, dev port 5236 (launch entry `wreckline-wp36`).
 
 ## 1. Images (`scripts/assets/importStory.mjs`)
-Source: `/Users/kevin/Downloads/Claude/wreckline/story-art/<id>.jpg` (16 files: `beat-intro`, `beat-vex`, `beat-razor`, `beat-duchess`, `beat-warden`, `beat-ending`, and the 10 track ids; ignore `cast-sheet.jpg` and `_overview-*.jpg`; the folder is git-ignored, read it from the main checkout path). Output `public/story/<id>.webp`, 1600x900 (centre crop to 16:9 from 2752x1536), quality chosen so each is about 150-250 kB; use `sharp` (in node_modules) or `cwebp` (/opt/homebrew/bin). The user kept all 16 as they are: no retouching. Report the total size.
+Source: `/Users/kevin/Downloads/Claude/wreckline/story-art/<id>.jpg` (17 files: `beat-intro`, `beat-vex`, `beat-razor`, `beat-duchess`, `beat-warden`, `beat-ending`, the 10 track ids, and `title-menu`; ignore `cast-sheet.jpg` and `_overview-*.jpg`; the folder is git-ignored, read it from the main checkout path). Output `public/story/<id>.webp`, 1600x900 (centre crop to 16:9 from 2752x1536), quality chosen so each is about 150-250 kB; use `sharp` (in node_modules) or `cwebp` (/opt/homebrew/bin). The user kept all of them as they are: no retouching. Report the total size.
 
 ## 2. CCR-12 (pre-approved by the brain; apply in both contracts copies)
 - `Screen` gains `'story'`.
@@ -32,10 +32,16 @@ Source: `/Users/kevin/Downloads/Claude/wreckline/story-art/<id>.jpg` (16 files: 
 - Music: the menu track keeps playing during scenes (WP35's menu mode); the race track starts at the countdown as before.
 - Fonts and colours from `specs/design.md`; speaker colours from `specs/story.md` section 5.
 
+## 5. Title screen key art (user decision 2026-10-27)
+- The title screen shows `public/story/title-menu.webp` as a full-screen background (cover, anchored right so the cars and the sign stay visible at narrower aspect ratios) instead of the live 3D race. Keep the existing left scrim gradient and the menu column exactly as they are; the image's left 40% is dark on purpose.
+- Stop starting the live title race (`createTitleBackdrop`) for the title screen, so no 3D scene renders behind the menu (saves GPU on the menu). If the champion screen uses the same backdrop, keep it there unchanged. The image loads with the title screen (preload it early: it is the first thing the player sees); until it has loaded, the dark background shows.
+- Music on the title is unchanged (WP35 menu track).
+
 ## Acceptance tests
 - [ ] Unit tests of section 3 and the CCR-12 migrations; existing career, save and UI tests green with unchanged intent.
 - [ ] Browser (your dev server), screenshots 1280x720 into `../wreckline-wt/wp36-shots/`: a new career's first race shows `beat-intro` (screenshot mid-typing and at the last line); a save at rank 15 shows `beat-vex`; a normal track scene with a lieutenant line (set up a save so VEX is in the offer); ESC skips straight to the race; the race starts normally after the scene; no console errors. Use the dev `__game` API or a crafted save in localStorage to reach each state; say how.
-- [ ] Image import: 16 files, sizes, total.
+- [ ] Image import: 17 files, sizes, total.
+- [ ] Title screen: 1280x720 screenshot and a narrower one (for example 1024x768) with the key art behind the menu; no WebGL canvas rendering on the title (say how you checked); champion screen unchanged.
 - [ ] `npm run verify` green; bundle budget figure reported (story text is small; images live in `public/`).
 
 ## Out of scope

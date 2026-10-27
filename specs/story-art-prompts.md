@@ -99,3 +99,11 @@
 ### blastPit
 > Sunset over a huge open-pit mine with two giant terraced craters side by side, a road between them, a yellow crane over the cut, dust clouds, miners in hard hats with lamps sitting on a ledge holding fistfuls of cash and shouting bets, a distant explosion plume.
 > Style: 1990s DOS PC game cutscene, painted pixel art like Death Rally (1996) and Full Throttle, chunky visible pixels at roughly 480x270 native resolution scaled up, limited palette of about 48 colours, strong rim light, deep shadows, slightly grimy and humorous post-apocalyptic racing world. Wide 16:9 landscape composition, cinematic, characters in the left or right third so the scene reads at a glance. No text, no letters, no logos, no UI, no borders, no watermark.
+
+---
+
+## Main menu
+
+### title-menu (key art behind the title menu; attach the cast sheet)
+> Key art for a racing game title screen. Night, a wet race track straight with red and white kerbs, seen low and wide. On the right half: the battered dark red rusty muscle car with one headlight on, sliding toward the viewer with sparks under it, and behind it, a black supercar with red trim chasing it. Looming huge in the sky above the right side, like a storm cloud, the faint silhouette of THE WARDEN's black helmet with its glowing red visor slit. In the far background a city skyline in flames and searchlights, and the rusty garage sign with a painted red lantern hanging from a crane. The whole left 40% of the image is dark, calm and empty (night sky, dark asphalt, soft smoke) with no characters or bright details, because the game menu is drawn there. Moody, dramatic, red and black with orange fire light.
+> Style: 1990s DOS PC game cutscene, painted pixel art like Death Rally (1996) and Full Throttle, chunky visible pixels at roughly 480x270 native resolution scaled up, limited palette of about 48 colours, strong rim light, deep shadows, slightly grimy and humorous post-apocalyptic racing world. Wide 16:9 landscape composition, cinematic. No text, no letters, no logos, no UI, no borders, no watermark.
