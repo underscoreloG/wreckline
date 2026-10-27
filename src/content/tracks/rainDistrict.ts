@@ -1,69 +1,74 @@
 /**
- * Rain District (city theme, WP23b): a chicane chain through narrow streets and one 200 m boulevard that
- * ends in a hairpin turnaround. Clockwise, width 14, 4 m of sidewalk (shoulder). Built with roundedLoop
- * from a corner polygon. The start sits on the boulevard right after the last corner (WP11/WP22: start on
- * a straight after a corner); of five soaked starts this one gave the fewest wrecks with the most clean laps.
+ * Rain District (city theme, WP23b; redrawn in WP32 as a Death Rally tight track, content.md section 12
+ * "Track shape"): the boulevard is the start straight, a hairpin turnaround at its end, then a chicane chain
+ * and right-angle steps through narrow streets. Clockwise, width 14, 4 m of sidewalk (shoulder). Built with
+ * roundedLoop from a corner polygon. The line sits 32 m before the hairpin with the grid on the boulevard.
  *
  * Corners in race order (s in m, radius measured on the spline, "R"/"L" = right/left):
- * - s 0-207      the boulevard east (207 m), billboards both sides
- * - T1           s 207-278: hairpin turnaround at the end of the boulevard, R 178 deg, r 18
- * - s 278-345    back street west
- * - T2           s 345-392: L 88, r 23, into the narrow streets
- * - T3-T8        s 401-629: the chicane chain, three S-bends L/R, R/L, L/R, 33 deg each, r 23-25
- * - T9           s 645-691: R 87, r 18
- * - s 691-759    south street west
- * - T10-T11      s 759-826: jog R 48 / L 46, r 31 / 26
- * - T12          s 831-875: R 86, r 20, onto the west street
- * - T13-T14      s 952-1020: chicane R 34 / L 33, r 31 / 23
- * - s 1020-1124  west street north
- * - T15          s 1124-1165: R 86, r 21, onto the boulevard
+ * - s 870-899, 0-30  the boulevard east (61 m with the grid on it), billboards both sides
+ * - T1           s 30-107: hairpin turnaround at the end of the boulevard, R 176 deg, r 23
+ * - T2           s 109-147: L 86, r 24, from the back street into the narrow streets
+ * - T3-T7        s 164-299: the chicane chain south, L 24 / R 50 / L 49 / R 51 / L 25, r 28-29
+ * - T8-T11       s 313-484: the jog down and west, R 84 / L 82 / R 86 / R 88, r 24
+ * - T12-T15      s 488-659: steps round a block, L 84 / R 86 / R 84 / L 87, r 24
+ * - T16-T18      s 668-743: chicane on the west street, R 25 / L 52 / R 25, r 29-41
+ * - T19-T21      s 748-869: R 84 / L 84 / R 87, r 24, the jog onto the boulevard
+ *
+ * Pickups alternate on and off the racing line: lateral 5.5 sits outside the AI's 5.4 m line band, as on
+ * Scrapyard. Every number here moves with any edit: the soak is chaotic, so re-run rainDistrict.test.ts and run.mjs.
  */
 import type { TrackDef } from '../../shared/contracts';
 import { type Corner, roundedLoop } from './roundedLoop';
 import { placeProps, type PropRule, type ScatterRule } from './placeProps';
 
 export const RAIN_DISTRICT_CORNERS: readonly Corner[] = [
-  { x: 25, y: 0, r: 24 },
-  { x: 280, y: 0, r: 20 },
-  { x: 280, y: 40, r: 20 },
-  { x: 160, y: 40, r: 26 },
-  { x: 160, y: 90, r: 35 },
-  { x: 185, y: 125, r: 35 },
-  { x: 185, y: 165, r: 35 },
-  { x: 160, y: 200, r: 35 },
-  { x: 160, y: 240, r: 35 },
-  { x: 185, y: 275, r: 35 },
-  { x: 185, y: 330, r: 26 },
-  { x: 70, y: 330, r: 35 },
-  { x: 45, y: 300, r: 35 },
-  { x: 0, y: 300, r: 26 },
-  { x: 0, y: 180, r: 35 },
-  { x: 25, y: 145, r: 35 },
+  { x: 18, y: 0, r: 24 },
+  { x: 130, y: 0, r: 23 },
+  { x: 130, y: 46, r: 23 },
+  { x: 80, y: 46, r: 24 },
+  { x: 80, y: 96, r: 28 },
+  { x: 94, y: 124, r: 28 },
+  { x: 80, y: 152, r: 28 },
+  { x: 94, y: 180, r: 28 },
+  { x: 80, y: 208, r: 28 },
+  { x: 80, y: 256, r: 24 },
+  { x: 30, y: 256, r: 24 },
+  { x: 30, y: 306, r: 24 },
+  { x: -30, y: 306, r: 24 },
+  { x: -30, y: 250, r: 24 },
+  { x: -80, y: 250, r: 24 },
+  { x: -80, y: 190, r: 24 },
+  { x: -30, y: 190, r: 24 },
+  { x: -30, y: 146, r: 28 },
+  { x: -16, y: 118, r: 28 },
+  { x: -30, y: 90, r: 28 },
+  { x: -30, y: 50, r: 24 },
+  { x: 18, y: 50, r: 24 },
 ];
 
-const BASE: TrackDef = {
+const BASE: TrackDef & { shape: 'tight' } = {
   id: 'rainDistrict',
   name: 'Rain District',
   theme: 'city',
+  shape: 'tight',
   width: 14,
   shoulder: 4,
   checkpointSpacing: 40,
-  referenceLapTime: 31.5,
-  centerline: roundedLoop(RAIN_DISTRICT_CORNERS, { x: 60, y: 0 }),
+  referenceLapTime: 25.5, // WP32: 0.55 AI median clean lap 25.50 s over the 16 soak seeds (old layout 31.5)
+  centerline: roundedLoop(RAIN_DISTRICT_CORNERS, { x: 74, y: 0 }),
   pickups: [
-    { kind: 'cash', s: 36, lateral: -3 },
-    { kind: 'mines', s: 125, lateral: 3 },
-    { kind: 'cash', s: 215, lateral: 0 },
-    { kind: 'repair', s: 305, lateral: -3 },
-    { kind: 'turbo', s: 394, lateral: 2 },
-    { kind: 'cash', s: 484, lateral: 0 },
-    { kind: 'mines', s: 574, lateral: 3 },
-    { kind: 'repair', s: 663, lateral: -2 },
-    { kind: 'turbo', s: 753, lateral: -3 },
-    { kind: 'cash', s: 842, lateral: 3 },
-    { kind: 'mines', s: 932, lateral: 0 },
-    { kind: 'turbo', s: 1022, lateral: -3 },
-    { kind: 'cash', s: 1111, lateral: 2 },
+    { kind: 'cash', s: 30, lateral: -2 },
+    { kind: 'mines', s: 105, lateral: -5.5 },
+    { kind: 'turbo', s: 180, lateral: 3.5 },
+    { kind: 'repair', s: 255, lateral: -5.5 },
+    { kind: 'cash', s: 330, lateral: 5.5 },
+    { kind: 'mines', s: 405, lateral: 5.5 },
+    { kind: 'turbo', s: 480, lateral: -2 },
+    { kind: 'cash', s: 555, lateral: 2 },
+    { kind: 'mines', s: 630, lateral: -5.5 },
+    { kind: 'repair', s: 705, lateral: 5 },
+    { kind: 'turbo', s: 780, lateral: -5.5 },
+    { kind: 'cash', s: 855, lateral: 5.5 },
   ],
   props: [],
 };
@@ -72,14 +77,15 @@ const BASE: TrackDef = {
 // (outside the walls), then building fronts fill the gaps.
 export const RAIN_DISTRICT_PROP_RULES: readonly PropRule[] = [
   { sFrom: 0, sTo: 'length', every: 22, side: 'alternate', offset: 2, kind: 'lightPole', scale: 1 },
-  { sFrom: 20, sTo: 195, every: 45, side: 'both', offset: 1.5, kind: 'billboard', scale: 1 },
-  { sFrom: 1030, sTo: 1115, every: 40, side: 'alternate', offset: 1.5, kind: 'billboard', scale: 1 },
+  { sFrom: 0, sTo: 15, every: 20, side: 'both', offset: 1.5, kind: 'billboard', scale: 1 },
+  { sFrom: 662, sTo: 690, every: 40, side: 'alternate', offset: 1.5, kind: 'billboard', scale: 1 },
+  { sFrom: 860, sTo: 'length', every: 20, side: 'both', offset: 1.5, kind: 'billboard', scale: 1 },
   { sFrom: 0, sTo: 'length', every: 13, side: 'both', offset: 3, kind: 'building', scale: 1 },
 ];
 
 export const RAIN_DISTRICT_SCATTER: readonly ScatterRule[] = [
-  { kind: 'building', count: 16 },
+  { kind: 'building', count: 12 },
   { kind: 'crate', count: 6 },
 ];
 
-export const RAIN_DISTRICT: TrackDef = { ...BASE, props: placeProps(BASE, RAIN_DISTRICT_PROP_RULES, RAIN_DISTRICT_SCATTER) };
+export const RAIN_DISTRICT: TrackDef & { shape: 'tight' } = { ...BASE, props: placeProps(BASE, RAIN_DISTRICT_PROP_RULES, RAIN_DISTRICT_SCATTER) };
