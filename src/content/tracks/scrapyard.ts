@@ -56,7 +56,7 @@ const BASE: TrackDef & { shape: 'tight' } = {
   width: 14,
   shoulder: 4,
   checkpointSpacing: 40,
-  referenceLapTime: 26, // WP31: 0.55 AI median clean lap 26.09 s over the 16 soak seeds (old layout 27.5)
+  referenceLapTime: 24, // WP37: 0.55 AI median clean lap 24.23 s over the 16 soak seeds (WP31: 26)
   centerline: roundedLoop(SCRAPYARD_CORNERS, { x: 11, y: 0 }),
   pickups: [
     { kind: 'mines', s: 35, lateral: -5.5 },

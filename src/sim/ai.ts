@@ -1,13 +1,14 @@
 import type { AiProfile, CarId, InputFrame, TrackGeometry } from '../shared/contracts';
 import { NEUTRAL_INPUT, PLAYER_CAR_ID, SIM_DT } from '../shared/contracts';
 import { angleWrap, clamp } from '../shared/math';
+import { createRng, hashString } from '../shared/rng';
 import { createTrackSample } from '../shared/trackGeometry';
 import type { AiDriver, SimCar, SimWorld } from './internal';
 import { buildRacingLine, lineCurvature, lineLimit, type RacingLine } from './racingLine';
 
 // AI-side tuning factors (WP12 tunes these, never src/content), multiplied onto the profile values.
-/** Measured over 16 soak seeds: at 1 the pack shoots the leader (usually the player) to a wreck within ~15 s, 2.1 wrecks per race; 0.2 gives ~0.75. WP12: 0.25 with MINE_USE_SCALE 0.6, WP34: 0.55 (docs/tuning-log.md). */
-export const AGGRESSION_SCALE = 0.25;
+/** Measured over 16 soak seeds: at 1 the pack shoots the leader (usually the player) to a wreck within ~15 s, 2.1 wrecks per race; 0.2 gives ~0.75. WP12: 0.25 with MINE_USE_SCALE 0.6, WP34: 0.55 (docs/tuning-log.md). WP37: 0.3, the faster laps cut the gunfire per race (rainDistrict 0.13 wrecks at 0.25). */
+export const AGGRESSION_SCALE = 0.3;
 /** WP34: 0.6 -> 0.55 with the wider GUN_CONE: mine hits 2.64 -> 2.49 per race and a wider AI finish spread margin (pineHollow 0.88 -> 0.92). */
 export const MINE_USE_SCALE = 0.55;
 export const TURBO_USE_SCALE = 1;
@@ -17,7 +18,7 @@ const DEG = Math.PI / 180;
 const LOOK_BASE = 6; // m
 const LOOK_PER_SPEED = 0.45; // s
 const NOISE_FREQ = 0.37; // rad/s
-const NOISE_PHASE = 1.7; // rad per car id
+const NOISE_PHASE = 1.7; // rad per car id, plus a per-race offset from the seed (WP37)
 // 2. steer
 const STEER_GAIN = 2.2; // steer per radian of heading error
 // 3. speed
@@ -228,6 +229,9 @@ export function createAiDriver(world: SimWorld, car: CarId, profile: AiProfile):
   const mineUse = profile.mineUse * MINE_USE_SCALE;
   const turboUse = profile.turboUse * TURBO_USE_SCALE;
   const reckless = profile.skill < RECKLESS_SKILL;
+  // WP37: the per-race offset makes each seed a different race; with the phase fixed per car id the soak's 16 seeds ran
+  // nearly the same race (the rng only drives weapons and turbo), so one start-line incident decided a whole track's numbers.
+  const noisePhase = car * NOISE_PHASE + createRng(hashString(`${world.setup.seed}/${car}`)).range(0, 2 * Math.PI);
 
   let mode = MODE_RACE;
   let modeTime = 0;
@@ -309,7 +313,7 @@ export function createAiDriver(world: SimWorld, car: CarId, profile: AiProfile):
       // 1. target point (with 4. avoidance and 10. pickups)
       const s = me.trackS;
       const sT = s + LOOK_BASE + LOOK_PER_SPEED * absSpeed;
-      const base = lineAt(track, line.offsets, sT) + profile.lineNoise * Math.sin(w.time * NOISE_FREQ + car * NOISE_PHASE);
+      const base = lineAt(track, line.offsets, sT) + profile.lineNoise * Math.sin(w.time * NOISE_FREQ + noisePhase);
 
       let blocked = false;
       let wreckAhead = false;
@@ -395,11 +399,15 @@ export function createAiDriver(world: SimWorld, car: CarId, profile: AiProfile):
       // 3. speed
       const vLine = lineAt(track, line.speeds, s + SPEED_LOOK * speed);
       const vMax = me.eff.maxSpeed;
-      let vTarget = vLine < vMax ? vLine * profile.cornerSpeedFactor : vMax;
+      // WP37: cornerSpeedFactor runs above 1 (the line plans less lateral grip than the car holds), never above top speed.
+      let vTarget = vLine < vMax ? Math.min(vLine * profile.cornerSpeedFactor, vMax) : vMax;
       const player = w.cars[PLAYER_CAR_ID];
-      if (player && car !== PLAYER_CAR_ID) vTarget *= 1 + clamp((player.progress - me.progress) / RUBBER_RANGE, -1, 1) * profile.rubberBand;
+      // WP37: the rubber band scales corner targets only, so the flat-out throttle below never makes it stronger.
+      if (player && car !== PLAYER_CAR_ID && vTarget < vMax) vTarget *= 1 + clamp((player.progress - me.progress) / RUBBER_RANGE, -1, 1) * profile.rubberBand;
       if (wreckAhead && nearest < WRECK_CRAWL_RANGE) vTarget = Math.min(vTarget, WRECK_CRAWL);
       pedals(f, vTarget - speed);
+      // WP37: flat out when the target is top speed; the proportional throttle held ~1 m/s under it on every straight.
+      if (vTarget >= vMax && f.brake === 0) f.throttle = 1;
 
       // 5. handbrake in hairpins only
       if (Math.abs(lineAt(track, curvature, sT)) > HAIRPIN_K && speed > vTarget + HANDBRAKE_OVERSPEED) f.handbrake = true;

@@ -57,7 +57,7 @@ const BASE: TrackDef & { shape: 'tight' } = {
   width: 13,
   shoulder: 5,
   checkpointSpacing: 40,
-  referenceLapTime: 25, // WP32: 0.55 AI median clean lap 25.09 s over the 16 soak seeds (old layout 32.5)
+  referenceLapTime: 23.5, // WP37: 0.55 AI median clean lap 23.51 s over the 16 soak seeds (WP32: 25)
   centerline: roundedLoop(FROSTBITE_CORNERS, { x: 155, y: 0 }),
   pickups: [
     { kind: 'cash', s: 35, lateral: 4 },
