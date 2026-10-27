@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.0 - Arena, time trial, reversed tracks, difficulty (2026-10-27)
+
+- New ARENA mode: 8 cars in a closed arena, last car standing wins. Three arenas (Scrap Pit, Quarry Bowl, Dock Lot) with cover to fight around, the usual guns, mines, spikes and pickups. From 2:00 sudden death drains every car and walls hit twice as hard, so every fight ends. Every car has the same health and gun here; pick a car for how it drives.
+- New TIME TRIAL mode: any track, either direction, any of the 8 cars, alone on the road. A ghost of your best lap drives with you, the HUD shows the live gap to your best, and R (or Select on a gamepad) restarts at once. Best laps and ghosts are saved per track, direction and car.
+- Reversed tracks: every track can be raced the other way, with its own start line. A REVERSE toggle in quick race and time trial, and one career offer each round is reversed.
+- Difficulty: EASY / NORMAL / HARD in Settings, applied to every AI in quick race, career and arena. Rewards stay the same. HARD gives a clearly faster race leader.
+- Faster AI: the best AI in a race now laps at a good human's pace in the same car (about 23-24 s on Scrapyard), the middle of the field a few percent slower.
+
 ## 0.10.0 - Story and music (2026-10-27)
 
 - Career has a story now: THE WARDEN took your family's Red Lantern Garage, and MAZ, the old family mechanic, sends you up the ladder to win it back. Six story scenes at rank milestones (VEX, RAZOR, DUCHESS, BANSHEE, THE WARDEN, the ending) and a scene for every track before each career race, with lines that change as you climb and taunts from the rivals in your race. SPACE goes on, ESC skips.

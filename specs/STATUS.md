@@ -1,7 +1,7 @@
 # Wreckline - status
 Phase: 4 for M2 (wave C1 merged; waiting on the user's art and sound steps)   Size: L   Milestone: M1   Updated: 2026-10-26
 Integration pattern: merges of a running wave go into `integ/<wave>` so main stays put while workers run; main fast-forwards after the last merge.
-Next action: v0.10.0 released 2026-10-27 (story scenes, title key art, background music). Open: user listen to the music loops (systemOverload ~2:57, hyperflight ~0:23) and feel check of the 30 deg AI fire cone, ending scene not played in a browser, VEX "same car" line assumes a raven, importEngines.mjs wipes "## Music" in sfx-sources.md, WP33 CCR stuck cases, README shots show roof plates and old tracks, GC + M2.
+Next action: v0.11.0 released 2026-10-27 (arena, time trial with ghost, reversed tracks, difficulty, faster AI). Open: user feel check of AI pace, Hard, arena and the 30 deg fire cone; user listen to the music loops (systemOverload ~2:57, hyperflight ~0:23); ending scene not played in a browser; VEX "same car" line assumes a raven; importEngines.mjs wipes "## Music" in sfx-sources.md; WP33 CCR stuck cases; dockside~r walls 4.89 over the 4.5 flag; arena wraith weakest, no skip of arena spectating, arena pick and ghost toggle not saved; README lacks the new modes; GC + M2.
 Remote: origin = git@github.com:underscoreloG/wreckline.git (public since 2026-10-25; Pages source = GitHub Actions, set by the user; site will be https://underscorelog.github.io/wreckline/ - not yet deployed).
 Ledger edits stay uncommitted on main while a worker runs (workers check that main did not move).
 
