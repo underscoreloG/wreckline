@@ -40,10 +40,7 @@ describe('blastPit', () => {
 
   it('Blast Pit: the longest track, and its hairpin is the one between the pits under the crane', () => {
     const len = buildTrackGeometry(BLAST_PIT).length;
-    // Against the tight tracks (WP32 length budget: the others at most 990 m); the pre-WP31 layouts still
-    // waiting for their WP32 redraw run 1100-1500 m. Once all ten are tight this is every track again.
-    const tight = Object.values(TRACKS).filter((t) => (t as { shape?: string }).shape === 'tight');
-    for (const t of tight) if (t.id !== BLAST_PIT.id) expect(len).toBeGreaterThan(buildTrackGeometry(t).length);
+    for (const t of Object.values(TRACKS)) if (t.id !== BLAST_PIT.id) expect(len).toBeGreaterThan(buildTrackGeometry(t).length);
     const hairpin = tightestTurn(BLAST_PIT);
     expect(BLAST_PIT_CRANE_S).toBeGreaterThan(hairpin.from);
     expect(BLAST_PIT_CRANE_S).toBeLessThan(hairpin.to);
