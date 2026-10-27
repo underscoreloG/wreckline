@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { profileForSkill } from '../content/ai';
 import { buildQuickRaceSetup } from '../content/quickRace';
-import { getTrack } from '../content/tracks';
+import { RAIN_DISTRICT_FIXTURE, SCRAPYARD_FIXTURE } from '../content/tracks/fixtures';
 import type { TrackDef, Vec2 } from '../shared/contracts';
 import { NEUTRAL_INPUT, SIM_HZ } from '../shared/contracts';
 import { angleWrap, clamp } from '../shared/math';
@@ -14,7 +14,8 @@ beforeAll(async () => {
   await initPhysics();
 });
 
-const SCRAPYARD = getTrack('scrapyard');
+// Frozen copy of the pre-WP31 Scrapyard: these tests check AI behaviour, not a live track's shape.
+const SCRAPYARD = SCRAPYARD_FIXTURE;
 const RAVEN = buildQuickRaceSetup({ seed: 1 }).entrants[0].stats;
 const SEEDS = Array.from({ length: 16 }, (_, i) => i + 1);
 
@@ -111,7 +112,7 @@ describe('soak (Scrapyard x 3 laps, AI 0.35/0.55/0.75 + autoplay 0.55)', () => {
   const raceTimeLimit = 3 * SCRAPYARD.referenceLapTime * 1.6;
 
   it.each(SEEDS)('2. seed %i: race completes, nobody stuck', (seed) => {
-    const r = runSoak({ trackId: 'scrapyard', seed });
+    const r = runSoak({ track: SCRAPYARD, seed });
     results.push(r);
     expect(r.endReason).not.toBe('timeout');
     const live = r.cars.filter((c) => !c.wrecked);
@@ -156,7 +157,7 @@ describe('soak (Scrapyard x 3 laps, AI 0.35/0.55/0.75 + autoplay 0.55)', () => {
 describe('determinism and perf', () => {
   it('6. the same seed gives the same stateHash every 600 ticks', () => {
     const run = (): string[] => {
-      const sim = createSim(soakSetup({ trackId: 'scrapyard', seed: 9 }));
+      const sim = createSim(soakSetup({ track: SCRAPYARD, seed: 9 }));
       const hashes: string[] = [];
       for (let t = 1; t <= 4200; t++) {
         sim.step(new Map());
@@ -171,7 +172,7 @@ describe('determinism and perf', () => {
   });
 
   it('7. perf: 4 AI cars average < 0.5 ms per tick over a 3-lap race', () => {
-    const sim = createSim(soakSetup({ trackId: 'scrapyard', seed: 3 }));
+    const sim = createSim(soakSetup({ track: SCRAPYARD, seed: 3 }));
     const none = new Map();
     for (let t = 0; t < 60; t++) sim.step(none); // warm-up (JIT, countdown)
     let ticks = 0;
@@ -242,9 +243,9 @@ describe('wrecks (CCR-7)', () => {
 });
 
 describe('wrecks (CCR-8)', () => {
-  it('an AI glued to a wreck below crawl speed recovers: rainDistrict seed 14, 0.75 AI in slot 0, finishes before the soak timeout', () => {
+  it('an AI glued to a wreck below crawl speed recovers: rainDistrict (frozen fixture) seed 14, 0.75 AI in slot 0, finishes before the soak timeout', () => {
     // On main the 0.75 AI shoved car 2's wreck at 1-2.6 m/s for 80+ s (above STUCK_SPEED, so no recovery) and the race timed out.
-    const setup = soakSetup({ trackId: 'rainDistrict', seed: 14 });
+    const setup = soakSetup({ track: RAIN_DISTRICT_FIXTURE, seed: 14 });
     const skills = [0.75, 0.55, 0.35, 0.55];
     setup.entrants.forEach((e, i) => (e.ai = profileForSkill(skills[i] ?? 0.55)));
     const sim = createSim(setup);

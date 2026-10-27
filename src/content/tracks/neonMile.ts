@@ -19,7 +19,7 @@
  * - s 1209-end   south street west (200 m) to the line
  */
 import type { TrackDef } from '../../shared/contracts';
-import { type Corner, roundedLoop } from './dockside';
+import { type Corner, roundedLoop } from './roundedLoop';
 import { placeProps, type PropRule, type ScatterRule } from './placeProps';
 
 export const NEON_MILE_CORNERS: readonly Corner[] = [

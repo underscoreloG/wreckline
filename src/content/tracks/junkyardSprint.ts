@@ -16,7 +16,7 @@
  * - s 806-end    onto the bottom leg
  */
 import type { TrackDef } from '../../shared/contracts';
-import { type Corner, roundedLoop } from './dockside';
+import { type Corner, roundedLoop } from './roundedLoop';
 import { placeProps, type PropRule, type ScatterRule } from './placeProps';
 
 export const JUNKYARD_SPRINT_CORNERS: readonly Corner[] = [

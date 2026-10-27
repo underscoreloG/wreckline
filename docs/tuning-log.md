@@ -390,3 +390,40 @@ User decisions (2026-10-26): every car but the starter is listed in the shop; ou
 | After | 25 | 21 | 38 | 15/16 (seed 3: 21) | 15/16 |
 
 Races per seed after: 21 22 22 24 25 25 25 25 25 30 30 31 31 32 33 38 (before: 22 22 24 24 25 25 25 26 28 30 30 31 31 32 33 38). Every seed still buys scorch then viper (no blaze, titan or wraith purchase). Purchases that changed: scorch bought 25% off on seeds 4, 9, 10, 12, 13 (seed 4 at race 4, was 6; seeds 9, 10, 12 at race 5, was 6; seed 13 same race); viper bought 25% off on seeds 3 (race 12, was 13), 10 (race 10, was 16) and 11 (race 13, was 16). `node scripts/balance/run.mjs`: 8/8 inside target after.
+
+## 2026-10-26 - Scrapyard redrawn as the first Death Rally tight track (WP31)
+
+User: "currently in tracks there are a lot of straight lines, in death rally there are more small turns", then chose "Death Rally tight" corners for all 10 tracks, camera unchanged. WP31 added the shape metric and rules (content.md section 12, "Track shape") and redrew Scrapyard; WP32 does the other 9.
+
+### Changed values
+
+| Where | Value | Before | After | Why |
+|---|---|---|---|---|
+| `src/content/tracks/scrapyard.ts` | centerline | 17-point spline loop, 1049 m | `roundedLoop` of 21 corners, 892 m | tight rules: near-straight 41% -> 23.9%, corners 10 -> 20, longest straight 192 -> 69 m (the start), 80 -> 170 deg per 100 m, min radius 14.7 m |
+| `src/content/tracks/scrapyard.ts` | `shoulder` | 2 | 4 | wall hits per race in the WP31 probe: 6.7-6.8 with 2 m, 4.7 with 3 m, 1.6-3.2 with 4 m (the old track: 3.72) |
+| `src/content/tracks/scrapyard.ts` | `referenceLapTime` | 27.5 | 26 | soak median clean lap of the 0.55 AI 26.09 s (12 laps) |
+| `src/content/tracks/scrapyard.ts` | pickups | same 12 spread over 1049 m, all inside the AI line band | 12 (cash 4, mines 3, turbo 3, repair 2) every ~74 m; 7 at lateral +-5.5, outside the AI's 5.4 m line band (the AI never steers for those), 5 on or near the line | "on the racing line and off it"; with fewer AI refills the mine hits stay under 3 per race overall |
+| `src/content/tracks/scrapyard.ts` | prop rules | s ranges for 1049 m | same rules, s ranges re-fitted to 892 m | content.md section 12 table |
+
+Not changed: AI code and scale constants, car handling, weapons, every other track.
+
+### Before / after (`node scripts/balance/run.mjs`, scrapyard row, 16 seeds x 4 starts; start 0 = the soak)
+
+| Metric | Before | After | Target |
+|---|---|---|---|
+| Wrecks per race | 0.23 | 0.47 | 0.2-2.0 |
+| Wall impacts per race | 3.72 | 1.56 | report only, flag above 4.5 |
+| Mine hits per race | 2.27 | 2.50 | 0.8-3 (all tracks) |
+| Gun damage share | 0.43 | 0.37 | 0.45-0.65 (all tracks) |
+| Spread 0.75 vs 0.35 | 1.66 | 2.39 | >= 0.8 |
+| 0.55 median clean lap, start 0 | 27.69 s (30 laps) | 26.09 s (12 laps) | ref +-1 s |
+| Timeouts | 0 | 0 | 0 |
+| All-track rows | 8/8 | 8/8 (wrecks 0.23-0.88, gun 0.53, mines 2.86, spread 0.95, lap 0.23 s) | - |
+
+Soak gate (scrapyard.test.ts, `runSoak` seeds 1-16): wrecks 1.25 per race, wall impacts 1.25, no timeout, nobody stuck. 8-car quick races (7 AI + autoplay, seeds 1-12, headless): 3.92 wrecks per race (old layout 3.42), no timeout, finished cars cruise 99+ m in their first 5 s.
+
+### Notes for WP32 and the next balance pass
+
+- The soak on a tight track is chaotic: moving one corner by 1-2 m or changing one radius by 1-2 m swung mine hits between 2.5 and 4.9, wrecks between 0.14 and 1.0, and once produced a timeout (an AI glued to a wreck lying in the shoulder against the outer wall, see the WP31 report). Probe every candidate with run.mjs and the track's test file; expect to try a few.
+- On the wiggle-heavy drafts mine hits ran 3.6-4.8 per race (nearly every drop hits: followers sit nose to tail on one line). Scrapyard lands at 2.50, but with 10 tight tracks the all-track mine row (target <= 3) is at risk: the first knob is `MINE_USE_SCALE` (ai.ts).
+- Gun damage share drops on tight tracks (0.37 here, 0.21-0.37 on the drafts): the 10 deg gun cone rarely lines up in bends. The all-track row (0.53, floor 0.45) will fall as WP32 lands; `AGGRESSION_SCALE` or the cone are the knobs.
