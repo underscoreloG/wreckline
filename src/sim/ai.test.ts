@@ -258,3 +258,44 @@ describe('wrecks (CCR-8)', () => {
     expect(result!.rows.find((r) => r.car === 0)!.finished).toBe(true);
   });
 });
+
+describe('wrecks (WP33)', () => {
+  it.each([0.35, 0.55, 0.75])('a %f AI glued to a wreck lying in the shoulder against the outer wall is past it within 6 s: rainDistrict (frozen fixture) s 900', (skill) => {
+    // The wreck lies along the outer wall (centre 1.2 m from it), the AI rolls into it at 1 m/s along the wall, 5.5 m behind.
+    // Before WP33 the glued reverse steered toward the avoid target: the rear ground along the wall, then the AI nosed back in (7.2-7.6 s).
+    const s = buildQuickRaceSetup({ seed: 1, aiCount: 1 });
+    const setup = { ...s, track: RAIN_DISTRICT_FIXTURE, entrants: s.entrants.map((e) => ({ ...e, ai: e.id === 0 ? profileForSkill(skill) : null })) };
+    const { sim, world } = createSimWithWorld(setup);
+    world.phase = 'racing';
+    world.countdown = 0;
+    const [ai, wreck] = world.cars;
+    const track = world.track;
+    const wall = track.def.width / 2 + track.def.shoulder;
+    const sWreck = 900;
+    const outer = track.sampleAt(sWreck).curvature > 0 ? -1 : 1;
+    const place = (car: typeof ai, sAt: number, lat: number, speed: number): void => {
+      const smp = track.sampleAt(sAt);
+      const h = Math.atan2(smp.tangent.y, smp.tangent.x);
+      car.body.setTranslation({ x: smp.pos.x + smp.right.x * lat, y: smp.pos.y + smp.right.y * lat }, true);
+      car.body.setRotation(h, true);
+      car.body.setLinvel({ x: Math.cos(h) * speed, y: Math.sin(h) * speed }, true);
+      car.trackS = sAt; // the AI reads last tick's projection
+      car.lateral = lat;
+    };
+    place(ai, sWreck - 5.5, outer * (wall - 1.4), 1);
+    place(wreck, sWreck, outer * (wall - 1.2), 0);
+    wreck.hp = 0;
+    wreck.wrecked = true;
+    wreck.wreckedAt = 0;
+
+    const none = new Map();
+    let passedAt = -1;
+    for (let t = 0; t < 20 * SIM_HZ && passedAt < 0; t++) {
+      sim.step(none);
+      if (ai.trackS - wreck.trackS > 5) passedAt = t / SIM_HZ;
+    }
+    sim.dispose();
+    expect(passedAt).toBeGreaterThan(0);
+    expect(passedAt).toBeLessThan(6);
+  });
+});

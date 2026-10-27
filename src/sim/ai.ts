@@ -48,6 +48,19 @@ const WRECK_CRAWL = 3; // m/s
 const WRECK_GLUE_RANGE = 4.5; // m
 /** A glued AI reverses this long instead of REVERSE_TIME: 1 s left it too close to turn round the wreck, so it nosed back in. */
 const WRECK_REVERSE_TIME = 2.5; // s
+/**
+ * WP33: glued to a wreck on its own side with its centre this close to that wall, the AI reverses with the nose swinging
+ * to the open side until it points WRECK_ESCAPE_ANGLE off the track that way (after at least WRECK_REVERSE_MIN, at most
+ * the glued reverse time), then passes the wreck on the open side for WRECK_REGLUE_TIME. Steering toward the avoid
+ * target instead swung the rear into the wall: the reverse ground along it and the AI nosed back into the wreck.
+ */
+const WRECK_WALL_NEAR = 5; // m
+const WRECK_ESCAPE_ANGLE = 20 * DEG;
+const WRECK_REVERSE_MIN = 0.5; // s
+/** Glued again to the same wreck within this long after such a reverse: reverse WRECK_REVERSE_STEP longer, at most WRECK_TRIES_MAX times. */
+const WRECK_REGLUE_TIME = 5; // s
+const WRECK_REVERSE_STEP = 2; // s
+const WRECK_TRIES_MAX = 2;
 // 5. handbrake
 const HAIRPIN_K = 1 / 18;
 const HANDBRAKE_OVERSPEED = 6; // m/s
@@ -206,6 +219,8 @@ export function createAiDriver(world: SimWorld, car: CarId, profile: AiProfile):
   const track = world.track;
   const lim = lineLimit(track);
   const wreckLim = track.def.width / 2 + track.def.shoulder - WRECK_WALL_MARGIN;
+  const wallOff = track.def.width / 2 + track.def.shoulder;
+  const here = createTrackSample();
   const pickupSpawns = world.setup.track.pickups;
   const aggression = profile.aggression * AGGRESSION_SCALE;
   const mineUse = profile.mineUse * MINE_USE_SCALE;
@@ -215,6 +230,11 @@ export function createAiDriver(world: SimWorld, car: CarId, profile: AiProfile):
   let mode = MODE_RACE;
   let modeTime = 0;
   let reverseTime = REVERSE_TIME;
+  let reverseMin = 0;
+  let escapeSide = 0; // WP33: the open side of a glued reverse at the wall (+1 = right), 0 = none
+  let escapeWreck = -1;
+  let escapeTries = 0;
+  let sinceEscape = WRECK_REGLUE_TIME;
   let wrongWayTime = 0;
   let avoid = 0;
   let avoidDir = 0;
@@ -251,21 +271,31 @@ export function createAiDriver(world: SimWorld, car: CarId, profile: AiProfile):
 
       // 6. stuck / wrong-way detection
       if (mode === MODE_RACE) {
-        let glued = false;
+        let glued = -1;
         if (absSpeed < WRECK_CRAWL) {
           for (const o of w.cars) {
             if (!o.wrecked || o.id === car) continue;
             const dx = c.x[o.id] - x;
             const dy = c.y[o.id] - y;
-            if (dx * fx + dy * fy > 0 && Math.hypot(dx, dy) < WRECK_GLUE_RANGE) glued = true;
+            if (dx * fx + dy * fy > 0 && Math.hypot(dx, dy) < WRECK_GLUE_RANGE) glued = o.id;
           }
         }
-        me.stuckTimer = absSpeed < STUCK_SPEED || glued ? me.stuckTimer + dt : 0;
+        sinceEscape += dt;
+        me.stuckTimer = absSpeed < STUCK_SPEED || glued >= 0 ? me.stuckTimer + dt : 0;
         wrongWayTime = me.wrongWay ? wrongWayTime + dt : 0;
         if (me.stuckTimer >= STUCK_TIME) {
           mode = MODE_REVERSE;
           modeTime = 0;
-          reverseTime = glued ? WRECK_REVERSE_TIME : REVERSE_TIME;
+          reverseTime = glued >= 0 ? WRECK_REVERSE_TIME : REVERSE_TIME;
+          escapeSide = 0;
+          const wallSide = me.lateral >= 0 ? 1 : -1; // the nearest wall
+          if (glued >= 0 && wallOff - Math.abs(me.lateral) < WRECK_WALL_NEAR && w.cars[glued].lateral * wallSide > 0) {
+            escapeSide = -wallSide;
+            escapeTries = glued === escapeWreck && sinceEscape < WRECK_REGLUE_TIME ? Math.min(escapeTries + 1, WRECK_TRIES_MAX) : 0;
+            escapeWreck = glued;
+            reverseTime += escapeTries * WRECK_REVERSE_STEP;
+            reverseMin = WRECK_REVERSE_MIN + escapeTries * WRECK_REVERSE_STEP;
+          }
           me.stuckTimer = 0;
         } else if (wrongWayTime >= WRONG_WAY_TIME) {
           mode = MODE_TURN;
@@ -302,6 +332,7 @@ export function createAiDriver(world: SimWorld, car: CarId, profile: AiProfile):
           avoidDir = me.lateral >= wreckLat ? 1 : -1; // the side the AI is on, kept until the pass is done...
           if (wreckLim - avoidDir * wreckLat < WRECK_ROOM) avoidDir = -avoidDir; // ...unless there is no room
         }
+        if (escapeSide !== 0 && sinceEscape < WRECK_REGLUE_TIME) avoidDir = escapeSide; // WP33: the open side after an escape reverse
         const goal = avoidDir > 0 ? Math.max(0, wreckLat + WRECK_CLEAR - base) : Math.min(0, wreckLat - WRECK_CLEAR - base); // never toward it
         avoid = avoid < goal ? Math.min(goal, avoid + AVOID_RATE * dt) : Math.max(goal, avoid - AVOID_RATE * dt);
       } else if (blocked) {
@@ -335,7 +366,17 @@ export function createAiDriver(world: SimWorld, car: CarId, profile: AiProfile):
         modeTime += dt;
         f.brake = 1;
         f.steer = -Math.sign(a);
-        if (modeTime >= reverseTime) mode = MODE_RACE;
+        let turned = false;
+        if (escapeSide !== 0) {
+          // in reverse, steer -side turns the nose toward side
+          const tan = track.sampleAtInto(here, s).tangent;
+          turned = angleWrap(h - Math.atan2(tan.y, tan.x)) * escapeSide >= WRECK_ESCAPE_ANGLE;
+          f.steer = turned ? 0 : -escapeSide;
+        }
+        if (modeTime >= reverseTime || (turned && modeTime >= reverseMin)) {
+          mode = MODE_RACE;
+          if (escapeSide !== 0) sinceEscape = 0;
+        }
         return f;
       }
       if (mode === MODE_TURN) {
