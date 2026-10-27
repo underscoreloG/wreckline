@@ -4,6 +4,7 @@
  */
 import { expect, it } from 'vitest';
 import type { TrackDef } from '../../shared/contracts';
+import { angleWrap } from '../../shared/math';
 import { buildTrackGeometry } from '../../shared/trackGeometry';
 import { runSoak, type SoakStats } from '../../sim/soak';
 import { placeProps, type PropRule, type ScatterRule } from './placeProps';
@@ -54,6 +55,34 @@ export const hairpins = (def: TrackDef): Run[] => tightSections(def).filter((r) 
 
 /** The tight section with the biggest total turn. */
 export const tightestTurn = (def: TrackDef): Run => tightSections(def).reduce((a, b) => (b.turn > a.turn ? b : a), { from: 0, to: 0, turn: 0 });
+
+/**
+ * Hairpins as the shape metric reads them (WP31, content.md section 12): runs where the 10 m window curvature stays
+ * above 1/25 and the turn reaches 150 deg. The per-sample `hairpins` splits a hairpin whose curvature dips above
+ * r 25 for a few m (two back-to-back 90s, or the spline after a short entry leg); the window reads it as one.
+ */
+export function windowHairpins(def: TrackDef): Run[] {
+  const g = buildTrackGeometry(def);
+  const n = g.samples.length;
+  const ds = g.length / n;
+  const w = Math.round(10 / ds);
+  const h = g.samples.map((smp) => Math.atan2(smp.tangent.y, smp.tangent.x));
+  const out: Run[] = [];
+  let from = -1;
+  for (let i = 0; i <= n; i++) {
+    const k = Math.abs(angleWrap(h[(i + w) % n] - h[i % n])) / (w * ds);
+    if (k > 1 / 25 && from < 0) from = i;
+    else if (k <= 1 / 25 && from >= 0) {
+      // The forward window: the run ends w samples before the corner does.
+      let turn = 0;
+      for (let j = from; j < i - 1 + w; j++) turn += angleWrap(h[(j + 1) % n] - h[j % n]);
+      const deg = (Math.abs(turn) * 180) / Math.PI;
+      if (deg >= 150) out.push({ from: from * ds, to: (i - 1 + w) * ds, turn: deg });
+      from = -1;
+    }
+  }
+  return out;
+}
 
 /**
  * The content checks every track shares (WP11-WP23 pattern), registered inside the caller's describe:

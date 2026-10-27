@@ -455,3 +455,76 @@ User: "Scrapyard feels right. Merge WP31 and redraw the other 9 tracks the same 
 - Bends of r 28-34 are taken flat at about 31 m/s, at the lateral grip limit, and become wall hotspots; r 22 or r 40+ ran clean (WP32a).
 - With every mine pickup off the line, mine hits still run 2.7-4.0 per race from the 3-mine loadout alone; layout moves it most.
 - WP33 CCR, not fixed: an AI stuck nose-in, square to the wall in the shoulder, can loop its 1 s reverse forever (6 timeouts in 3840 races on jittered Scrapyards); a car glued to a wreck mid-track in a hairpin; a car pinned with no motion at a hairpin wall. 0 timeouts on the shipped layouts.
+
+## 2026-10-27 - AI gun retune for the tight tracks (WP34)
+
+User: "Merge WP33, WP32a, WP32b, WP32c into main, then spec and dispatch a gun retune WP before the release." After WP32 the all-track gun damage share was 0.36 (target 0.45-0.65, 0.53 before the redraw): the AI only rolls to open fire while a target sits inside `GUN_CONE` and stops when it leaves, and in constant bends a car 15-20 m ahead sits about 17-23 deg off the nose (chord angle d / 2r at r 25, geometry estimate, not measured). AI side only; the player's gun, `GUN_AIM_CONE` 7 deg and weapons content are unchanged.
+
+### Changed values
+
+| Where | Value | Before | After | Why |
+|---|---|---|---|---|
+| `src/sim/ai.ts` | `GUN_CONE` | 10 deg | 30 deg | gun share 0.36 -> 0.50 alone (10 tracks x 16 seeds x 4 starts); 45 deg gains nothing more (0.51). Hits still need the 7 deg aim assist, so the wider cone mostly opens fire earlier in a bend |
+| `src/sim/ai.ts` | `MINE_USE_SCALE` | 0.6 | 0.55 | with the 30 deg cone alone the spread margin is thin (pineHollow 0.88, 0.84 at 32 seeds); 0.55 gives 0.92 (0.88 at 32 seeds), mine hits 2.64 -> 2.49 and the gun share +0.01 |
+
+Not changed: `AGGRESSION_SCALE` 0.25, racing line, handling, the glued-wreck logic (WP33).
+
+### Probe trail (`run.mjs --skip-career`, 16 seeds x 4 starts unless noted)
+
+| Candidate (cone, aggression, mine use) | Gun share | Mine hits | Wrecks (per track) | Spread worst | Result |
+|---|---|---|---|---|---|
+| 10, 0.25, 0.6 (main) | 0.36 | 2.83 | 0.27-0.66 | 0.84 | 7/8 |
+| 12, 0.25, 0.6 | 0.38 | 2.88 | 0.30-0.84 | 0.64 | fail gun, spread |
+| 14, 0.25, 0.6 | 0.41 | 2.87 | 0.25-0.91 | 0.39 | fail gun, spread |
+| 20, 0.25, 0.6 | 0.45 | 2.83 | 0.22-0.97 | 0.83 | pass at the edge |
+| 30, 0.25, 0.6 | 0.50 | 2.64 | 0.36-1.19 | 0.88 | pass |
+| 30, 0.25, 0.6 (32 seeds) | 0.49 | 2.69 | 0.35-1.09 | 0.84 | pass, thin spread |
+| 45, 0.25, 0.6 | 0.51 | 2.65 | 0.36-1.14 | 0.64 | fail spread |
+| 10, 0.35, 0.6 | 0.42 | 2.70 | 0.25-0.97 | 0.72 | fail gun, spread |
+| 10, 0.25, 0.4 | 0.41 | 2.19 | 0.17-0.58 | 1.13 | fail gun, wrecks (junkyardSprint, frostbite) |
+| bend cone: 10 + \|k\| x 20 m / 2 at the car's s | 0.42 | 2.82 | 0.25-0.84 | 0.66 | fail gun, spread |
+| bend cone: 10 + \|k\| x 30 m / 2 | 0.43 | 2.90 | 0.31-0.92 | 0.36 | fail gun, spread |
+| 25, 0.25, 0.5 | 0.50 | 2.41 | 0.19-0.95 | 0.78 | fail wrecks, spread |
+| 30, 0.2, 0.5 | 0.46 | 2.61 | 0.27-0.89 | 1.00 | pass, gun at the edge |
+| 30, 0.25, 0.5 | 0.52 | 2.38 | 0.36-1.13 | 0.92 | pass |
+| 30, 0.25, 0.5 (32 seeds) | 0.51 | 2.41 | 0.31-1.04 | 0.88 | pass |
+| **30, 0.25, 0.55** | 0.51 | 2.49 | 0.42-1.11 | 0.92 | pass (chosen) |
+| 30, 0.25, 0.55 (32 seeds) | 0.50 | 2.54 | 0.36-1.04 | 0.88 | pass |
+
+The career rows are the careerSim model (no physics), so these knobs do not move them: identical before and after.
+
+### Before / after (`node scripts/balance/run.mjs`, all 10 tracks x 16 seeds x 4 starts)
+
+| Track | Wrecks / race | Mine hits / race | Gun share | Spread 0.75 vs 0.35 | 0.55 median clean lap, start 0 (s) |
+|---|---|---|---|---|---|
+| scrapyard | 0.47 -> 0.48 | 2.50 -> 1.95 | 0.37 -> 0.55 | 2.39 -> 2.17 | 26.09 -> 26.07 |
+| dustBowl | 0.36 -> 0.63 | 2.95 -> 2.55 | 0.41 -> 0.54 | 1.42 -> 1.20 | 24.95 -> 24.95 |
+| dockside | 0.41 -> 0.72 | 2.69 -> 2.70 | 0.30 -> 0.44 | 2.22 -> 1.52 | 26.37 -> 26.36 |
+| frostbite | 0.27 -> 0.72 | 2.81 -> 2.86 | 0.30 -> 0.44 | 1.88 -> 0.94 | 25.09 -> 25.22 |
+| neonMile | 0.45 -> 0.78 | 2.88 -> 2.83 | 0.27 -> 0.41 | 2.27 -> 2.02 | 25.95 -> 25.97 |
+| redrock | 0.41 -> 0.59 | 3.17 -> 2.73 | 0.37 -> 0.50 | 1.86 -> 1.77 | 24.87 -> 24.84 |
+| junkyardSprint | 0.30 -> 0.42 | 2.98 -> 2.45 | 0.37 -> 0.58 | 2.05 -> 2.30 | 23.90 -> 23.88 |
+| pineHollow | 0.66 -> 1.11 | 2.69 -> 2.09 | 0.41 -> 0.54 | 0.84 -> 0.92 | 25.25 -> 25.25 |
+| rainDistrict | 0.44 -> 0.55 | 2.80 -> 2.36 | 0.37 -> 0.59 | 1.47 -> 1.44 | 25.50 -> 25.53 |
+| blastPit | 0.48 -> 0.83 | 2.88 -> 2.39 | 0.38 -> 0.53 | 1.73 -> 1.59 | 28.42 -> 28.42 |
+
+| Metric | Before | After | Target |
+|---|---|---|---|
+| Wrecks per AI race | 0.27-0.66 (avg 0.42) | 0.42-1.11 (avg 0.68) | 0.2-2.0 |
+| Gun damage share | 0.36 | 0.51 | 0.45-0.65 |
+| Mine hits per race | 2.83 | 2.49 | 0.8-3 |
+| Spread, worst track | 0.84 (pineHollow) | 0.92 (pineHollow) | >= 0.8 |
+| Lap time, worst track (start 0) | 0.25 s (pineHollow) | 0.25 s (pineHollow) | +-1 s |
+| Career greedy, seeds 1-16 | 15/16 (21-33, one 38) | 15/16 (same) | >= 14/16 |
+| Career safe | never | never | 25-50 or never |
+| Greedy cash by race 5, worst seed | 10250 | 10250 | >= 1000 |
+| Timeouts | 0 | 0 | 0 |
+
+### Notes
+
+- The spread row is the binding one and noisy: at 16 seeds pineHollow swung 0.36-1.00 between neighbouring candidates (more gunfire hits the leader, usually the 0.75). Check it at `--seeds 32` before trusting a pass.
+- Per track the gun share is 0.41-0.59; Neon Mile (0.41), Dockside and Frostbite (0.44) stay lowest. Frostbite's spread fell 1.88 -> 0.94.
+- Wrecks rose 0.42 -> 0.68 per race (pineHollow 1.11), closer to the 0.4-1.5 the WP12 notes preferred.
+- Widening the cone from the line curvature at the car's own s did worse than a flat cone: on the short legs between bends the curvature there is 0 while the target is already in the next bend.
+- Neon Mile had one race with a wreck shove over 10 s (12.2 s longest; 0 on main), report only.
+- WP34 also moved the 10 m window hairpin measure copied into six track tests into `windowHairpins` in `trackTestKit.ts` (test code only, same numbers on all 10 tracks).
