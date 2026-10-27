@@ -145,6 +145,43 @@ export interface TrackDef {
   pickups: PickupSpawn[];
   props: PropPlacement[]; // decoration, must be outside walls; static colliders only for 'container' | 'building' | 'rock' | 'crane' | 'billboard' (CCR-6: posts and base only)
   referenceLapTime: number; // seconds, a clean medium-AI lap; used by tests and results
+  /** CCR-16: set on the TrackDef an arena fight runs on (content/arenas arenaTrack), absent on race tracks. */
+  arena?: ArenaDef;
+}
+
+// ---------------------------------------------------------------- arena (CCR-16)
+
+/** CCR-16: how an arena block is drawn. To the sim every style is the same solid wall. */
+export type ArenaBlockStyle = 'island' | 'containers' | 'cubes' | 'rocks';
+
+/** CCR-16: a solid obstacle on an arena floor: a closed convex loop, any winding. */
+export interface ArenaBlock {
+  style: ArenaBlockStyle;
+  points: Vec2[];
+}
+
+/** CCR-16: a pickup at a fixed spot of an arena floor. */
+export interface ArenaPickup {
+  kind: PickupKind;
+  pos: Vec2;
+}
+
+/**
+ * CCR-16: a closed arena for last car standing. The wall and the blocks are closed polylines built like the track
+ * walls (same collider, same wall damage). A fight's RaceSetup.track is arenaTrack(def) (src/content/arenas): its
+ * centerline runs along the wall and it carries the def in `arena`, so every reader of a TrackDef or TrackGeometry
+ * (theme, props, minimap, renderer) gets the arena without a second setup field.
+ */
+export interface ArenaDef {
+  id: string;
+  name: string;
+  theme: TrackTheme;
+  /** Closed convex polygon, the inner face of the outer wall. */
+  wall: Vec2[];
+  blocks: ArenaBlock[]; // 3-6
+  spawns: GridSlot[]; // 8, near the wall, facing the centre
+  pickups: ArenaPickup[];
+  props: PropPlacement[]; // dressing outside the wall
 }
 
 // ---------------------------------------------------------------- track geometry (src/shared/trackGeometry.ts)
@@ -241,9 +278,10 @@ export interface RaceSetup {
   /**
    * CCR-15: 'timeTrial' = the player alone, laps without end, no pickups (track.pickups empty), no mines or rocket
    * fuel carried, the gun input cleared by the game. The sim does not read it: the setup data does all of that.
-   * Omitted = 'race'.
+   * CCR-16: 'arena' = last car standing on track.arena (required): no laps, the last car not wrecked wins, sudden
+   * death after a while (content.md "Arena"). The sim reads this one. Omitted = 'race'.
    */
-  mode?: 'race' | 'timeTrial';
+  mode?: 'race' | 'timeTrial' | 'arena';
 }
 
 export interface RaceResultRow {
@@ -260,12 +298,15 @@ export interface RaceResultRow {
   hpLeft: number;
   minesLeft: number;
   turboLeft: number;
+  damageDealt?: number; // CCR-16, arena only: hp this car took off the other cars
+  eliminatedAt?: number | null; // CCR-16, arena only: fight time of its wreck, null = still running at the end
 }
 
 export interface RaceResult {
   trackId: string;
   laps: number;
-  rows: RaceResultRow[]; // sorted by position
+  rows: RaceResultRow[]; // sorted by position; an arena by elimination order, the last car standing 1st
+  mode?: 'arena'; // CCR-16: set on an arena fight's result
 }
 
 // ---------------------------------------------------------------- sim snapshot
@@ -405,6 +446,8 @@ export interface Renderer {
   setCameraShake(on: boolean): void;
   /** CCR-15: draws the time trial ghost (a translucent copy of the player's car, no shadow, no lights) at this sim pose, null hides it. */
   setGhost(pose: GhostPose | null): void;
+  /** CCR-16: the car the camera follows (an arena spectates another car once the player is wrecked). */
+  setFollowCar(car: CarId): void;
   /** geometries/textures = THREE renderer.info.memory, so leak checks can compare across races. */
   stats(): { drawCalls: number; triangles: number; fps: number; geometries: number; textures: number };
   /** Frees this race's scene, geometries, materials and textures. The WebGLRenderer itself stays cached per canvas. */
@@ -574,7 +617,9 @@ export type Screen =
   | 'story'
   // CCR-15: time trial setup (track, direction, car) and the lap list after quitting
   | 'timeTrial'
-  | 'timeTrialResults';
+  | 'timeTrialResults'
+  // CCR-16: arena setup (arena, car); its fight ends on 'results'
+  | 'arena';
 
 export interface KillFeedItem {
   id: number;
@@ -605,6 +650,14 @@ export interface HudState {
   killFeed: KillFeedItem[];
   hitFlash: number; // 0..1, decays; player took damage
   timeTrial?: TimeTrialHud; // CCR-15: set in a time trial only
+  arena?: ArenaHud; // CCR-16: set in an arena fight only
+}
+
+/** CCR-16: the arena readout. */
+export interface ArenaHud {
+  alive: number; // cars not wrecked, the player included
+  suddenDeathIn: number; // s of fight time until sudden death, 0 once it runs
+  spectating: CarId | null; // the car the camera follows after the player's wreck
 }
 
 /** CCR-15: the time trial readout. */
@@ -670,7 +723,8 @@ export type GameCommand =
   | { type: 'buySabotage' } // for state.selectedOffer, on the preRace screen (CCR-5)
   | { type: 'setQuickTrack'; trackId: string } // quick race pre-race track picker, persisted in Settings.quickTrackId (CCR-6)
   | { type: 'continueStory' } // after the last line of the story scene; 'back' skips the whole scene (CCR-12)
-  | { type: 'toggleGhost' }; // time trial pause menu (CCR-15). TIME TRIAL on the title = navigate 'timeTrial'; its pickers reuse setQuickTrack and the quick* settings
+  | { type: 'toggleGhost' } // time trial pause menu (CCR-15). TIME TRIAL on the title = navigate 'timeTrial'; its pickers reuse setQuickTrack and the quick* settings
+  | { type: 'setArena'; arenaId: string }; // arena setup picker (CCR-16), kept for the page session. ARENA on the title = navigate 'arena'; its car picker reuses quickCarId
 
 export interface GameStore {
   getState(): UiState;

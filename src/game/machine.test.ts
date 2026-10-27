@@ -110,6 +110,19 @@ describe('machine', () => {
   });
 });
 
+describe('WP41 arena rows', () => {
+  const arena = (screen: Screen) => ({ screen, previousScreen: null, arena: true });
+  it('title -> arena setup -> fight -> results -> arena setup, and back to the title', () => {
+    expect(transition(from('title'), { type: 'navigate', screen: 'arena' })).toEqual({ screen: 'arena', previousScreen: null, effects: ['startBackdrop', 'buildArenaSetup'] });
+    expect(transition(arena('arena'), { type: 'startRace' })).toEqual({ screen: 'race', previousScreen: null, effects: ['stopBackdrop', 'unlockAudio', 'startSession'] });
+    expect(transition(arena('arena'), { type: 'back' })).toEqual({ screen: 'title', previousScreen: null, effects: ['stopBackdrop'] });
+    expect(transition(arena('results'), { type: 'continueFromResults' })).toEqual({ screen: 'arena', previousScreen: null, effects: ['disposeSession', 'startBackdrop', 'buildArenaSetup'] });
+    expect(transition(arena('results'), { type: 'restartRace' })?.effects).toEqual(['restartSession']);
+    expect(transition(arena('paused'), { type: 'quitRace' })).toEqual({ screen: 'title', previousScreen: null, effects: ['disposeSession'] });
+    expect(transition(arena('arena'), { type: 'pause' })).toBeNull();
+  });
+});
+
 describe('store', () => {
   it('replaces state immutably and notifies each listener once per set', () => {
     const seen: string[] = [];

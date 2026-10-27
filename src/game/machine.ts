@@ -9,6 +9,7 @@ export type Effect =
   | 'stopBackdrop'
   | 'buildSetup'
   | 'buildTimeTrialSetup'
+  | 'buildArenaSetup'
   | 'startSession'
   | 'restartSession'
   | 'disposeSession'
@@ -33,12 +34,14 @@ export interface MachineState extends Pick<UiState, 'screen' | 'previousScreen'>
   champion?: boolean;
   /** The race in progress (or just quit) is a time trial (WP40). */
   timeTrial?: boolean;
+  /** The fight in progress (or just finished) is an arena fight (WP41). */
+  arena?: boolean;
 }
 
 const CAREER_SUBSCREENS: readonly Screen[] = ['garage', 'shop', 'raceSelect', 'standings'];
 
 /**
- * Screen state machine (WP08 table, career rows from WP10, story rows from WP36, time trial rows from WP40). Returns null when the input does nothing
+ * Screen state machine (WP08 table, career rows from WP10, story rows from WP36, time trial rows from WP40, arena rows from WP41). Returns null when the input does nothing
  * on this screen. The title shows its key art (WP36): the live backdrop runs on the other menu screens only.
  */
 export function transition(from: MachineState, input: MachineInput): Transition | null {
@@ -52,6 +55,11 @@ export function transition(from: MachineState, input: MachineInput): Transition 
       if (t === 'newCareer' || t === 'continueCareer') return go('career', ['startBackdrop']);
       if (input.type === 'navigate' && (input.screen === 'controls' || input.screen === 'settings')) return go(input.screen, [], 'title');
       if (input.type === 'navigate' && input.screen === 'timeTrial') return go('timeTrial', ['startBackdrop', 'buildTimeTrialSetup']);
+      if (input.type === 'navigate' && input.screen === 'arena') return go('arena', ['startBackdrop', 'buildArenaSetup']);
+      return null;
+    case 'arena':
+      if (t === 'startRace') return go('race', ['stopBackdrop', 'unlockAudio', 'startSession']);
+      if (t === 'back') return go('title', ['stopBackdrop']);
       return null;
     case 'timeTrial':
       if (t === 'startRace') return go('race', ['stopBackdrop', 'unlockAudio', 'startSession']);
@@ -90,6 +98,8 @@ export function transition(from: MachineState, input: MachineInput): Transition 
       return null;
     case 'results':
       if (t === 'continueFromResults') {
+        // An arena fight goes back to its setup screen for the next one.
+        if (from.arena) return go('arena', ['disposeSession', 'startBackdrop', 'buildArenaSetup']);
         if (!from.career) return go('title', ['disposeSession']);
         return from.champion ? go('story', ['disposeSession', 'showEnding']) : go('career', ['disposeSession', 'startBackdrop']);
       }

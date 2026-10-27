@@ -28,6 +28,8 @@ const towardZero = (v: number, dv: number): number => (v > dv ? v - dv : v < -dv
 /** WP01 section 1: arcade grip/drift model on top of Rapier, run before physics.step. */
 export const applyDynamics: SimSystem = (world) => {
   const halfWidth = world.setup.track.width / 2;
+  // CCR-16: an arena has no racing line to cruise; once the fight is over every car keeps its own input (the AI's is neutral).
+  const cruise = world.setup.mode !== 'arena';
   const dt = SIM_DT;
   for (const car of world.cars) {
     const body = car.body;
@@ -41,7 +43,7 @@ export const applyDynamics: SimSystem = (world) => {
       continue;
     }
     // Finished cars (and every car once the race is over) cruise the racing line, their own input ignored.
-    const input = car.finished || world.phase === 'finished' ? cruiseInput(world, car) : car.input;
+    const input = cruise && (car.finished || world.phase === 'finished') ? cruiseInput(world, car) : car.input;
     const { throttle, brake, steer, handbrake } = input;
 
     // 1. effective stats (offroad from last tick's projection)

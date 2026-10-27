@@ -3,6 +3,7 @@ import { NEUTRAL_INPUT, PLAYER_CAR_ID, SIM_DT } from '../shared/contracts';
 import { angleWrap, clamp } from '../shared/math';
 import { createRng, hashString } from '../shared/rng';
 import { createTrackSample } from '../shared/trackGeometry';
+import { createArenaDriver } from './arenaAi';
 import type { AiDriver, SimCar, SimWorld } from './internal';
 import { buildRacingLine, lineCurvature, lineLimit, type RacingLine } from './racingLine';
 
@@ -213,6 +214,8 @@ export function cruiseInput(world: SimWorld, car: SimCar): InputFrame {
 
 /** WP07 AI driver: racing line, braking, avoidance, weapons, turbo, pickups and stuck recovery. */
 export function createAiDriver(world: SimWorld, car: CarId, profile: AiProfile): AiDriver {
+  // WP41 (CCR-16): an arena fight has no racing line; its drivers are the arena branch (arenaAi.ts).
+  if (world.setup.mode === 'arena') return createArenaDriver(world, car, profile);
   const frame: InputFrame = { ...NEUTRAL_INPUT };
   const sample = createTrackSample();
   const me = world.cars[car];

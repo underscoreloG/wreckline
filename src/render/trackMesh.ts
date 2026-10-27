@@ -151,7 +151,7 @@ function walls(track: TrackGeometry, theme: ThemeDef): THREE.BufferGeometry {
 }
 
 /** Ground polygon on the water side of the line (Sutherland-Hodgman against one half-plane), plus the line's ends. */
-function clipHalfPlane(poly: Vec2[], p: Vec2, nrm: Vec2): { poly: Vec2[]; cut: Vec2[] } {
+export function clipHalfPlane(poly: Vec2[], p: Vec2, nrm: Vec2): { poly: Vec2[]; cut: Vec2[] } {
   const d = (q: Vec2): number => (q.x - p.x) * nrm.x + (q.y - p.y) * nrm.y;
   const out: Vec2[] = [];
   const cut: Vec2[] = [];

@@ -125,7 +125,8 @@ function push(st: CombatState, car: SimCar, dx: number, dy: number, dv: number):
 
 // ---------------------------------------------------------------- damage and wrecks
 
-function applyDamage(world: SimWorld, car: SimCar, amount: number, source: DamageSource, by: CarId | null, pos: Vec2): void {
+/** Exported for the arena rules (sudden death, CCR-16). */
+export function applyDamage(world: SimWorld, car: SimCar, amount: number, source: DamageSource, by: CarId | null, pos: Vec2): void {
   // Finished cars are immune (content.md section 7).
   if (car.wrecked || car.finished || amount <= 0) return;
   const before = car.hp;
@@ -216,8 +217,12 @@ function carVsCar(world: SimWorld, st: CombatState, ia: CarId, ib: CarId): void 
   if (!a || !b || onCooldown(st, a.id, b.id, world.time)) return;
   const impA = impactOf(st, a);
   const impB = impactOf(st, b);
-  let dmgA = Math.max(0, impA - CAR_IMPACT_THRESHOLD) * CAR_IMPACT_DAMAGE * Math.sqrt(b.base.mass / a.base.mass);
-  let dmgB = Math.max(0, impB - CAR_IMPACT_THRESHOLD) * CAR_IMPACT_DAMAGE * Math.sqrt(a.base.mass / b.base.mass);
+  // CCR-16 arena (even stats): both cars take the damage of the pair's mean velocity change and no mass factor, so mass
+  // still pushes but no longer armours. The mean is (1 + restitution) / 2 x the closing speed whatever the masses, and
+  // equals each car's own change for two cars of the same mass, so arena hits hurt like a race hit between equals.
+  const even = world.setup.mode === 'arena' ? (impA + impB) / 2 : -1;
+  let dmgA = Math.max(0, (even < 0 ? impA : even) - CAR_IMPACT_THRESHOLD) * CAR_IMPACT_DAMAGE * (even < 0 ? Math.sqrt(b.base.mass / a.base.mass) : 1);
+  let dmgB = Math.max(0, (even < 0 ? impB : even) - CAR_IMPACT_THRESHOLD) * CAR_IMPACT_DAMAGE * (even < 0 ? Math.sqrt(a.base.mass / b.base.mass) : 1);
   // Bumper spikes: each car's own front hit scales what it deals and what it takes (both in a head-on).
   if (frontHit(st, a, b)) {
     dmgB *= a.eff.ramDealtMult;

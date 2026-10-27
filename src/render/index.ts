@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { COUNTDOWN_SECONDS } from '../content/race';
 import type { CarId, Quality, Renderer, RendererOptions, SimEvent } from '../shared/contracts';
 import { FollowCamera } from './camera';
+import { buildArenaMesh } from './arenaMesh';
 import { buildCarParts, CarRig, disposeTree, type CarPose } from './carMesh';
 import { preloadCarModels } from './carModel';
 import { Fx, type CarFrame } from './fx';
@@ -52,7 +53,9 @@ export async function createRenderer(opts: RendererOptions): Promise<Renderer> {
   const world = createWorld();
   const theme = applyTheme(world, opts.track.def.theme);
   const textures = createWorldTextures(theme, Math.min(MAX_ANISOTROPY, gl.capabilities.getMaxAnisotropy()));
-  const track = buildTrackMesh(opts.track, theme, textures);
+  // CCR-16: an arena fight's track carries its arena: floor, wall and blocks instead of the road ribbon.
+  const arena = opts.track.def.arena;
+  const track = arena ? buildArenaMesh(arena, theme, textures) : buildTrackMesh(opts.track, theme, textures);
   world.scene.add(track.group, buildProps(opts.track, theme, textures.glow));
 
   await preloadCarModels(opts.entrants.map((e) => e.mesh));
@@ -224,6 +227,10 @@ export async function createRenderer(opts: RendererOptions): Promise<Renderer> {
 
     setCameraShake(on) {
       shake = on;
+    },
+
+    setFollowCar(id) {
+      if (id !== followCar) renderer.followCar = id;
     },
 
     setGhost(pose) {

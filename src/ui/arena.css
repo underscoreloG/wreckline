@@ -1,0 +1,48 @@
+/* WP41 arena: setup floor plan and rules, HUD readout, results. */
+
+.track-outline .arena-block {
+  fill: rgba(255, 255, 255, 0.14);
+  stroke: none;
+}
+
+.track-outline .arena-spawn {
+  fill: var(--muted);
+}
+
+.track-outline .arena-spawn.player {
+  fill: var(--accent);
+}
+
+.arena-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0.9rem 1rem 0.9rem 2rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: rgba(255, 255, 255, 0.02);
+  line-height: 1.4;
+}
+
+.arena-sd {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.arena-sd-on {
+  grid-column: span 2;
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.arena-spectating {
+  align-self: flex-start;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.arena-alive {
+  color: var(--cash);
+  font-weight: 600;
+}

@@ -2,6 +2,7 @@ import { createRenderer } from '../render';
 import type { AudioEngine, CarId, HudState, InputFrame, InputSource, RaceSetup, RaceSnapshot, Renderer, Settings, Sim, SimEvent } from '../shared/contracts';
 import { NEUTRAL_INPUT, PLAYER_CAR_ID, SIM_HZ } from '../shared/contracts';
 import { createSim } from '../sim';
+import { decorateArenaHud, spectateTarget } from './arena';
 import { createTally, tallyEvent, type RaceTally } from './careerSession';
 import { createHudMemo, deriveHud } from './hud';
 import { clearWeapons, type TimeTrialRun } from './timeTrial';
@@ -83,10 +84,15 @@ export async function createRaceSession(opts: RaceSessionOptions): Promise<RaceS
   let doneTick: number | null = null;
   let disposed = false;
   const tally = createTally(setup.entrants.length);
+  // WP41: an arena fight runs on after the player's wreck until one car is left; the camera then watches another car.
+  const arena = setup.mode === 'arena';
+  let wreckTick: number | null = null;
+  let spectating: CarId | null = null;
 
   const flushHud = (): void => {
     hud = deriveHud(curr, hudEvents, hud, setup, memo);
     if (trial) hud = trial.decorateHud(hud, curr);
+    if (arena) hud = decorateArenaHud(hud, curr, spectating);
     hudEvents.length = 0;
     opts.onHud(hud);
   };
@@ -110,7 +116,14 @@ export async function createRaceSession(opts: RaceSessionOptions): Promise<RaceS
       curr = sim.snapshot();
       trial?.onTick(curr, events);
       const p = curr.cars[PLAYER_CAR_ID];
-      if (doneTick === null && (curr.phase === 'finished' || p?.finished || p?.wrecked)) doneTick = curr.tick;
+      if (arena && p?.wrecked) {
+        wreckTick ??= curr.tick;
+        // The player's own wreck stays in view as long as a race keeps it before its results.
+        const next = curr.tick - wreckTick >= PLAYER_DONE_DELAY_TICKS ? spectateTarget(curr, spectating) : null;
+        if (next !== null && next !== spectating) renderer.setFollowCar(next);
+        spectating = next ?? spectating;
+      }
+      if (doneTick === null && (curr.phase === 'finished' || (!arena && (p?.finished || p?.wrecked)))) doneTick = curr.tick;
     },
     render(alpha, dt) {
       if (trial) renderer.setGhost(trial.ghostPose(prev, curr, alpha));
