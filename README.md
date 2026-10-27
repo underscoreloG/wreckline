@@ -74,6 +74,7 @@ src/
 ## Credits
 
 - Sound effects: Pixabay, under the Pixabay Content License. Engine recordings: Freesound, CC0. Sources in `docs/sfx-sources.md`.
+- Music: OpenGameArt, CC0, by MintoDog, Alexander Ehlers (tricksntraps), cynicmusic, Kistol and Sudocolon. Sources in `docs/sfx-sources.md`.
 - Fonts: Chakra Petch and Inter via Fontsource.
 
 ## Run

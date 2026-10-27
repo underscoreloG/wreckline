@@ -6,6 +6,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
   version: 1,
   masterVolume: 0.8,
   sfxVolume: 0.9,
+  musicVolume: 0.5,
   quality: 'high',
   cameraShake: true,
   showFps: false,
@@ -37,6 +38,8 @@ export function loadSettings(storage: SettingsStorage | null): Settings {
     version: 1,
     masterVolume: unit(r.masterVolume, d.masterVolume),
     sfxVolume: unit(r.sfxVolume, d.sfxVolume),
+    // Settings saved before CCR-11 have no musicVolume: they get the default.
+    musicVolume: unit(r.musicVolume, d.musicVolume),
     quality: r.quality === 'low' || r.quality === 'high' ? r.quality : d.quality,
     cameraShake: bool(r.cameraShake, d.cameraShake),
     showFps: bool(r.showFps, d.showFps),

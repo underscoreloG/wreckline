@@ -311,7 +311,7 @@ export function mountAudioHarness(root: HTMLElement): void {
     input.value = '1';
     input.oninput = () => {
       set(Number(input.value));
-      engine.setVolumes(master, sfx);
+      engine.setVolumes(master, sfx, 1);
     };
   }
 

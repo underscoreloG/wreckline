@@ -18,7 +18,7 @@ vi.mock('./engine', () => ({
 vi.mock('./skid', () => ({ SKID_GAIN: 0.12, createSkidVoice: () => ({ set() {}, stop() {} }) }));
 vi.mock('./samples', () => ({ loadSamples: async () => {}, playSound: () => ({ end: 0, stop() {} }) }));
 vi.mock('./engineSets', () => ({ loadEngineSets: async () => {}, engineSet: () => undefined }));
-vi.mock('./bus', () => ({ buildBus: (ctx: unknown) => ({ ctx, master: { gain: {} }, sfx: { gain: {} }, race: {}, ui: {}, out: {} }) }));
+vi.mock('./bus', () => ({ buildBus: (ctx: unknown) => ({ ctx, master: { gain: {} }, sfx: { gain: {} }, music: { gain: {} }, race: {}, ui: {}, out: {} }) }));
 
 class FakeAudioContext {
   currentTime = 0;

@@ -1,0 +1,53 @@
+{
+  "tracks": {
+    "darknessRoad": {
+      "file": "darknessRoad.ogg",
+      "use": "race",
+      "loopStart": 1,
+      "loopEnd": 129,
+      "duration": 130
+    },
+    "systemOverload": {
+      "file": "systemOverload.ogg",
+      "use": "race",
+      "loopStart": 9.097208333333333,
+      "loopEnd": 177.41035416666668,
+      "duration": 178.41054166666666
+    },
+    "hotRoadway": {
+      "file": "hotRoadway.ogg",
+      "use": "race",
+      "loopStart": 1,
+      "loopEnd": 121,
+      "duration": 122
+    },
+    "awake": {
+      "file": "awake.ogg",
+      "use": "race",
+      "loopStart": 2.860333333333333,
+      "loopEnd": 31.517041666666668,
+      "duration": 32.5170625
+    },
+    "glutton": {
+      "file": "glutton.ogg",
+      "use": "race",
+      "loopStart": 39.437,
+      "loopEnd": 99.43735416666667,
+      "duration": 100.437375
+    },
+    "hyperflight": {
+      "file": "hyperflight.ogg",
+      "use": "race",
+      "loopStart": 8.656041666666667,
+      "loopEnd": 22.984395833333334,
+      "duration": 23.984416666666668
+    },
+    "hyperton": {
+      "file": "hyperton.ogg",
+      "use": "menu",
+      "loopStart": 1.02125,
+      "loopEnd": 97.02125,
+      "duration": 98.02125
+    }
+  }
+}

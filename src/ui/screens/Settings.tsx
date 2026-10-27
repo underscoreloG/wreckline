@@ -16,7 +16,7 @@ export function Settings({ state }: { state: UiState }) {
   const s = state.settings;
   const set = (patch: Partial<Omit<SettingsT, 'version'>>): void => dispatch({ type: 'setSetting', patch });
 
-  const volume = (key: 'masterVolume' | 'sfxVolume'): MenuItem => {
+  const volume = (key: 'masterVolume' | 'sfxVolume' | 'musicVolume'): MenuItem => {
     const nudge = (d: number) => () => {
       const v = clampPct(toPct(s[key]) + d);
       if (v !== toPct(s[key])) set({ [key]: v / 100 });
@@ -28,6 +28,7 @@ export function Settings({ state }: { state: UiState }) {
   const items: MenuItem[] = [
     volume('masterVolume'),
     volume('sfxVolume'),
+    volume('musicVolume'),
     toggle(() => set({ quality: s.quality === 'high' ? 'low' : 'high' })),
     toggle(() => set({ cameraShake: !s.cameraShake })),
     toggle(() => set({ showFps: !s.showFps })),
@@ -42,12 +43,13 @@ export function Settings({ state }: { state: UiState }) {
         <div className="settings-list">
           <Slider label="Master volume" value={toPct(s.masterVolume)} step={STEP} onChange={(v) => set({ masterVolume: v / 100 })} {...itemProps(0)} />
           <Slider label="Effects volume" value={toPct(s.sfxVolume)} step={STEP} onChange={(v) => set({ sfxVolume: v / 100 })} {...itemProps(1)} />
-          <Toggle label="Graphics quality" value={s.quality === 'high'} onLabel="HIGH" offLabel="LOW" {...itemProps(2)} />
-          <Toggle label="Camera shake" value={s.cameraShake} {...itemProps(3)} />
-          <Toggle label="Show FPS" value={s.showFps} {...itemProps(4)} />
+          <Slider label="Music volume" value={toPct(s.musicVolume)} step={STEP} onChange={(v) => set({ musicVolume: v / 100 })} {...itemProps(2)} />
+          <Toggle label="Graphics quality" value={s.quality === 'high'} onLabel="HIGH" offLabel="LOW" {...itemProps(3)} />
+          <Toggle label="Camera shake" value={s.cameraShake} {...itemProps(4)} />
+          <Toggle label="Show FPS" value={s.showFps} {...itemProps(5)} />
         </div>
         <div className="actions">
-          <Button label="BACK" {...itemProps(5)} />
+          <Button label="BACK" {...itemProps(6)} />
         </div>
       </Panel>
     </div>
