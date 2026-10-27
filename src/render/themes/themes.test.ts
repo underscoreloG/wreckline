@@ -15,17 +15,21 @@ describe('WP11 themes', () => {
     expect(THEMES.docks?.key).toMatchObject({ color: '#9FB4FF', intensity: 0.8 });
   });
 
-  it("docks water lies beyond Dockside's water-edge straight and nothing of the track or its props is in it", () => {
+  it("docks water lies beyond Dockside's quay and nothing of the track or its props is in it", () => {
     const water = THEMES.docks?.water;
     if (!water) throw new Error('docks theme has no water');
     const g = buildTrackGeometry(DOCKSIDE);
     const depth = (p: { x: number; y: number }) => (p.x - water.point.x) * water.normal.x + (p.y - water.point.y) * water.normal.y;
     for (const p of [...g.leftWall, ...g.rightWall, ...DOCKSIDE.props.map((pr) => pr.pos)]) expect(depth(p)).toBeLessThan(0);
-    // The straight's outer wall runs along the water line (s 213-403), the water 1-3 m beyond it.
-    for (let s = 220; s <= 400; s += 20) {
-      const i = Math.round((s / g.length) * g.samples.length);
-      expect(depth(g.leftWall[i])).toBeGreaterThan(-3);
+    // WP32: at least 60 m of the quay's outer wall runs along the water line, the water 1-3 m beyond it.
+    const ds = g.length / g.samples.length;
+    let run = 0;
+    let best = 0;
+    for (const p of [...g.leftWall, ...g.leftWall]) {
+      run = depth(p) > -3 ? run + ds : 0;
+      best = Math.max(best, run);
     }
+    expect(best).toBeGreaterThanOrEqual(60);
   });
 });
 
