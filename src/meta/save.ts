@@ -2,6 +2,7 @@ import type { RivalState, SaveGame, UpgradeKind, UpgradeLevels } from '../shared
 import { CARS } from '../content/cars';
 import { MAX_LEVEL } from '../content/economy';
 import { rankOf } from './career';
+import { passedBeats } from './story';
 
 /** Storage adapter (localStorage in the game, a Map in tests): meta never touches the global. */
 export interface KeyValueStore {
@@ -10,7 +11,7 @@ export interface KeyValueStore {
   remove(k: string): void;
 }
 
-/** Kept although saves are now version 3: renaming it would orphan every live career (v1 and v2 data migrate on load). */
+/** Kept although saves are now version 4: renaming it would orphan every live career (v1-v3 data migrate on load). */
 export const SAVE_KEY = 'wreckline.save.v1';
 
 type Obj = Record<string, unknown>;
@@ -21,7 +22,7 @@ const KINDS = Object.keys(MAX_LEVEL) as UpgradeKind[];
 /** Lines a v1 save does not have; they migrate as level 0. */
 const V2_KINDS: readonly UpgradeKind[] = ['fuel', 'spikes'];
 
-function parseUpgrades(v: unknown, version: 1 | 2 | 3): UpgradeLevels | null {
+function parseUpgrades(v: unknown, version: 1 | 2 | 3 | 4): UpgradeLevels | null {
   if (!isObj(v)) return null;
   const out = {} as UpgradeLevels;
   for (const kind of KINDS) {
@@ -44,6 +45,12 @@ function parseBeaten(v: unknown): string[] | undefined {
   return [...new Set(v as string[])];
 }
 
+/** Scene ids, duplicates dropped; undefined when it is not a list of strings (CCR-12). */
+function parseSeen(v: unknown): string[] | undefined {
+  if (!Array.isArray(v) || !v.every(isStr)) return undefined;
+  return [...new Set(v as string[])];
+}
+
 function parseRival(v: unknown): RivalState | null {
   if (!isObj(v)) return null;
   const { driverId, name, color, carDefId, skill, points } = v;
@@ -51,9 +58,9 @@ function parseRival(v: unknown): RivalState | null {
   return { driverId, name, color, carDefId, skill, points };
 }
 
-/** Shape and version check; returns a clean v3 copy with only the known fields, or null. v1 and v2 saves migrate (CCR-5, CCR-6, CCR-10). */
+/** Shape and version check; returns a clean v4 copy with only the known fields, or null. v1-v3 saves migrate (CCR-5, CCR-6, CCR-10, CCR-12). */
 export function parseSave(v: unknown): SaveGame | null {
-  if (!isObj(v) || (v.version !== 1 && v.version !== 2 && v.version !== 3)) return null;
+  if (!isObj(v) || (v.version !== 1 && v.version !== 2 && v.version !== 3 && v.version !== 4)) return null;
   const version = v.version;
   const { cash, carDefId, hp, mines, turbo, points, racesRun, wins, championWon, rngState } = v;
   if (![cash, hp, mines, turbo, points, racesRun, wins, rngState].every(isNum)) return null;
@@ -63,7 +70,7 @@ export function parseSave(v: unknown): SaveGame | null {
   const rivals = v.rivals.map(parseRival);
   if (rivals.some((r) => r === null)) return null;
   const save: SaveGame = {
-    version: 3,
+    version: 4,
     cash: cash as number,
     carDefId,
     upgrades,
@@ -81,17 +88,25 @@ export function parseSave(v: unknown): SaveGame | null {
     sabotage: null,
     rngState: (rngState as number) >>> 0,
     beatenCars: [],
+    storySeen: [],
+    bossLosses: 0,
   };
-  // v1 -> v3: no career totals yet, nothing pending, best rank = the current one, nothing beaten.
-  if (version === 1) return { ...save, bestRank: rankOf(save) };
+  // v1-v3 -> v4: the story beats the save has already passed count as seen, no boss race lost yet (CCR-12).
+  const story = (s: SaveGame): SaveGame => ({ ...s, storySeen: passedBeats(s) });
+  // v1 -> v4: no career totals yet, nothing pending, best rank = the current one, nothing beaten.
+  if (version === 1) return story({ ...save, bestRank: rankOf(save) });
   const { bestRank, wrecks, cashEarned } = v;
   const sabotage = parseSabotage(v.sabotage);
   if (!isNum(bestRank) || !isNum(wrecks) || !isNum(cashEarned) || sabotage === undefined) return null;
-  // v2 -> v3: nothing beaten yet (CCR-10).
-  if (version === 2) return { ...save, bestRank, wrecks, cashEarned, sabotage };
+  // v2 -> v4: nothing beaten yet (CCR-10).
+  if (version === 2) return story({ ...save, bestRank, wrecks, cashEarned, sabotage });
   const beatenCars = parseBeaten(v.beatenCars);
   if (beatenCars === undefined) return null;
-  return { ...save, bestRank, wrecks, cashEarned, sabotage, beatenCars };
+  if (version === 3) return story({ ...save, bestRank, wrecks, cashEarned, sabotage, beatenCars });
+  const storySeen = parseSeen(v.storySeen);
+  const { bossLosses } = v;
+  if (storySeen === undefined || !isNum(bossLosses)) return null;
+  return { ...save, bestRank, wrecks, cashEarned, sabotage, beatenCars, storySeen, bossLosses };
 }
 
 /** Never throws: missing, corrupt or unreadable data gives null. */

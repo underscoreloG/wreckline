@@ -40,8 +40,8 @@ const offerOf = (save: SaveGame, tier: RaceOffer['tier']): RaceOffer => {
 describe('newCareer (test 1)', () => {
   it('matches content.md', () => {
     const s = newCareer(1);
-    expect(s).toMatchObject({ version: 3, cash: 600, carDefId: 'raven', hp: 100, mines: 2, turbo: 3, points: 0, racesRun: 0, wins: 0, championWon: false });
-    expect(s).toMatchObject({ bestRank: 20, wrecks: 0, cashEarned: 0, sabotage: null, beatenCars: [] });
+    expect(s).toMatchObject({ version: 4, cash: 600, carDefId: 'raven', hp: 100, mines: 2, turbo: 3, points: 0, racesRun: 0, wins: 0, championWon: false });
+    expect(s).toMatchObject({ bestRank: 20, wrecks: 0, cashEarned: 0, sabotage: null, beatenCars: [], storySeen: [], bossLosses: 0 });
     expect(s.upgrades).toEqual({ engine: 0, tires: 0, armor: 0, gun: 0, fuel: 0, spikes: 0 });
     expect(s.rivals).toHaveLength(19);
     for (const [i, r] of s.rivals.entries()) expect(r.points).toBe(Math.round(RIVALS[i].skill * 40));
@@ -167,6 +167,20 @@ describe('payout (test 3)', () => {
     expect(after).toMatchObject({ championWon: true, wins: 1 });
     const lose: RaceResult = { ...win, rows: [row(1, 'boss', 1), row(0, 'player', 2)] };
     expect(applyRaceResult(top, boss, lose).save).toMatchObject({ championWon: false, wins: 0, cash: top.cash });
+  });
+
+  it('a boss race not won counts in bossLosses, nothing else does (CCR-12)', () => {
+    const top = withPoints(100);
+    const boss = offerOf(top, 'boss');
+    const race = (position: number, extra: Partial<RaceResultRow> = {}): RaceResult => ({ trackId: boss.trackId, laps: 5, rows: [row(0, 'player', position, extra)] });
+    expect(applyRaceResult(top, boss, race(1)).save.bossLosses).toBe(0);
+    expect(applyRaceResult(top, boss, race(2)).save.bossLosses).toBe(1);
+    expect(applyRaceResult(top, boss, race(1, { finished: false, wrecked: true })).save.bossLosses).toBe(1);
+    const twice = applyRaceResult(applyRaceResult(top, boss, race(3)).save, boss, race(4)).save;
+    expect(twice.bossLosses).toBe(2);
+    // A lost hard race is not a boss loss.
+    const mid = withPoints(23, 5);
+    expect(applyRaceResult(mid, offerOf(mid, 'hard'), race(4)).save.bossLosses).toBe(0);
   });
 
   it('off-screen rivals gain their tier points: never more than a tier 1st place', () => {

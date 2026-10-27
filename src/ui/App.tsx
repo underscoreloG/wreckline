@@ -11,6 +11,7 @@ import { Garage } from './screens/career/Garage';
 import { RaceSelect } from './screens/career/RaceSelect';
 import { Shop } from './screens/career/Shop';
 import { Standings } from './screens/career/Standings';
+import { StoryScene } from './screens/career/StoryScene';
 import { Toast } from './screens/career/Toast';
 import { Controls } from './screens/Controls';
 import { Pause } from './screens/Pause';
@@ -49,6 +50,8 @@ function screenFor(state: UiState): ReactElement | null {
       return <Standings state={state} />;
     case 'champion':
       return <Champion state={state} />;
+    case 'story':
+      return <StoryScene state={state} />;
     default:
       // 'race' is HUD only.
       return null;

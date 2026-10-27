@@ -14,7 +14,9 @@ export type Effect =
   | 'pauseLoop'
   | 'resumeLoop'
   | 'unlockAudio'
-  | 'showResults';
+  | 'showResults'
+  | 'showStory'
+  | 'showEnding';
 
 export interface Transition {
   screen: Screen;
@@ -26,28 +28,36 @@ export interface Transition {
 export interface MachineState extends Pick<UiState, 'screen' | 'previousScreen'> {
   /** The race in progress (or just finished) is a career race. */
   career?: boolean;
-  /** The career race that just finished won the title. */
+  /** The career race that just finished won the title (until the ending scene is left). */
   champion?: boolean;
 }
 
 const CAREER_SUBSCREENS: readonly Screen[] = ['garage', 'shop', 'raceSelect', 'standings'];
 
-/** Screen state machine (WP08 table, career rows from WP10). Returns null when the input does nothing on this screen. */
+/**
+ * Screen state machine (WP08 table, career rows from WP10, story rows from WP36). Returns null when the input does nothing
+ * on this screen. The title shows its key art (WP36): the live backdrop runs on the other menu screens only.
+ */
 export function transition(from: MachineState, input: MachineInput): Transition | null {
   const go = (screen: Screen, effects: Effect[] = [], previousScreen: Screen | null = null): Transition => ({ screen, previousScreen, effects });
   const t = input.type;
   switch (from.screen) {
     case 'boot':
-      return t === 'booted' ? go('title', ['startBackdrop']) : null;
+      return t === 'booted' ? go('title') : null;
     case 'title':
-      if (t === 'startQuickRace') return go('preRace', ['buildSetup']);
-      if (t === 'newCareer' || t === 'continueCareer') return go('career');
+      if (t === 'startQuickRace') return go('preRace', ['startBackdrop', 'buildSetup']);
+      if (t === 'newCareer' || t === 'continueCareer') return go('career', ['startBackdrop']);
       if (input.type === 'navigate' && (input.screen === 'controls' || input.screen === 'settings')) return go(input.screen, [], 'title');
       return null;
     case 'preRace':
-      if (t === 'startRace') return go('race', ['stopBackdrop', 'unlockAudio', 'startSession']);
+      // A career race starts after its story scene (WP36).
+      if (t === 'startRace') return from.career ? go('story', ['stopBackdrop', 'unlockAudio', 'showStory']) : go('race', ['stopBackdrop', 'unlockAudio', 'startSession']);
       // Career pre-race returns to race select (previousScreen), quick race to the title.
-      if (t === 'back') return go(from.previousScreen ?? 'title');
+      if (t === 'back') return from.previousScreen ? go(from.previousScreen) : go('title', ['stopBackdrop']);
+      return null;
+    case 'story':
+      // The last line confirmed, or skipped: the race, or the champion screen after the ending.
+      if (t === 'continueStory' || t === 'back') return from.champion ? go('champion', ['startBackdrop']) : go('race', ['startSession']);
       return null;
     case 'race':
       if (t === 'pause') return go('paused', ['pauseLoop']);
@@ -58,16 +68,19 @@ export function transition(from: MachineState, input: MachineInput): Transition 
       if (t === 'resume' || t === 'back') return go('race', ['resumeLoop']);
       // A career race cannot be re-rolled.
       if (t === 'restartRace') return from.career ? null : go('race', ['restartSession']);
-      if (t === 'quitRace') return go(from.career ? 'career' : 'title', ['disposeSession', 'startBackdrop']);
+      if (t === 'quitRace') return from.career ? go('career', ['disposeSession', 'startBackdrop']) : go('title', ['disposeSession']);
       if (input.type === 'navigate' && input.screen === 'settings') return go('settings', [], 'paused');
       return null;
     case 'results':
-      if (t === 'continueFromResults') return go(from.career ? (from.champion ? 'champion' : 'career') : 'title', ['disposeSession', 'startBackdrop']);
+      if (t === 'continueFromResults') {
+        if (!from.career) return go('title', ['disposeSession']);
+        return from.champion ? go('story', ['disposeSession', 'showEnding']) : go('career', ['disposeSession', 'startBackdrop']);
+      }
       if (t === 'restartRace') return from.career ? null : go('race', ['restartSession']);
       return null;
     case 'career':
       if (input.type === 'navigate' && CAREER_SUBSCREENS.includes(input.screen)) return go(input.screen, [], 'career');
-      if (t === 'back' || (input.type === 'navigate' && input.screen === 'title')) return go('title');
+      if (t === 'back' || (input.type === 'navigate' && input.screen === 'title')) return go('title', ['stopBackdrop']);
       return null;
     case 'garage':
     case 'shop':
@@ -78,7 +91,7 @@ export function transition(from: MachineState, input: MachineInput): Transition 
       return t === 'back' ? go('career') : null;
     case 'champion':
       if (t === 'newCareer') return go('career');
-      if (t === 'back' || (input.type === 'navigate' && input.screen === 'title')) return go('title');
+      if (t === 'back' || (input.type === 'navigate' && input.screen === 'title')) return go('title', ['stopBackdrop']);
       return null;
     case 'controls':
     case 'settings':

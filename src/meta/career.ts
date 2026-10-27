@@ -45,7 +45,7 @@ export interface LadderRow {
 
 export function newCareer(seed: number): SaveGame {
   return {
-    version: 3,
+    version: 4,
     cash: STARTING_CAREER.cash,
     carDefId: STARTING_CAREER.carDefId,
     upgrades: { ...STARTING_CAREER.upgrades },
@@ -63,6 +63,8 @@ export function newCareer(seed: number): SaveGame {
     sabotage: null,
     rngState: seed >>> 0,
     beatenCars: [],
+    storySeen: [],
+    bossLosses: 0,
   };
 }
 
@@ -179,6 +181,7 @@ const copySave = (save: SaveGame): SaveGame => ({
   rivals: save.rivals.map((r) => ({ ...r })),
   sabotage: save.sabotage && { ...save.sabotage },
   beatenCars: [...save.beatenCars],
+  storySeen: [...save.storySeen],
 });
 
 /** Who a sabotage on this offer hits: THE WARDEN in the boss race, else the offer's rival with the most points (ties: higher skill). */
@@ -305,6 +308,7 @@ export function applyRaceResult(save: SaveGame, offer: RaceOffer, result: RaceRe
     sabotage: null,
     // A quit or unfinished race (player neither finished nor wrecked) beats nothing, so quitting while ahead unlocks nothing.
     beatenCars: row.finished || row.wrecked ? beatenAfter(save, result, row.position) : [...save.beatenCars],
+    bossLosses: save.bossLosses + (offer.tier === 'boss' && !won ? 1 : 0), // CCR-12: a boss race raced and not won
   };
   const rng = createRng(save.rngState);
   const simulated = { ...simulateOtherRivals(after, offer, rng), rngState: rng.state() };

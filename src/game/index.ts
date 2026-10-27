@@ -32,6 +32,7 @@ const MINIMAP_STEP = 8; // m between minimap points
 const DEBUG_RENDER_EVERY = 60; // manual steps per rendered frame in __game.step
 const DEBUG_RENDER_DT = 0.1; // s, same cap as the live loop
 const POLL_MS = 250; // fps overlay and gamepad glyph refresh
+const TITLE_ART = `${import.meta.env.BASE_URL}story/title-menu.webp`; // WP36 title key art
 
 const randomSeed = (): number => crypto.getRandomValues(new Uint32Array(1))[0] ?? 1;
 
@@ -115,6 +116,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
     selectedOffer: null,
     lastPayout: null,
     toast: null,
+    story: null,
   };
   audio.setVolumes(initial.settings.masterVolume, initial.settings.sfxVolume, initial.settings.musicVolume);
 
@@ -233,7 +235,8 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
         break;
       case 'continueFromResults':
         run(cmd);
-        justChampion = false;
+        // The title win plays the ending scene first: the flag picks the champion screen after it.
+        if (store.getState().screen !== 'story') justChampion = false;
         if (mode === 'career') store.set({ offers: career.offers, selectedOffer: null, lastPayout: null });
         // Shown once, on the hub (the champion screen skips it: the career is over).
         if (store.getState().screen === 'career') toastQueue([...(unlocked.length ? [unlockText(unlocked)] : []), ...beaten.map(beatenText)]);
@@ -243,6 +246,13 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
       case 'startQuickRace':
         mode = 'quick';
         break;
+      case 'continueStory':
+      case 'back':
+        if (screen !== 'story') break;
+        run(cmd);
+        justChampion = false;
+        store.set({ story: null });
+        return;
     }
     run(cmd);
   };
@@ -362,6 +372,21 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
         } else store.set({ results: r && quickRaceResult(r) });
         break;
       }
+      // Story scenes (WP36): stored as seen when shown, so quitting after one does not replay a beat.
+      case 'showStory':
+        store.set({ story: career.playStory() });
+        publishCareer();
+        break;
+      case 'showEnding': {
+        const scene = career.playEnding();
+        if (!scene) {
+          run({ type: 'continueStory' }); // nothing to play: straight to the champion screen
+          break;
+        }
+        store.set({ story: scene });
+        publishCareer();
+        break;
+      }
     }
   };
 
@@ -372,13 +397,25 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
     const screen = store.getState().screen;
     const hidden = !autoPauseOff && !debugDriven && document.visibilityState === 'hidden';
     const music = hidden || screen === 'paused' || screen === 'boot' ? 'off' : screen === 'race' ? 'race' : 'menu';
-    audio.setMusic(music, screen === 'race' || screen === 'paused' || screen === 'preRace' ? setup?.seed : undefined);
+    const prefetch = screen === 'race' || screen === 'paused' || screen === 'preRace' || (screen === 'story' && !justChampion);
+    audio.setMusic(music, prefetch ? setup?.seed : undefined);
+  };
+
+  // Title key art (WP36): the title and the controls/settings opened from it show the painted art on the page
+  // background with the canvas hidden; no backdrop runs there (machine.ts).
+  const titleArt = new URL(TITLE_ART, document.baseURI).href;
+  document.body.style.setProperty('--title-art', `url("${titleArt}")`);
+  new Image().src = titleArt; // preload during boot: it is the first thing the player sees
+  const syncTitleArt = (): void => {
+    const { screen, previousScreen } = store.getState();
+    document.body.classList.toggle('title-art', screen === 'title' || ((screen === 'controls' || screen === 'settings') && previousScreen === 'title'));
   };
 
   const run = (mi: MachineInput): void => {
     const t = transition({ ...store.getState(), career: mode === 'career', champion: justChampion }, mi);
     if (!t) return;
     store.set({ screen: t.screen, previousScreen: t.previousScreen });
+    syncTitleArt();
     for (const e of t.effects) apply(e);
     syncMusic();
   };
@@ -499,6 +536,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
       uninstallDebug();
       stopBackdrop();
       disposeSession();
+      document.body.classList.remove('title-art');
       reactRoot.unmount();
       fpsEl.remove();
       input.dispose();

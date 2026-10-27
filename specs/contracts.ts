@@ -464,7 +464,7 @@ export interface RivalState {
 }
 
 export interface SaveGame {
-  version: 3; // v1 saves migrate on load: new upgrade kinds 0, wrecks 0, cashEarned 0, sabotage null (CCR-5), bestRank = current rank (CCR-6); v1 and v2 saves migrate with beatenCars [] (CCR-10)
+  version: 4; // v1 saves migrate on load: new upgrade kinds 0, wrecks 0, cashEarned 0, sabotage null (CCR-5), bestRank = current rank (CCR-6); v1 and v2 saves migrate with beatenCars [] (CCR-10); v1-v3 saves migrate with storySeen = the beats already passed, bossLosses 0 (CCR-12)
   cash: number;
   carDefId: string;
   upgrades: UpgradeLevels;
@@ -483,6 +483,21 @@ export interface SaveGame {
   sabotage: { offerId: string; pct: number; price: number } | null; // target is re-picked from that offer's rivals when the race is set up; refunded if another offer is raced (CCR-5)
   rngState: number; // meta RNG state so offers are reproducible
   beatenCars: string[]; // car def ids the player finished ahead of in a career race, each at most once, any order (CCR-10)
+  storySeen: string[]; // story scene ids already shown: beats ('beat-intro'...) and 'boss-lost-<n>', each once (CCR-12)
+  bossLosses: number; // boss races raced and not won (CCR-12)
+}
+
+/** One line of a career story scene (CCR-12). `speaker` is a speaker id of src/content/story.ts ('maz', 'warden', 'vex'...). */
+export interface StoryLine {
+  speaker: string;
+  text: string;
+}
+
+/** A career story scene (CCR-12): `image` is the file id in public/story/ (<image>.webp). */
+export interface StoryScene {
+  id: string;
+  image: string;
+  lines: StoryLine[];
 }
 
 export interface RaceOffer {
@@ -533,7 +548,9 @@ export type Screen =
   | 'shop'
   | 'raceSelect'
   | 'standings'
-  | 'champion';
+  | 'champion'
+  // CCR-12
+  | 'story';
 
 export interface KillFeedItem {
   id: number;
@@ -586,6 +603,7 @@ export interface UiState {
   selectedOffer: string | null;
   lastPayout: Payout | null;
   toast: { id: number; text: string; kind: 'info' | 'error' | 'cash' } | null;
+  story: StoryScene | null; // the scene on the 'story' screen (CCR-12)
 }
 
 export type GameCommand =
@@ -609,7 +627,8 @@ export type GameCommand =
   | { type: 'buyMines'; count: number }
   | { type: 'buyTurbo'; seconds: number }
   | { type: 'buySabotage' } // for state.selectedOffer, on the preRace screen (CCR-5)
-  | { type: 'setQuickTrack'; trackId: string }; // quick race pre-race track picker, persisted in Settings.quickTrackId (CCR-6)
+  | { type: 'setQuickTrack'; trackId: string } // quick race pre-race track picker, persisted in Settings.quickTrackId (CCR-6)
+  | { type: 'continueStory' }; // after the last line of the story scene; 'back' skips the whole scene (CCR-12)
 
 export interface GameStore {
   getState(): UiState;

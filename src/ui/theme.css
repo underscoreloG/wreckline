@@ -336,8 +336,19 @@ html {
   justify-content: flex-start;
   align-items: stretch;
   padding: 0;
-  /* WP08 draws the live race behind; this scrim keeps the menu column readable. */
+  /* The key art shows behind (body.title-art); this scrim keeps the menu column readable. */
   background: linear-gradient(90deg, rgba(11, 13, 16, 0.94) 0%, rgba(11, 13, 16, 0.6) 40%, rgba(11, 13, 16, 0) 75%);
+}
+
+/* WP36: the title (and the controls/settings opened from it) show the painted key art instead of the live race.
+   --title-art is set by the game; cover, anchored right so the cars and the sign stay in view on narrower windows.
+   The dark background shows until it has loaded; the idle canvas is hidden. */
+body.title-art {
+  background: var(--bg) var(--title-art) right center / cover no-repeat;
+}
+
+body.title-art #game {
+  visibility: hidden;
 }
 
 .title-col {
