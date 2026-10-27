@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.0 - Death Rally tight tracks (2026-10-27)
+
+- All 10 tracks are redrawn Death Rally style: a chain of short left and right bends, one or more hairpins, and no straight longer than 80 m except a short start straight. Laps now take 24-29 s (they were 23-41 s).
+- Each track keeps its landmarks: Dockside's quay by the sea, Redrock's and Blast Pit's crane over the hairpin, Frostbite's switchbacks, Neon Mile's city blocks, Rain District's boulevard. Blast Pit is still the longest track and Junkyard Sprint the shortest.
+- AI drivers open fire more readily in the bends and drop slightly fewer mines, so shooting stays as big a part of the race as before.
+- An AI stuck on a wreck against the wall now backs out toward the open road instead of reversing back into it.
+
 ## 0.8.0 - Unlock cars, all tracks, pick your car (2026-10-26)
 
 - Career: all 10 tracks are open from the first race.
