@@ -38,10 +38,17 @@ export function buildWorld(rapier: Rapier, setup: RaceSetup): SimWorld {
   const track = buildTrackGeometry(setup.track);
   const physics = new rapier.World({ x: 0, y: 0 });
   physics.integrationParameters.dt = SIM_DT;
+  // CCR-16: an arena fight has the arena's wall and blocks for walls, its spawn points for a grid and fixed pickup spots.
+  const arena = setup.mode === 'arena' ? setup.track.arena : undefined;
+  if (setup.mode === 'arena' && !arena) throw new Error(`arena setup on track ${setup.track.id} without track.arena`);
 
   const fixed = physics.createRigidBody(rapier.RigidBodyDesc.fixed());
-  physics.createCollider(closedLoopCollider(rapier, track.leftWall), fixed);
-  physics.createCollider(closedLoopCollider(rapier, track.rightWall), fixed);
+  if (arena) {
+    for (const loop of [arena.wall, ...arena.blocks.map((b) => b.points)]) physics.createCollider(closedLoopCollider(rapier, loop), fixed);
+  } else {
+    physics.createCollider(closedLoopCollider(rapier, track.leftWall), fixed);
+    physics.createCollider(closedLoopCollider(rapier, track.rightWall), fixed);
+  }
 
   for (const prop of setup.track.props) {
     const r = propRadius(prop.kind) * prop.scale;
@@ -67,7 +74,7 @@ export function buildWorld(rapier: Rapier, setup: RaceSetup): SimWorld {
 
   const colliderToCar = new Map<number, CarId>();
   const cars: SimCar[] = setup.entrants.map((e: EntrantSetup, id: number): SimCar => {
-    const slot = track.grid[id];
+    const slot = arena ? arena.spawns[id] : track.grid[id];
     if (!slot) throw new Error(`no grid slot for entrant ${id}`);
     const body = physics.createRigidBody(
       rapier.RigidBodyDesc.dynamic()
@@ -116,7 +123,7 @@ export function buildWorld(rapier: Rapier, setup: RaceSetup): SimWorld {
       nextCheckpoint: 0,
       crossedStart: false,
       trackS: proj.s,
-      lateral: proj.lateral,
+      lateral: arena ? 0 : proj.lateral, // an arena skips the track projection: 0 keeps the whole floor on-road
       progress: proj.s - track.length,
       position: id + 1,
       finished: false,
@@ -136,6 +143,8 @@ export function buildWorld(rapier: Rapier, setup: RaceSetup): SimWorld {
   });
 
   const pickups: SimPickup[] = setup.track.pickups.map((p, id) => {
+    const spot = arena?.pickups[id];
+    if (spot) return { id, kind: spot.kind, pos: { x: spot.pos.x, y: spot.pos.y }, active: true, respawnIn: 0 };
     const smp = track.sampleAt(p.s);
     return { id, kind: p.kind, pos: { x: smp.pos.x + smp.right.x * p.lateral, y: smp.pos.y + smp.right.y * p.lateral }, active: true, respawnIn: 0 };
   });

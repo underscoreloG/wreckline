@@ -40,6 +40,7 @@ export function Title({ state }: { state: UiState }) {
     main: [
       { label: 'QUICK RACE', onConfirm: () => dispatch({ type: 'startQuickRace' }) },
       { label: 'TIME TRIAL', onConfirm: () => dispatch({ type: 'navigate', screen: 'timeTrial' }) },
+      { label: 'ARENA', onConfirm: () => dispatch({ type: 'navigate', screen: 'arena' }) },
       { label: 'CAREER', onConfirm: () => (hasSave ? setMenu('career') : dispatch({ type: 'newCareer' })) },
       { label: 'CONTROLS', onConfirm: () => dispatch({ type: 'navigate', screen: 'controls' }) },
       { label: 'SETTINGS', onConfirm: () => dispatch({ type: 'navigate', screen: 'settings' }) },

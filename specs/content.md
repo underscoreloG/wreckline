@@ -357,3 +357,37 @@ Overrides: Scrapyard -10 (the rule's -7 left run.mjs's 0.75 vs 0.35 finish sprea
 **Career** (`offerReversed` in `src/meta/career.ts`): the offer of tier index t (easy 0, medium 1, hard / boss 2, `TIER_TRACK_INDEX`) races reversed when `(racesRun + t) % 3 === 2`: exactly one offer per round, rotating hard (or boss), medium, easy from the first round. `RaceOffer.trackId` stays the base id, so story track scenes keep the base track's image and lines; the race setup carries the reversed TrackDef. Offers are rebuilt from the save, so no save migration.
 
 **Quick race**: a REVERSE row under TRACK on the pre-race screen, remembered in `Settings.quickReversed` (default false). `?race=1&track=<id>~r` races a reversed layout directly.
+
+## 13. Arena (WP41, CCR-16)
+
+**Last car standing** (user decision 2026-10-27, "top3 and 7 as a new mode in the menu (like a destruction derby thing)"): ARENA on the title under TIME TRIAL. Setup: arena (3), car (any of the 8, stock, the quick race car pick), START. No laps, no rewards, no save changes; the race music; the difficulty setting shifts the AI as everywhere.
+
+**Geometry** (`src/content/arenas/`): an `ArenaDef` is a closed convex wall polygon (the inner face of the wall), 3-6 convex blocks (`island`, `containers`, `cubes`, `rocks`: render styles only), 8 spawn points, fixed pickup spots and props outside the wall. The sim builds the wall and every block as closed polylines with the track wall collider (same friction, restitution and wall damage: a block is a wall). A fight's `RaceSetup` has `mode: 'arena'` and `track: arenaTrack(def)`, a TrackDef whose centerline runs through the wall corners and which carries the def in `track.arena`, so the theme, props, pickup counts, minimap and renderer reach the arena through the setup they already read. `validateArena` (`validate.ts`): wall convex, not self-crossing, 120-185 m in both directions; blocks convex, inside, 10 m from the wall and from each other; spawns 6 m clear of the wall and blocks, 10 m apart, facing within 35 deg of the centre; pickups 4 m clear, no cash; props beyond the wall and not overlapping.
+
+| arena | theme | wall | blocks | spawns | pickups |
+|---|---|---|---|---|---|
+| Scrap Pit | scrapyard | 150 x 124 m, chamfered 20 m | crushed car diamond in the middle, 2 container pairs and 2 cube piles on the diagonals | ellipse 60 x 48 m | 2 repair (north, south), 2 mines (east, west walls), 2 rocket fuel by the middle |
+| Quarry Bowl | quarry | 168 x 152 m, 20-gon | a 13 m rock island in the middle, 3 rock piles at 120 deg, 50 m out | ellipse 66 x 59 m | 2 repair either side of the island, 2 mines, 2 rocket fuel between the north piles |
+| Dock Lot | docks | 160 x 120 m, chamfered 15 m, the sea beyond the south wall | a crane pad in the middle, 4 rows of 3 containers | ellipse 62 x 45 m | 2 repair, 2 mines (side walls), 2 rocket fuel in the side lanes |
+
+**Field** (`setup.ts`, `rules.ts`): 8 cars, the player (entrant 0) and 7 AI: VEX, RAZOR, MOTH, JINX, OXIDE, VOLT, HALO at skills 0.35, 0.43, 0.52, 0.6, 0.68, 0.77, 0.85 through `aiProfile(skill, difficulty)`, in stock cars: 7 of the 8 models, shuffled per seed. Quick race loadout (3 mines, 4 s of rocket fuel). Spawn i for entrant i, 3 s countdown.
+
+**Rules** (`src/sim/arena.ts`, in race.updateCountdown's and race.updateProgress's slots of `Sim.step`):
+
+| rule | value |
+|---|---|
+| weapons, pickups, collisions | as in a race (sections 5-6) |
+| pickup respawn | 10 s after collection (races 8 s) |
+| out | a wrecked car is out; the wreck stays as an obstacle |
+| end | at most one car not wrecked, or 300 s (safety: survivors ranked by hp) |
+| sudden death | from 120 s: every car loses 1% of its max hp per second (silent, no hit flash; the last bit goes through the combat damage so the wreck, credit and explosion follow its rules), wall and block hits deal double damage, repair pickups no longer respawn |
+| placement | elimination order: survivors first (more hp first), then wrecked cars, the later wreck higher; a same-tick tie goes to more damage dealt, then the lower id |
+| result | `RaceResult.mode: 'arena'`, per row `damageDealt` (hp it took off other cars) and `eliminatedAt` (fight time of its wreck, null = running at the end) |
+
+Repairs stop in sudden death so it always ends: from full hp the drain wrecks any car by 220 s.
+
+**AI** (`src/sim/arenaAi.ts`, the `mode === 'arena'` branch of `createAiDriver`; racing is untouched): re-picks a target every 0.6 s by distance with bonuses for the car that hit it in the last 3 s, a damaged car, a car ahead, its current target, and penalties for a car hidden behind a block, a car other AIs already hunt (never more than 3 AIs on one car) and a car it hunted 6 s without a hit (two cars circling each other). Drives at the target's lead point round the first block in the way (waypoints 5.5 m off the block's corners), feelers against walls, blocks, wrecks and close cars; sidesteps a target coming head-on; sits 14 m behind a moving target to shoot, circles a stopped one. Fires with a car in a 9 deg cone in line of sight (trigger reaction from aggression, aim wobble from skill); rams flat out only into the side or rear of a car with less hp or mass when 3 m/s faster; drops a mine at a car hunting it from behind; rocket fuel on a long clear run; a repair pickup under 35% hp, mines or fuel when empty and close. Stuck (under 1.5 m/s for 1 s): reverses with the nose swinging to the goal, or pulls out forward when there is more room ahead, the other way if that did not move it.
+
+**Arena soak** (`src/sim/arenaSoak.ts`, `arenaSoak.test.ts`): 16 seeds x 3 arenas, all AI, the player slot on autoplay. Gates: every fight ends, median 60-150 s, 90% by 180 s, no stuck car (under 1.5 m/s for 4 s), at most 3 AIs on one car. Numbers in docs/tuning-log.md (WP41).
+
+**Camera and HUD**: the camera follows the player; 1.5 s after the player's wreck it watches the running car in the lead (most hp) until that one is out. HUD: cars left, fight clock, time to sudden death (then a blinking SUDDEN DEATH), the watched car; banners SUDDEN DEATH, LAST CAR STANDING (the player won) or FIGHT OVER. Results: placement, car, time out, wrecks caused, damage dealt; CONTINUE returns to the arena setup, RESTART runs the same field again.

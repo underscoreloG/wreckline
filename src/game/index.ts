@@ -1,6 +1,8 @@
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createAudioEngine } from '../audio';
+import { ARENAS, DEFAULT_ARENA_ID } from '../content/arenas';
+import { buildArenaSetup } from '../content/arenas/setup';
 import { carOrStarter, getCar } from '../content/cars';
 import { QUICK_RACE_CASH_VALUE } from '../content/economy';
 import { buildQuickRaceSetup } from '../content/quickRace';
@@ -74,7 +76,9 @@ const intParam = (params: URLSearchParams, key: string): number | undefined => {
 function raceInfo(setup: RaceSetup): NonNullable<UiState['race']> {
   const geo = buildTrackGeometry(setup.track);
   const every = Math.max(1, Math.round(MINIMAP_STEP / (geo.length / geo.samples.length)));
-  const minimapPath: Vec2[] = geo.samples.filter((_, i) => i % every === 0).map((s) => ({ x: s.pos.x, y: s.pos.y }));
+  // An arena's minimap is its wall (CCR-16): the spline through its corners would round them off.
+  const arena = setup.track.arena;
+  const minimapPath: Vec2[] = arena ? arena.wall.map((p) => ({ x: p.x, y: p.y })) : geo.samples.filter((_, i) => i % every === 0).map((s) => ({ x: s.pos.x, y: s.pos.y }));
   return {
     trackId: setup.track.id,
     trackName: setup.track.name,
@@ -132,7 +136,8 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
   let backdropGen = 0;
   let override: Partial<InputFrame> | null = null;
   let debugDriven = false;
-  let mode: 'quick' | 'career' | 'timeTrial' = 'quick';
+  let mode: 'quick' | 'career' | 'timeTrial' | 'arena' = 'quick';
+  let arenaId = DEFAULT_ARENA_ID; // arena setup picker (WP41), kept for the page session
   let trialRun: TimeTrialRun | null = null; // from START on the time trial setup screen to its next setup
   let ghostOn = true; // pause menu toggle, kept for the page session
   let justChampion = false;
@@ -173,6 +178,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
         }
         // CCR-13: a quick race restarted after a difficulty change (pause, settings) gets the new AI. `?race=1` keeps its setup.
         if (cmd.patch.difficulty !== undefined && mode === 'quick' && setup && params.get('race') !== '1') setup = quickSetup(setup.seed);
+        if (cmd.patch.difficulty !== undefined && mode === 'arena' && setup) setup = arenaSetup(setup.seed);
         return;
       case 'newCareer':
         if (screen !== 'title' && screen !== 'champion') return;
@@ -188,6 +194,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
         break;
       case 'navigate':
         if (screen === 'title' && cmd.screen === 'timeTrial') mode = 'timeTrial';
+        if (screen === 'title' && cmd.screen === 'arena') mode = 'arena';
         if (screen === 'career' && cmd.screen === 'raceSelect') {
           career.ensureOffers();
           publishCareer();
@@ -220,6 +227,13 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
         setup = modeSetup(setup.seed);
         store.set({ race: raceInfo(setup) });
         if (mode === 'timeTrial') publishTrialSetup();
+        return;
+      }
+      case 'setArena': {
+        if (mode !== 'arena' || screen !== 'arena' || !Object.hasOwn(ARENAS, cmd.arenaId) || !setup) return;
+        arenaId = cmd.arenaId;
+        setup = arenaSetup(setup.seed);
+        store.set({ race: raceInfo(setup) });
         return;
       }
       case 'toggleGhost': {
@@ -318,8 +332,12 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
   // WP40: the time trial setup screen shares the quick race pickers and their remembered picks.
   const trialSetup = (seed: number): RaceSetup =>
     buildTimeTrialSetup({ seed, trackId: quickTrackId(store.getState().settings), carId: carOrStarter(store.getState().settings.quickCarId).id, autoplay });
-  const modeSetup = (seed: number): RaceSetup => (mode === 'timeTrial' ? trialSetup(seed) : quickSetup(seed));
-  const pickerScreen = (screen: UiState['screen']): boolean => (mode === 'quick' && screen === 'preRace') || (mode === 'timeTrial' && screen === 'timeTrial');
+  // WP41: the arena setup shares the quick race CAR pick; the arena pick lives for the page session.
+  const arenaSetup = (seed: number): RaceSetup =>
+    buildArenaSetup({ seed, arenaId, carId: carOrStarter(store.getState().settings.quickCarId).id, autoplay, difficulty: store.getState().settings.difficulty });
+  const modeSetup = (seed: number): RaceSetup => (mode === 'timeTrial' ? trialSetup(seed) : mode === 'arena' ? arenaSetup(seed) : quickSetup(seed));
+  const pickerScreen = (screen: UiState['screen']): boolean =>
+    (mode === 'quick' && screen === 'preRace') || (mode === 'timeTrial' && screen === 'timeTrial') || (mode === 'arena' && screen === 'arena');
   const trialKey = (s: RaceSetup): string => ghostKey(s.track.id, s.entrants[0]?.carDefId ?? '');
   /** The setup screen: the stored best for the shown track, direction and car, no laps yet. */
   const publishTrialSetup = (): void => {
@@ -405,6 +423,10 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
         store.set({ race: raceInfo(setup), hud: null, results: null, lastPayout: null, selectedOffer: null });
         publishTrialSetup();
         break;
+      case 'buildArenaSetup':
+        setup = arenaSetup(randomSeed());
+        store.set({ race: raceInfo(setup), hud: null, results: null, lastPayout: null, selectedOffer: null });
+        break;
       case 'startSession':
         if (setup && mode === 'timeTrial') trialRun ??= createTrialRun(setup);
         if (setup) startSession(setup).catch(report);
@@ -469,7 +491,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
     const screen = store.getState().screen;
     const hidden = !autoPauseOff && !debugDriven && document.visibilityState === 'hidden';
     const music = hidden || screen === 'paused' || screen === 'boot' ? 'off' : screen === 'race' ? 'race' : 'menu';
-    const prefetch = screen === 'race' || screen === 'paused' || screen === 'preRace' || screen === 'timeTrial' || (screen === 'story' && !justChampion);
+    const prefetch = screen === 'race' || screen === 'paused' || screen === 'preRace' || screen === 'timeTrial' || screen === 'arena' || (screen === 'story' && !justChampion);
     audio.setMusic(music, prefetch ? setup?.seed : undefined);
   };
 
@@ -484,7 +506,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
   };
 
   const run = (mi: MachineInput): void => {
-    const t = transition({ ...store.getState(), career: mode === 'career', champion: justChampion, timeTrial: mode === 'timeTrial' }, mi);
+    const t = transition({ ...store.getState(), career: mode === 'career', champion: justChampion, timeTrial: mode === 'timeTrial', arena: mode === 'arena' }, mi);
     if (!t) return;
     store.set({ screen: t.screen, previousScreen: t.previousScreen });
     syncTitleArt();

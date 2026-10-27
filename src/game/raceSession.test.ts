@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi, type Mock } from 'vitest';
+import { buildArenaSetup } from '../content/arenas/setup';
 import { buildQuickRaceSetup } from '../content/quickRace';
-import type { AudioEngine, InputFrame, InputSource, RaceSetup, Renderer, Settings } from '../shared/contracts';
+import type { AudioEngine, HudState, InputFrame, InputSource, RaceSetup, Renderer, Settings } from '../shared/contracts';
 import { NEUTRAL_INPUT, PLAYER_CAR_ID } from '../shared/contracts';
 import { initPhysics } from '../sim';
 import { createRaceSession, FAST_FORWARD_CAP_TICKS, PLAYER_DONE_DELAY_TICKS, type RaceSession } from './raceSession';
@@ -13,6 +14,7 @@ vi.mock('../render', () => ({
     setQuality: vi.fn(),
     setCameraShake: vi.fn(),
     setGhost: vi.fn(),
+    setFollowCar: vi.fn(),
     stats: () => ({ drawCalls: 0, triangles: 0, fps: 0, geometries: 0, textures: 0 }),
     dispose: vi.fn(),
   }),
@@ -145,6 +147,34 @@ describe('engine voices (CCR-9)', () => {
     const s = await makeSession(setup, undefined, audio);
     expect(audio.setRaceCars).toHaveBeenCalledWith(setup.entrants.map((e) => ({ carDefId: e.carDefId, maxSpeed: e.stats.maxSpeed })));
     expect(audio.update).not.toHaveBeenCalled();
+    s.dispose();
+  });
+});
+
+describe('arena fight session (WP41)', () => {
+  it('runs on after the player wrecks, the camera watches the leader, results once one car is left', async () => {
+    const base = buildArenaSetup({ seed: 9, arenaId: 'scrapPit' });
+    const setup: RaceSetup = { ...base, entrants: base.entrants.map((e) => (e.id === PLAYER_CAR_ID ? { ...e, hp: 1 } : e)) };
+    const huds: HudState[] = [];
+    const s = await createRaceSession({ canvas: { clientWidth: 640, clientHeight: 360 } as HTMLCanvasElement, setup, settings: SETTINGS, input: fixedInput(NEUTRAL_INPUT), audio: spyAudio(), onHud: (h) => huds.push(h) });
+    let wreckTick = -1;
+    for (let i = 0; i < MAX_TICKS && !s.isOver(); i++) {
+      s.step();
+      s.render(1, 1 / 60);
+      if (wreckTick < 0 && s.snapshot().cars[PLAYER_CAR_ID]!.wrecked) wreckTick = s.snapshot().tick;
+    }
+    expect(wreckTick).toBeGreaterThan(0);
+    const snap = s.snapshot();
+    expect(snap.phase).toBe('finished');
+    expect(snap.tick - wreckTick).toBeGreaterThan(PLAYER_DONE_DELAY_TICKS);
+    const follow = vi.mocked(s.renderer.setFollowCar).mock.calls.map((c) => c[0]);
+    expect(follow.length).toBeGreaterThan(0);
+    expect(follow).not.toContain(PLAYER_CAR_ID);
+    const last = huds[huds.length - 1]!;
+    expect(last.arena?.alive).toBe(1);
+    expect(last.arena?.spectating).toBe(follow[follow.length - 1]);
+    expect(s.sim.result()?.mode).toBe('arena');
+    expect(s.sim.result()?.rows[0]?.eliminatedAt).toBeNull();
     s.dispose();
   });
 });

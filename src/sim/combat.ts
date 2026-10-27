@@ -125,7 +125,8 @@ function push(st: CombatState, car: SimCar, dx: number, dy: number, dv: number):
 
 // ---------------------------------------------------------------- damage and wrecks
 
-function applyDamage(world: SimWorld, car: SimCar, amount: number, source: DamageSource, by: CarId | null, pos: Vec2): void {
+/** Exported for the arena rules (sudden death, CCR-16). */
+export function applyDamage(world: SimWorld, car: SimCar, amount: number, source: DamageSource, by: CarId | null, pos: Vec2): void {
   // Finished cars are immune (content.md section 7).
   if (car.wrecked || car.finished || amount <= 0) return;
   const before = car.hp;

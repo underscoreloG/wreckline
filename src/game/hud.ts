@@ -1,3 +1,4 @@
+import { ARENA_SUDDEN_DEATH_AT } from '../content/arenas/rules';
 import type { HudState, KillFeedItem, RaceSetup, RaceSnapshot, SimEvent } from '../shared/contracts';
 import { PLAYER_CAR_ID, SIM_DT } from '../shared/contracts';
 
@@ -34,8 +35,14 @@ export function deriveHud(snap: RaceSnapshot, events: readonly SimEvent[], prev:
     memo.bannerUntilTick = snap.tick + Math.round(BANNER_SECONDS / SIM_DT);
   };
 
+  const arena = setup.mode === 'arena';
+  if (arena && prev && prev.raceTime < ARENA_SUDDEN_DEATH_AT && snap.time >= ARENA_SUDDEN_DEATH_AT) show('SUDDEN DEATH');
   for (const e of events) {
     switch (e.type) {
+      case 'raceFinished':
+        // WP41: the fight is over; a race's own end has no banner (FINISHED came with the player's line).
+        if (arena) show(me.wrecked ? 'FIGHT OVER' : 'LAST CAR STANDING');
+        break;
       case 'raceStart':
         show('GO!');
         break;

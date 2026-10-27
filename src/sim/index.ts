@@ -3,6 +3,7 @@ import RAPIER from '@dimforge/rapier2d-deterministic-compat';
 import type { CarState, InputFrame, RaceSetup, RaceSnapshot, Sim, SimEvent } from '../shared/contracts';
 import { NEUTRAL_INPUT, SIM_DT } from '../shared/contracts';
 import { createAiDriver } from './ai';
+import { arenaResult, updateArena, updateArenaPhase } from './arena';
 import { handleCollisions, updateGuns, updateMines, updatePickups, updateTurbo } from './combat';
 import type { SimCar, SimWorld } from './internal';
 import { updateCountdown, updateProgress } from './race';
@@ -87,10 +88,14 @@ export function createSimWithWorld(setup: RaceSetup): { sim: Sim; world: SimWorl
     return n > 0 ? { slots: Array.from({ length: n }, () => ({ ...NEUTRAL_INPUT })), head: 0 } : null;
   });
   let disposed = false;
+  // CCR-16: an arena fight swaps the two race-rule systems (steps 1 and 10) for the arena's.
+  const arena = setup.mode === 'arena';
+  const phaseSystem = arena ? updateArenaPhase : updateCountdown;
+  const progressSystem = arena ? updateArena : updateProgress;
 
   const step = (inputs: ReadonlyMap<number, InputFrame>): SimEvent[] => {
     // 1. countdown / phase
-    updateCountdown(world);
+    phaseSystem(world);
 
     // 2. inputs (copied field by field: sources may reuse one frame object)
     for (const car of world.cars) {
@@ -141,7 +146,7 @@ export function createSimWithWorld(setup: RaceSetup): { sim: Sim; world: SimWorl
       updateMines(world); // 8
       updatePickups(world); // 9
     }
-    updateProgress(world); // 10
+    progressSystem(world); // 10
 
     // 11.
     world.tick++;
@@ -179,7 +184,7 @@ export function createSimWithWorld(setup: RaceSetup): { sim: Sim; world: SimWorl
       if (world.phase === 'finished') return;
       world.phase = 'finished';
       world.countdown = 0;
-      world.result = buildResult(world);
+      world.result = arena ? arenaResult(world) : buildResult(world);
       // Returned by the next step(), like an event raised by the race-end rule.
       world.out.push({ type: 'raceFinished' });
     },

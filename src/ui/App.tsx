@@ -4,6 +4,8 @@ import type { ReactElement } from 'react';
 import { Fragment, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import type { GameStore, UiNav, UiSound, UiState } from '../shared/contracts';
 import { Hud } from './hud/Hud';
+import { ArenaResults } from './screens/ArenaResults';
+import { ArenaSetup } from './screens/ArenaSetup';
 import { Boot } from './screens/Boot';
 import { CareerHub } from './screens/career/CareerHub';
 import { Champion } from './screens/career/Champion';
@@ -39,7 +41,7 @@ function screenFor(state: UiState): ReactElement | null {
     case 'paused':
       return <Pause state={state} />;
     case 'results':
-      return <Results state={state} />;
+      return state.results?.mode === 'arena' ? <ArenaResults state={state} /> : <Results state={state} />;
     case 'career':
       return <CareerHub state={state} />;
     case 'garage':
@@ -58,6 +60,8 @@ function screenFor(state: UiState): ReactElement | null {
       return <TimeTrialSetup state={state} />;
     case 'timeTrialResults':
       return <TimeTrialResults state={state} />;
+    case 'arena':
+      return <ArenaSetup state={state} />;
     default:
       // 'race' is HUD only.
       return null;
@@ -113,7 +117,9 @@ export function App(props: { store: GameStore; nav: (cb: (n: UiNav) => void) => 
   return (
     <UiContext.Provider value={ctx}>
       <div className="ui-root">
-        {showHud && state.hud && <Hud hud={state.hud} minimapPath={state.race?.minimapPath ?? []} paused={state.screen === 'paused'} />}
+        {showHud && state.hud && (
+          <Hud hud={state.hud} minimapPath={state.race?.minimapPath ?? []} paused={state.screen === 'paused'} names={state.race?.entrants.map((e) => e.name)} />
+        )}
         {/* Keyed by screen so each screen mounts fresh: entry animation and focus reset. */}
         <Fragment key={state.screen}>{screenFor(state)}</Fragment>
         <Toast toast={state.toast} />

@@ -735,3 +735,39 @@ User: reversed layouts in "Quick race, trial and career" (genre research: track 
 - Wall impacts run higher reversed (2.11-4.89 per race, avg 3.81, vs 2.16-4.19, avg 3.46, forward; Dockside~r 4.89 above the 4.5 flag, Scrapyard~r 4.55 and Neon Mile~r 4.53 just above): report-only, not tuned here.
 - Neon Mile~r has 8 m of straight after the line (the forward line sits at T1's turn-in, so the reversed grid fills the straight behind it); its wrecks 0.95 and mine hits 3.09 are the highest reversed numbers but inside target.
 - Dressing: stands are now checked as the straight box they are (a stand next to a bend clipped the wall on Dust Bowl~r), and every barrier segment at its middle too (a tyre stack overlapped a prop on Junkyard Sprint~r). Forward tracks: Pine Hollow loses one of its two stands, Blast Pit gains one; the other 8 dressings are identical.
+
+## 2026-10-27 - Arena: last car standing (WP41, CCR-16)
+
+Racing is untouched: `node scripts/balance/run.mjs` gives the same table as main to the last digit (8/8, every row identical). The arena values below are new; the AI-side ones live at the top of `src/sim/arenaAi.ts`, the rules in `src/content/arenas/rules.ts`.
+
+### How the AI got to the fight length target
+
+| Step | Median fight (scrap / quarry / dock), 8 seeds | What it showed |
+|---|---|---|
+| Straight at the target, ram and shoot freely | 31 / 33 / 27 s | first wreck at 3 s: the field meets in the middle, ram damage 600 hp per fight |
+| Follow 11 m behind at gun range, ram only weaker cars from the side or rear, sidestep head-on | 118 / 39 / 131 s | pairs of cars circled each other for a minute without a hit |
+| Drop a target after 6 s without a hit, handbrake swing on a close car beside | 54 / 47 / 42 s | fights back to a melee, too short |
+| Mines only at a car hunting me, trigger 0.5 + 1.5 x aggression, aim wobble 12 deg, follow 14 m | 70 / 59 / 74 s | |
+| Veer right for the first 2.5 s, joust sidestep 9 m from 45 m | 74 / 65 / 66 s (16 seeds) | 1 stuck car: wedged between a block and a wreck |
+| Unstick until moved 3 m, forward only with room (rays from both flanks), circle a stopped target, brake for walls at any angle, close cars are feeler obstacles | 80 / 106 / 80 s (16 seeds) | 0 stuck |
+
+### Arena soak (`arenaSoak.test.ts`, 16 seeds per arena; 48 seeds in brackets)
+
+| Arena | Median fight s | 90th percentile s | Longest s | By 180 s | Stuck | Most AIs on one car |
+|---|---|---|---|---|---|---|
+| Scrap Pit | 80.1 (80.1) | 120.4 (122.6) | 127.4 (136.7) | 16/16 (48/48) | 0 (0) | 3 (3) |
+| Quarry Bowl | 105.9 (79.3) | 140.4 (137.1) | 147.3 (160.3) | 16/16 (48/48) | 0 (0) | 3 (3) |
+| Dock Lot | 80.3 (75.5) | 138.3 (128.4) | 139.7 (139.7) | 16/16 (48/48) | 0 (0) | 3 (3) |
+
+| Wrecks by cause, 16 seeds | gun | mine | ram | wreck blast | wall | sudden death drain |
+|---|---|---|---|---|---|---|
+| Scrap Pit | 32 | 20 | 42 | 3 | 15 | 1 |
+| Quarry Bowl | 33 | 19 | 39 | 3 | 17 | 1 |
+| Dock Lot | 27 | 16 | 36 | 12 | 21 | 2 |
+
+Damage per fight (16 seeds): gun 314-351, mine 257-284, ram 410-438, wreck blast 63-77, wall 146-189 hp. The first wreck comes at 17-22 s (median). The autoplay player slot is hunted 0.81x as much as the average car (48 seeds).
+
+### Notes
+
+- Car choice decides most fights: the titan (190 hp) and wraith (220 hp) won 39 of the 48 soak fights and 119 of 144 over 48 seeds; the raven won 2 of its 270 starts, the outlaw none of 135. Collision damage favours mass and the gun numbers are per car, so the heavy cars win the same fights they lose on the track. Not tuned here (it is a rule or stat choice, not AI): options are an arena hp pool shared by every car, heavier cars only in a class of their own, or the wraith out of the AI draw.
+- The sudden death drain wrecked 1-2 cars in 16 fights per arena; most fights end before 120 s, the longest at 160 s (48 seeds).
