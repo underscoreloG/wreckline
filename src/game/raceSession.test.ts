@@ -23,6 +23,7 @@ const MAX_TICKS = 60 * 400;
 const spyAudio = (): AudioEngine & { update: Mock<AudioEngine['update']>; stopRace: Mock<AudioEngine['stopRace']>; setRaceCars: Mock<AudioEngine['setRaceCars']> } => ({
   unlock: vi.fn(async () => {}),
   setVolumes: vi.fn(),
+  setMusic: vi.fn(),
   update: vi.fn<AudioEngine['update']>(),
   setRaceCars: vi.fn<AudioEngine['setRaceCars']>(),
   stopRace: vi.fn<AudioEngine['stopRace']>(),

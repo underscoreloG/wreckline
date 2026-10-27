@@ -6,8 +6,13 @@ import type { SfxCategory, SfxName } from './sfx';
 // recipes keep WP05's own levels (sfx.ts) and only follow `bus`, `engine` and `skid`.
 // Change levels here only, and log each change in docs/tuning-log.md.
 export const MIX = {
-  // Buses: race (engine, skid and every race sound; faded by stopRace) and ui (menu sounds).
-  bus: { race: 1, ui: 1 },
+  // Buses: race (engine, skid and every race sound; faded by stopRace) and ui (menu sounds), both under sfx; music
+  // (WP35) goes straight to master, times the music volume setting.
+  bus: { race: 1, ui: 1, music: 0.45 },
+  // Music (WP35): every track file is normalised to one loudness by scripts/sfx/importMusic.mjs. At the default
+  // settings a race track sits at least 10 LU under the race sounds ("in the background, not too loud"), the menu
+  // track a little quieter still.
+  music: { race: 1, menu: 0.8 } satisfies Record<'race' | 'menu', number>,
   // Engine voices (synth only): player and AI (AI is also distance-scaled).
   engine: { player: 0.28, ai: 0.12 },
   // Skid while drifting (synth only).

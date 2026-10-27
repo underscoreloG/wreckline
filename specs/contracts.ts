@@ -415,7 +415,13 @@ export type UiSound = 'move' | 'confirm' | 'back' | 'buy' | 'error';
 export interface AudioEngine {
   /** Must be called from a user gesture (keydown/click) before any sound plays. */
   unlock(): Promise<void>;
-  setVolumes(master: number, sfx: number): void; // 0..1
+  setVolumes(master: number, sfx: number, music: number): void; // 0..1 (music: CCR-11)
+  /**
+   * Background music (CCR-11): 'menu' loops the menu track, 'race' the race track picked from `seed`, 'off' fades it
+   * out (pause, hidden tab) and keeps its place. Switching cross-fades. With 'menu' or 'off', a seed only prefetches
+   * that race's track (called when the race setup is built). Idempotent: repeating a call changes nothing.
+   */
+  setMusic(mode: 'off' | 'menu' | 'race', seed?: number): void;
   /** Called once per rendered frame with new events and the latest snapshot. */
   update(snapshot: RaceSnapshot, events: readonly SimEvent[], listener: CarId): void;
   /** Called when a race setup is built, before the first update of that race. Index === CarId. maxSpeed is the effective stat (upgrades included). (CCR-9) */
@@ -502,6 +508,7 @@ export interface Settings {
   version: 1;
   masterVolume: number; // 0..1
   sfxVolume: number; // 0..1
+  musicVolume: number; // 0..1, default 0.5 (CCR-11)
   quality: Quality;
   cameraShake: boolean;
   showFps: boolean;

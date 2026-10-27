@@ -5,6 +5,8 @@ import { createEngineVoice, ENGINE_GAIN_AI, ENGINE_GAIN_PLAYER, type EngineVoice
 import { DEFAULT_PROFILE_ID, engineProfile } from './engineProfiles';
 import { engineSet, loadEngineSets } from './engineSets';
 import { createRecordedEngineVoice } from './recordedEngine';
+import { MIX } from './mix';
+import { createMusicPlayer, MENU_TRACK, pickRaceTrack, type MusicMode, type MusicPlayer, type MusicState } from './music';
 import { loadSamples, playSound } from './samples';
 import { PITCH_JITTER, pitchRate, type SfxName } from './sfx';
 import { createSkidVoice, SKID_GAIN, type SkidVoice } from './skid';
@@ -40,6 +42,8 @@ export interface AudioDebug {
   samples(): Promise<void> | null;
   /** Per race car: which engine voice it plays. */
   engines(): ('recorded' | 'synth')[];
+  /** Music (WP35): the mode asked for, the track playing or loading, each live voice's fade gain, the music bus gain. */
+  music(): MusicState & { mode: MusicMode; busGain: number | null };
 }
 
 export function createAudioEngine(): AudioEngine & AudioDebug {
@@ -47,6 +51,12 @@ export function createAudioEngine(): AudioEngine & AudioDebug {
   let bus: Bus | null = null;
   let master = 1;
   let sfx = 1;
+  let musicVol = 1;
+  let music: MusicPlayer | null = null;
+  let musicMode: MusicMode = 'off';
+  let musicTrack: string | null = null;
+  let playedRace: string | null = null; // track of the last race that played: the next race skips it
+  let cue: { seed: number; track: string } | null = null;
   let cars: CarVoices[] | null = null;
   let raceCars: readonly { carDefId: string; maxSpeed: number }[] = [];
   let raceMuted = false;
@@ -94,6 +104,13 @@ export function createAudioEngine(): AudioEngine & AudioDebug {
     });
   };
 
+  // One pick per race seed: the prefetch, the start and a resume after pause hear the same track.
+  const raceTrack = (seed: number): string => {
+    if (cue?.seed !== seed) cue = { seed, track: pickRaceTrack(seed, playedRace) };
+    return cue.track;
+  };
+  const applyMusic = (): void => music?.play(musicTrack, musicMode === 'off' ? 0 : MIX.music[musicMode], musicMode === 'off');
+
   return {
     async unlock() {
       if (!ctx) {
@@ -101,6 +118,9 @@ export function createAudioEngine(): AudioEngine & AudioDebug {
         bus = buildBus(ctx);
         bus.master.gain.value = master;
         bus.sfx.gain.value = sfx;
+        bus.music.gain.value = musicVol * MIX.bus.music;
+        music = createMusicPlayer(ctx, bus.music);
+        applyMusic();
       }
       if (ctx.state !== 'running') await ctx.resume();
       if (!samples) {
@@ -113,10 +133,22 @@ export function createAudioEngine(): AudioEngine & AudioDebug {
       }
     },
 
-    setVolumes(m, s) {
+    setVolumes(m, s, mu) {
       master = Math.max(0, Math.min(1, m));
       sfx = Math.max(0, Math.min(1, s));
-      if (bus) setBusVolumes(bus, master, sfx);
+      musicVol = Math.max(0, Math.min(1, mu));
+      if (bus) setBusVolumes(bus, master, sfx, musicVol);
+    },
+
+    setMusic(mode, seed) {
+      const race = seed === undefined ? (cue?.track ?? null) : raceTrack(seed);
+      const track = mode === 'race' ? race : mode === 'menu' ? MENU_TRACK : null;
+      if (mode === 'race') playedRace = track;
+      else if (race && seed !== undefined) music?.prefetch(race);
+      if (mode === musicMode && track === musicTrack) return;
+      musicMode = mode;
+      musicTrack = track;
+      applyMusic();
     },
 
     update(snapshot, events, listener) {
@@ -276,12 +308,14 @@ export function createAudioEngine(): AudioEngine & AudioDebug {
       void ctx.close();
       ctx = null;
       bus = null;
+      music = null;
     },
 
     voices: () => (ctx ? persistent() + pool.count(ctx.currentTime) : 0),
     bus: () => bus,
     samples: () => samples,
     engines: () => (cars ? cars.map((c) => (c.recorded ? 'recorded' : 'synth')) : []),
+    music: () => ({ ...(music?.state() ?? { track: musicTrack, voices: [], loaded: [] }), mode: musicMode, busGain: bus ? bus.music.gain.value : null }),
     play(name) {
       if (bus) play(bus.sfx, name, 1, 0);
     },

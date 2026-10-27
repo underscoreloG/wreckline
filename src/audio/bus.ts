@@ -5,11 +5,12 @@ export const COMPRESSOR_RATIO = 4;
 const VOLUME_RAMP = 0.05; // s
 const RACE_FADE = 0.1; // s
 
-/** race + ui -> sfx gain -> master gain -> compressor -> destination. */
+/** race + ui -> sfx gain -> master gain -> compressor -> destination; music gain -> master (not under sfx). */
 export interface Bus {
   ctx: BaseAudioContext;
   master: GainNode;
   sfx: GainNode;
+  music: GainNode;
   race: GainNode;
   ui: GainNode;
   out: DynamicsCompressorNode;
@@ -23,14 +24,17 @@ export function buildBus(ctx: BaseAudioContext): Bus {
   const sfx = ctx.createGain();
   const race = ctx.createGain();
   const ui = ctx.createGain();
+  const music = ctx.createGain();
   race.gain.value = MIX.bus.race;
   ui.gain.value = MIX.bus.ui;
+  music.gain.value = MIX.bus.music;
   race.connect(sfx);
   ui.connect(sfx);
   sfx.connect(master);
+  music.connect(master);
   master.connect(out);
   out.connect(ctx.destination);
-  return { ctx, master, sfx, race, ui, out };
+  return { ctx, master, sfx, music, race, ui, out };
 }
 
 /** Linear ramp from the current value, so repeated calls never jump. */
@@ -40,10 +44,11 @@ export function rampTo(param: AudioParam, value: number, now: number, seconds: n
   param.linearRampToValueAtTime(value, now + seconds);
 }
 
-export function setBusVolumes(bus: Bus, master: number, sfx: number): void {
+export function setBusVolumes(bus: Bus, master: number, sfx: number, music: number): void {
   const now = bus.ctx.currentTime;
   rampTo(bus.master.gain, master, now, VOLUME_RAMP);
   rampTo(bus.sfx.gain, sfx, now, VOLUME_RAMP);
+  rampTo(bus.music.gain, music * MIX.bus.music, now, VOLUME_RAMP);
 }
 
 export function fadeRace(bus: Bus, on: boolean): number {

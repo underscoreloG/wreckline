@@ -140,7 +140,7 @@ export function fixtureState(screen: Screen, hud: HudFixture = 'mid', career = C
   return {
     screen,
     previousScreen: screen === 'settings' || screen === 'controls' ? 'title' : sub ? 'career' : null,
-    settings: { version: 1, masterVolume: 0.8, sfxVolume: 0.9, quality: 'high', cameraShake: true, showFps: false, quickTrackId: null, quickCarId: null },
+    settings: { version: 1, masterVolume: 0.8, sfxVolume: 0.9, musicVolume: 0.5, quality: 'high', cameraShake: true, showFps: false, quickTrackId: null, quickCarId: null },
     usingGamepad: false,
     version: __APP_VERSION__,
     race: { trackId: setup.track.id, trackName: setup.track.name, laps: setup.laps, entrants, minimapPath },

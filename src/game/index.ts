@@ -116,7 +116,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
     lastPayout: null,
     toast: null,
   };
-  audio.setVolumes(initial.settings.masterVolume, initial.settings.sfxVolume);
+  audio.setVolumes(initial.settings.masterVolume, initial.settings.sfxVolume, initial.settings.musicVolume);
 
   let setup: RaceSetup | null = null;
   let session: RaceSession | null = null;
@@ -254,7 +254,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
     const s = { ...store.getState().settings, ...patch };
     store.set({ settings: s });
     saveSettings(storage, s);
-    audio.setVolumes(s.masterVolume, s.sfxVolume);
+    audio.setVolumes(s.masterVolume, s.sfxVolume, s.musicVolume);
     backdrop?.renderer.setQuality(s.quality);
     session?.renderer.setQuality(s.quality);
     session?.renderer.setCameraShake(s.cameraShake);
@@ -365,11 +365,22 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
     }
   };
 
+  // Music (WP35): the race track from the countdown to the results, silent while paused, the menu track on every
+  // other screen; the race setup's seed picks the track (prefetched on the pre-race screen). A hidden tab mutes it,
+  // as auto-pause mutes the race sounds, and under the same exceptions.
+  const syncMusic = (): void => {
+    const screen = store.getState().screen;
+    const hidden = !autoPauseOff && !debugDriven && document.visibilityState === 'hidden';
+    const music = hidden || screen === 'paused' || screen === 'boot' ? 'off' : screen === 'race' ? 'race' : 'menu';
+    audio.setMusic(music, screen === 'race' || screen === 'paused' || screen === 'preRace' ? setup?.seed : undefined);
+  };
+
   const run = (mi: MachineInput): void => {
     const t = transition({ ...store.getState(), career: mode === 'career', champion: justChampion }, mi);
     if (!t) return;
     store.set({ screen: t.screen, previousScreen: t.previousScreen });
     for (const e of t.effects) apply(e);
+    syncMusic();
   };
 
   const onStep = (): void => {
@@ -402,6 +413,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
   };
   const onVisibility = (): void => {
     if (document.visibilityState === 'hidden') autoPause();
+    syncMusic();
   };
   window.addEventListener('keydown', unlock);
   window.addEventListener('pointerdown', unlock);
@@ -467,6 +479,7 @@ export async function startGame(root: HTMLElement): Promise<GameHandle> {
       autoplay,
     });
     store.set({ screen: 'race', previousScreen: null, race: raceInfo(setup) });
+    syncMusic();
     await startSession(setup);
   } else {
     run({ type: 'booted' });
