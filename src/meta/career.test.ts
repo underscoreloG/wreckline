@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RaceOffer, RaceResult, RaceResultRow, SaveGame } from '../shared/contracts';
-import { profileForSkill } from '../content/ai';
+import { aiProfile, profileForSkill } from '../content/ai';
 import { getCar } from '../content/cars';
 import { computeStats, OFFER_TRACK_STEP } from '../content/economy';
 import { RIVALS } from '../content/rivals';
@@ -242,6 +242,35 @@ describe('rubber banding (test 9)', () => {
         expect(e.ai!.rubberBand).toBe(expected);
         if (tier === 'easy') expect(expected).toBeGreaterThan(0);
       }
+    }
+  });
+});
+
+describe('difficulty (CCR-13)', () => {
+  it('rivals and the boss drive at the shifted skill through aiProfile; stats and the rubber band rule do not change', () => {
+    const low = withPoints(23);
+    const top = withPoints(100);
+    const cases: [SaveGame, RaceOffer['tier']][] = [
+      [low, 'easy'],
+      [low, 'hard'],
+      [top, 'boss'],
+    ];
+    expect(buildCareerRaceSetup(low, offerOf(low, 'easy'), 1)).toEqual(buildCareerRaceSetup(low, offerOf(low, 'easy'), 1, 'normal'));
+    for (const [save, tier] of cases) {
+      const normal = buildCareerRaceSetup(save, offerOf(save, tier), 1, 'normal');
+      for (const difficulty of ['easy', 'hard'] as const) {
+        const setup = buildCareerRaceSetup(save, offerOf(save, tier), 1, difficulty);
+        setup.entrants.slice(1).forEach((e, i) => {
+          const skill = e.driverId === 'boss' ? 1.1 : save.rivals.find((r) => r.driverId === e.driverId)!.skill;
+          const profile = aiProfile(skill, difficulty);
+          expect(e.ai).toEqual({ ...profile, rubberBand: tier === 'hard' || tier === 'boss' ? 0 : profile.rubberBand });
+          expect(e.stats).toEqual(normal.entrants[i + 1]!.stats);
+        });
+      }
+      const boss = buildCareerRaceSetup(save, offerOf(save, tier), 1, 'easy').entrants.find((e) => e.driverId === 'boss');
+      if (boss) expect(boss.ai!.skill).toBeCloseTo(0.9, 9);
+      const hardBoss = buildCareerRaceSetup(save, offerOf(save, tier), 1, 'hard').entrants.find((e) => e.driverId === 'boss');
+      if (hardBoss) expect(hardBoss.ai!.skill).toBeCloseTo(1.15, 9);
     }
   });
 });

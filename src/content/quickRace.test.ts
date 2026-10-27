@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { profileForSkill } from './ai';
+import { aiProfile, profileForSkill } from './ai';
 import { CARS, getCar } from './cars';
 import { buildQuickRaceSetup } from './quickRace';
 
@@ -48,5 +48,15 @@ describe('buildQuickRaceSetup', () => {
       for (const e of s.entrants.slice(1)) expect([e.carDefId, e.stats]).toEqual(['raven', raven.base]);
     }
     expect(() => buildQuickRaceSetup({ seed: 1, carId: 'nope' })).toThrow();
+  });
+
+  it('difficulty (CCR-13) shifts every AI through aiProfile, never the player or autoplay driver', () => {
+    for (const difficulty of ['easy', 'normal', 'hard'] as const) {
+      const s = buildQuickRaceSetup({ seed: 1, aiCount: 5, autoplay: true, difficulty });
+      expect(s.entrants[0].ai).toEqual(profileForSkill(0.55));
+      expect(s.entrants.slice(1).map((e) => e.ai)).toEqual([0.35, 0.55, 0.75, 0.55, 0.55].map((k) => aiProfile(k, difficulty)));
+    }
+    expect(buildQuickRaceSetup({ seed: 1 })).toEqual(buildQuickRaceSetup({ seed: 1, difficulty: 'normal' }));
+    expect(buildQuickRaceSetup({ seed: 1, difficulty: 'hard' }).entrants.slice(1).map((e) => e.ai?.skill)).toEqual([0.5, 0.7, 1.12].map((k) => expect.closeTo(k, 9)));
   });
 });

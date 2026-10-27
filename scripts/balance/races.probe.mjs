@@ -11,6 +11,7 @@ const tracks = env.BALANCE_TRACKS ? env.BALANCE_TRACKS.split(',') : Object.keys(
 const seeds = Number(env.BALANCE_SEEDS ?? 16);
 const starts = Number(env.BALANCE_STARTS ?? 4);
 const loadout = (env.BALANCE_LOADOUT ?? 'soak');
+const difficulty = env.BALANCE_DIFFICULTY;
 const out = env.BALANCE_OUT ?? 'balance-out';
 
 beforeAll(async () => {
@@ -21,7 +22,7 @@ it('races probe', () => {
   mkdirSync(out, { recursive: true });
   for (const trackId of tracks) {
     const races = [];
-    for (let seed = 1; seed <= seeds; seed++) for (let start = 0; start < starts; start++) races.push(runProbeRace({ trackId, seed, start, loadout }));
+    for (let seed = 1; seed <= seeds; seed++) for (let start = 0; start < starts; start++) races.push(runProbeRace({ trackId, seed, start, loadout, difficulty }));
     writeFileSync(join(out, `races-${trackId}.json`), JSON.stringify(races));
   }
 }, 3_600_000);

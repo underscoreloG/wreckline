@@ -56,7 +56,7 @@ export function PreRace({ state }: { state: UiState }) {
     <div className="screen scrim">
       <Panel className="screen-panel">
         <h2 className="screen-title display">{race?.trackName ?? 'Race'}</h2>
-        <p className="screen-sub muted display">{race ? `${race.laps} laps · ${race.entrants.length} drivers` : ''}</p>
+        <p className="screen-sub muted display">{race ? `${race.laps} laps · ${race.entrants.length} drivers · ${state.settings.difficulty} AI` : ''}</p>
         {race && (
           <div className="prerace-body">
             <div className="prerace-track">

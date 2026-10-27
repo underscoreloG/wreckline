@@ -1,3 +1,4 @@
+import type { Difficulty } from '../../src/shared/contracts';
 import { getCar } from '../../src/content/cars';
 import { computeStats, repairCost, STARTING_CAREER, upgradeCost } from '../../src/content/economy';
 import { CAREER_SIM_MAX_RACES, type CareerPolicy, type CareerRun, simulateCareer } from '../../src/meta/careerSim';
@@ -30,9 +31,9 @@ export function race5Need(): number {
   return upgradeCost(car, 'engine', 1) + upgradeCost(car, 'armor', 1) + repairCost(car, computeStats(car, STARTING_CAREER.upgrades).maxHp);
 }
 
-export function careerSummary(policy: CareerPolicy, seeds: number, driverSkill?: number, maxRaces = CAREER_SIM_MAX_RACES): CareerSummary {
+export function careerSummary(policy: CareerPolicy, seeds: number, driverSkill?: number, maxRaces = CAREER_SIM_MAX_RACES, difficulty?: Difficulty): CareerSummary {
   const runs: CareerRun[] = [];
-  for (let seed = 1; seed <= seeds; seed++) runs.push(simulateCareer(seed, policy, { maxRaces, driverSkill }));
+  for (let seed = 1; seed <= seeds; seed++) runs.push(simulateCareer(seed, policy, { maxRaces, driverSkill, difficulty }));
   const [lo, hi] = policy === 'greedy' ? GREEDY_RACES : SAFE_RACES;
   const inWindow = runs.filter((r) => r.champion && r.races >= lo && r.races <= hi).length;
   return {

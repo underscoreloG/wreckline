@@ -1,7 +1,7 @@
-import type { EntrantSetup, Payout, RaceOffer, RaceResult, RaceSetup, RaceTier, RivalState, SaveGame } from '../shared/contracts';
+import type { Difficulty, EntrantSetup, Payout, RaceOffer, RaceResult, RaceSetup, RaceTier, RivalState, SaveGame } from '../shared/contracts';
 import { PLAYER_CAR_ID } from '../shared/contracts';
 import { createRng, type Rng } from '../shared/rng';
-import { BOSS_MAX_SPEED_MULT, profileForSkill } from '../content/ai';
+import { aiProfile, BOSS_MAX_SPEED_MULT } from '../content/ai';
 import { getCar, STARTER_CAR_ID } from '../content/cars';
 import {
   CAREER_TIERS,
@@ -193,7 +193,7 @@ export function sabotageTarget(save: SaveGame, offer: RaceOffer): { driverId: st
   return { driverId: best.driverId, name: best.name };
 }
 
-function rivalEntrant(id: number, driverId: string, save: SaveGame, tier: RaceTier): EntrantSetup {
+function rivalEntrant(id: number, driverId: string, save: SaveGame, tier: RaceTier, difficulty: Difficulty): EntrantSetup {
   const def = driverId === BOSS.driverId ? BOSS : save.rivals.find((r) => r.driverId === driverId);
   if (!def) throw new Error(`offer rival '${driverId}' is not in the save`);
   const car = getCar(def.carDefId);
@@ -201,7 +201,8 @@ function rivalEntrant(id: number, driverId: string, save: SaveGame, tier: RaceTi
   const spikes = rivalSpikesLevel(def.skill);
   const stats = computeStats(car, { engine: level, tires: level, armor: level, gun: level, fuel: level, spikes });
   if (driverId === BOSS.driverId) stats.maxSpeed *= BOSS_MAX_SPEED_MULT;
-  const profile = profileForSkill(def.skill);
+  // CCR-13: difficulty shifts how the rival drives; its car upgrades above still follow its own skill.
+  const profile = aiProfile(def.skill, difficulty);
   // content.md section 8: hard and boss races never rubber-band.
   if (tier === 'hard' || tier === 'boss') profile.rubberBand = 0;
   return {
@@ -220,7 +221,7 @@ function rivalEntrant(id: number, driverId: string, save: SaveGame, tier: RaceTi
 }
 
 /** Throws when the player car is wrecked (hp <= 0): the UI must make the player repair first. */
-export function buildCareerRaceSetup(save: SaveGame, offer: RaceOffer, seed: number): RaceSetup {
+export function buildCareerRaceSetup(save: SaveGame, offer: RaceOffer, seed: number, difficulty: Difficulty = 'normal'): RaceSetup {
   if (save.hp <= 0) throw new Error('player car has no hp left: repair before racing');
   const car = getCar(save.carDefId);
   const stats = computeStats(car, save.upgrades);
@@ -237,7 +238,7 @@ export function buildCareerRaceSetup(save: SaveGame, offer: RaceOffer, seed: num
     turbo: save.turbo,
     ai: null,
   };
-  const rivals = offer.rivals.map((d, i) => rivalEntrant(i + 1, d, save, offer.tier));
+  const rivals = offer.rivals.map((d, i) => rivalEntrant(i + 1, d, save, offer.tier, difficulty));
   // Sabotage bought for this offer: the target is re-picked here, since offers are rebuilt after a reload.
   const sab = save.sabotage;
   if (sab && sab.offerId === offer.id) {

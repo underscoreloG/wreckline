@@ -1,6 +1,7 @@
 // WP12 balance probes: `node scripts/balance/run.mjs` prints the health-metric table and exits 1 if a row misses its target.
 // Options: --seeds N (16), --starts N (4 grid rotations), --tracks a,b, --loadout soak|rival, --skip-races, --skip-career,
-// --driver S (careerSim player driver skill), --calibrate (careerSim playerSkill calibration instead of the table), --out DIR (default: a temp dir).
+// --driver S (careerSim player driver skill), --calibrate (careerSim playerSkill calibration instead of the table), --out DIR (default: a temp dir),
+// --difficulty easy|normal|hard (CCR-13: every AI and the careerSim rivals drive shifted; also prints the per-skill lap table; targets are tuned for normal).
 import { spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { availableParallelism, tmpdir } from 'node:os';
@@ -17,6 +18,9 @@ const flag = (name) => process.argv.includes(`--${name}`);
 const seeds = arg('seeds', '16');
 const starts = arg('starts', '4');
 const loadout = arg('loadout', 'soak');
+const difficulty = arg('difficulty', null);
+if (difficulty !== null && !['easy', 'normal', 'hard'].includes(difficulty)) throw new Error(`--difficulty ${difficulty}: easy, normal or hard`);
+const diffEnv = difficulty === null ? {} : { BALANCE_DIFFICULTY: difficulty };
 const out = arg('out', mkdtempSync(join(tmpdir(), 'wreckline-balance-')));
 // Registry order, read from the track index so the probe never pins the list.
 const allTracks = [...readFileSync(join(root, 'src/content/tracks/index.ts'), 'utf8').matchAll(/^\s+(\w+): [A-Z_]+,$/gm)].map((m) => m[1]);
@@ -56,8 +60,8 @@ if (flag('calibrate')) {
 }
 
 const jobs = [];
-if (!flag('skip-races')) for (const t of tracks) jobs.push(() => probe('scripts/balance/races.probe.mjs', { BALANCE_TRACKS: t, BALANCE_STARTS: starts, BALANCE_LOADOUT: loadout }));
-if (!flag('skip-career')) jobs.push(() => probe('scripts/balance/career.probe.mjs', arg('driver') ? { BALANCE_DRIVER: arg('driver') } : {}));
+if (!flag('skip-races')) for (const t of tracks) jobs.push(() => probe('scripts/balance/races.probe.mjs', { BALANCE_TRACKS: t, BALANCE_STARTS: starts, BALANCE_LOADOUT: loadout, ...diffEnv }));
+if (!flag('skip-career')) jobs.push(() => probe('scripts/balance/career.probe.mjs', { ...(arg('driver') ? { BALANCE_DRIVER: arg('driver') } : {}), ...diffEnv }));
 const t0 = Date.now();
 await pool(jobs, workers);
 
@@ -70,9 +74,15 @@ if (!flag('skip-races')) {
     const mean = (xs) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 0);
     const placeOf = (skill) => mean(races.flatMap((r) => r.places.filter((p) => p.skill === skill).map((p) => p.position)));
     // Start 0 is runSoak's grid, the one every referenceLapTime was measured on; rotated grids leave a 0.55 car stuck behind the 0.35 (slow laps without contact).
-    const laps = races.filter((r) => r.start === 0).flatMap((r) => r.mediumCleanLaps).sort((a, b) => a - b);
-    const m = laps.length >> 1;
-    const median = laps.length === 0 ? null : laps.length % 2 ? laps[m] : (laps[m - 1] + laps[m]) / 2;
+    const medianOf = (xs) => {
+      const s = [...xs].sort((a, b) => a - b);
+      const m = s.length >> 1;
+      return s.length === 0 ? null : s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+    };
+    const laps = races.filter((r) => r.start === 0).flatMap((r) => r.mediumCleanLaps);
+    const median = medianOf(laps);
+    // Same start 0 grid, every car by its PROBE_SKILLS skill (shown with --difficulty).
+    const bySkill = (skill) => medianOf(races.filter((r) => r.start === 0).flatMap((r) => r.cleanLaps.filter((c) => c.skill === skill).map((c) => c.lap)));
     const ref = Number(readFileSync(join(root, `src/content/tracks/${t}.ts`), 'utf8').match(/referenceLapTime: ([\d.]+)/)?.[1] ?? NaN);
     return {
       t,
@@ -90,6 +100,7 @@ if (!flag('skip-races')) {
       shove: mean(races.map((r) => r.shove)),
       longest: Math.max(...races.map((r) => r.longestShove)),
       longShoves: races.filter((r) => r.longestShove > 10).length,
+      skillLaps: [0.35, 0.55, 0.75].map(bySkill),
     };
   });
   console.log(`track            races  wrecks  walls  mineHits  gunShare  spread  medianLap start 0 (n)  ref   delta  timeouts  shove m/race (longest s, races > 10 s)`);
@@ -99,6 +110,13 @@ if (!flag('skip-races')) {
         `${String(p.ref).padStart(5)}  ${p.median === null ? '-' : f(p.median - p.ref).padStart(5)}  ${String(p.timeouts).padStart(8)}  ${f(p.shove, 1)} (${f(p.longest, 1)}, ${p.longShoves})`,
     );
   console.log('');
+  if (difficulty !== null) {
+    console.log(`difficulty ${difficulty}: median clean lap / referenceLapTime by skill before the shift, start 0`);
+    console.log(`track             0.35   0.55   0.75`);
+    for (const p of per) console.log(`${p.t.padEnd(16)} ${p.skillLaps.map((x) => (x === null ? '-' : f(x / p.ref, 3)).padStart(6)).join(' ')}`);
+    const avg = (i) => per.reduce((s, p) => s + (p.skillLaps[i] ?? NaN) / p.ref, 0) / per.length;
+    console.log(`${'mean'.padEnd(16)} ${[0, 1, 2].map((i) => f(avg(i), 3).padStart(6)).join(' ')}\n`);
+  }
   const all = (k) => per.reduce((s, p) => s + p[k] * p.n, 0) / per.reduce((s, p) => s + p.n, 0);
   const gunShare = per.reduce((s, p) => s + p.gun, 0) / per.reduce((s, p) => s + p.dmg, 0);
   const minW = Math.min(...per.map((p) => p.wrecks));
@@ -130,5 +148,5 @@ const w = Math.max(...rows.map((r) => r.metric.length));
 const wv = Math.max(...rows.map((r) => r.value.length));
 console.log(`${'metric'.padEnd(w)}  ${'value'.padEnd(wv)}  target      result`);
 for (const r of rows) console.log(`${r.metric.padEnd(w)}  ${r.value.padEnd(wv)}  ${r.target.padEnd(10)}  ${r.pass ? 'PASS' : 'FAIL'}`);
-console.log(`\n${rows.filter((r) => r.pass).length}/${rows.length} inside target (${seeds} seeds, ${starts} starts, loadout ${loadout}, ${((Date.now() - t0) / 1000).toFixed(0)} s, raw JSON in ${out})`);
+console.log(`\n${rows.filter((r) => r.pass).length}/${rows.length} inside target (${seeds} seeds, ${starts} starts, loadout ${loadout},${difficulty === null ? '' : ` difficulty ${difficulty},`} ${((Date.now() - t0) / 1000).toFixed(0)} s, raw JSON in ${out})`);
 process.exit(rows.every((r) => r.pass) ? 0 : 1);

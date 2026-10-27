@@ -206,7 +206,7 @@ export interface TrackValidation {
 // ---------------------------------------------------------------- AI
 
 export interface AiProfile {
-  skill: number; // 0..1.1 (1.1 = boss); derived values below come from content.md table
+  skill: number; // 0..1.1 (1.1 = boss), up to 1.25 on hard only (CCR-13); derived values below come from content.md table
   cornerSpeedFactor: number; // fraction of the grip-limited corner speed it dares to carry
   lineNoise: number; // m, lateral wobble amplitude around the racing line
   reactionTicks: number; // input delay
@@ -529,7 +529,11 @@ export interface Settings {
   showFps: boolean;
   quickTrackId: string | null; // last track picked for quick race; null = first track (CCR-6). `?race=1` ignores it
   quickCarId: string | null; // last car picked for quick race; null or unknown id = raven (CCR-10). `?race=1` ignores it
+  difficulty: Difficulty; // shifts every AI driver's skill (content.md section 8), default 'normal'; saved settings without it migrate to 'normal' (CCR-13)
 }
+
+/** CCR-13: AI difficulty, the same rewards at every level. */
+export type Difficulty = 'easy' | 'normal' | 'hard';
 
 // ---------------------------------------------------------------- game shell <-> UI (src/game/store.ts)
 
