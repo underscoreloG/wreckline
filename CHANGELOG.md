@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.1 - More tracks in career (2026-10-27)
+
+- Career offers three new tracks every round instead of moving on by one, so all 10 tracks come round within four races.
+
 ## 0.9.0 - Death Rally tight tracks (2026-10-27)
 
 - All 10 tracks are redrawn Death Rally style: a chain of short left and right bends, one or more hairpins, and no straight longer than 80 m except a short start straight. Laps now take 24-29 s (they were 23-41 s).
