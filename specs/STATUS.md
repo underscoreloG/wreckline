@@ -27,6 +27,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 - 2026-10-26 No player-specific marker: rim glow for every car, the player included (user decision after seeing shots).
 - 2026-10-26 Tracks: rework all 10 Death Rally tight (user: "in death rally there are more small turns"), camera unchanged. Pilot WP31 (rules, test decoupling, Scrapyard), user plays it, then WP32 redraws the other 9 in three parallel workers.
 - Still assumed: working title "Wreckline", career length target 18-35 races (WP12 can move it).
+- 2026-10-27 Career story (user): end goal take down THE WARDEN, who took the family Red Lantern Garage; old mechanic MAZ talks before races; 4 rival lieutenants (VEX, RAZOR, DUCHESS, BANSHEE); 6 beats at ranks 20/15/10/5/1/title + 10 track scenes (16 images, user makes them in Gemini); grim and funny; 90s painted pixel art; lines type out, SPACE skips, ESC skips scene, no forced wait, no voice. Bible specs/story.md, prompts specs/story-art-prompts.md. Race music requested (Death Rally feel, free licence): research running.
 
 ## Work packages
 | WP | Name | Wave | Dispatch | Model | Status | Agent/session id | Branch | Notes |
