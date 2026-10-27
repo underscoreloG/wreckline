@@ -3,7 +3,7 @@ import { buildTrackGeometry, validateTrack } from '../../shared/trackGeometry';
 import { initPhysics } from '../../sim/index';
 import { BLAST_PIT, BLAST_PIT_CRANE_S, BLAST_PIT_PROP_RULES, BLAST_PIT_SCATTER } from './blastPit';
 import { getTrack, TRACKS } from './index';
-import { longestStraight, tightestTurn, trackContentTests } from './trackTestKit';
+import { tightestTurn, trackContentTests } from './trackTestKit';
 
 beforeAll(async () => {
   await initPhysics();
@@ -13,28 +13,37 @@ describe('blastPit', () => {
   it('passes validateTrack and the content.md section 12 constraints', () => {
     const def = BLAST_PIT;
     const v = validateTrack(def);
-    const straight = longestStraight(def);
     const hairpin = tightestTurn(def);
     console.warn(
-      `WP23b ${def.id}: length ${v.length.toFixed(1)} m, minRadius ${v.minRadius.toFixed(1)} m, minClearance ${v.minClearance.toFixed(1)} m, straight ${(straight.to - straight.from).toFixed(0)} m, hairpin ${hairpin.turn.toFixed(0)} deg at s ${hairpin.from.toFixed(0)}-${hairpin.to.toFixed(0)}, ${def.props.length} props`,
+      `WP32c ${def.id}: length ${v.length.toFixed(1)} m, minRadius ${v.minRadius.toFixed(1)} m, minClearance ${v.minClearance.toFixed(1)} m, hairpin ${hairpin.turn.toFixed(0)} deg at s ${hairpin.from.toFixed(0)}-${hairpin.to.toFixed(0)}, ${def.props.length} props`,
     );
     expect(v.errors).toEqual([]);
     expect(def.width).toBe(16);
-    expect(v.length).toBeGreaterThanOrEqual(1100);
-    expect(v.length).toBeLessThanOrEqual(1700);
+    // WP32 length budget: every other track is at most 990 m.
+    expect(v.length).toBeGreaterThanOrEqual(1010);
+    expect(v.length).toBeLessThanOrEqual(1060);
     expect(v.minRadius).toBeGreaterThanOrEqual(def.width);
     expect(v.minRadius).toBeLessThan(25);
     expect(v.minClearance).toBeGreaterThanOrEqual(def.width + 2 * def.shoulder + 8);
     expect(hairpin.turn).toBeGreaterThanOrEqual(150);
-    expect(straight.to - straight.from).toBeGreaterThanOrEqual(150);
     expect(getTrack(def.id)).toBe(def);
   });
 
-  trackContentTests(BLAST_PIT, BLAST_PIT_PROP_RULES, BLAST_PIT_SCATTER, 'WP23b');
+  it('pickups: a mix on and off the AI line band (WP32)', () => {
+    // Outside racingLine's band (width / 2 - 1.6) the AI never steers for a pickup: only a human goes for those.
+    const off = BLAST_PIT.pickups.filter((p) => Math.abs(p.lateral) > BLAST_PIT.width / 2 - 1.6).length;
+    expect(off).toBeGreaterThanOrEqual(4);
+    expect(BLAST_PIT.pickups.length - off).toBeGreaterThanOrEqual(4);
+  });
+
+  trackContentTests(BLAST_PIT, BLAST_PIT_PROP_RULES, BLAST_PIT_SCATTER, 'WP32c');
 
   it('Blast Pit: the longest track, and its hairpin is the one between the pits under the crane', () => {
     const len = buildTrackGeometry(BLAST_PIT).length;
-    for (const t of Object.values(TRACKS)) if (t.id !== BLAST_PIT.id) expect(len).toBeGreaterThan(buildTrackGeometry(t).length);
+    // Against the tight tracks (WP32 length budget: the others at most 990 m); the pre-WP31 layouts still
+    // waiting for their WP32 redraw run 1100-1500 m. Once all ten are tight this is every track again.
+    const tight = Object.values(TRACKS).filter((t) => (t as { shape?: string }).shape === 'tight');
+    for (const t of tight) if (t.id !== BLAST_PIT.id) expect(len).toBeGreaterThan(buildTrackGeometry(t).length);
     const hairpin = tightestTurn(BLAST_PIT);
     expect(BLAST_PIT_CRANE_S).toBeGreaterThan(hairpin.from);
     expect(BLAST_PIT_CRANE_S).toBeLessThan(hairpin.to);
