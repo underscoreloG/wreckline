@@ -28,6 +28,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 - 2026-10-26 Tracks: rework all 10 Death Rally tight (user: "in death rally there are more small turns"), camera unchanged. Pilot WP31 (rules, test decoupling, Scrapyard), user plays it, then WP32 redraws the other 9 in three parallel workers.
 - Still assumed: working title "Wreckline", career length target 18-35 races (WP12 can move it).
 - 2026-10-27 Career story (user): end goal take down THE WARDEN, who took the family Red Lantern Garage; old mechanic MAZ talks before races; 4 rival lieutenants (VEX, RAZOR, DUCHESS, BANSHEE); 6 beats at ranks 20/15/10/5/1/title + 10 track scenes (16 images, user makes them in Gemini); grim and funny; 90s painted pixel art; lines type out, SPACE skips, ESC skips scene, no forced wait, no voice. Bible specs/story.md, prompts specs/story-art-prompts.md. Race music requested (Death Rally feel, free licence): research running.
+- 2026-10-27 Music (user): top 6 CC0 race tracks (Darkness Road, System Overload, Hot Roadway, Awake!, Glutton, Hyperflight Racing) + Hyperton for menus; "in the background as a support not too loud": music >= 10 LU under the race SFX at default, musicVolume default 0.5 (CCR-11).
 
 ## Work packages
 | WP | Name | Wave | Dispatch | Model | Status | Agent/session id | Branch | Notes |
@@ -71,6 +72,7 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | WP32c | Tight redraw: junkyardSprint, pineHollow, blastPit | C5 | subagent | opus high | merged | agent a2f2f4af1ab59cb5b | wp/32c-tight-tracks (dd29ef3) | 624/624 (brain re-ran); junkyard 836 m ref 24, pine 944 m ref 25, blastPit 1046 m ref 28.5 shoulder 5; 8/8; longest-track test filtered to tight tracks until WP32a/b land (CCR: remove filter); CCRs: 10 m hairpin helper in trackTestKit, dressing standFits ignores props, roundedLoop duplicate point; Pine ref lap on the tolerance edge: re-measure after WP33 |
 | WP33 | AI glued to a wreck at the wall reverses away from it (WP31 CCR) | C5 | subagent | opus high | merged | agent a5fc8c4621552f92b | wp/33-ai-wreck-wall (77e66e3) | 621/621 (brain re-ran); glued at the wall: reverse nose to the open side, escalation x2; new test 5.1 s vs old 7.2-7.6 s; 8/8, wrecks and timeouts unchanged; CCR: nose-in square to the wall in the shoulder loops forever (most likely WP32 timeout), hairpin mid-track glue, no-motion pin |
 | WP34 | Gun retune for tight tracks (gun share 0.36 -> 0.45-0.65) + shared hairpin test helper | C5 | subagent | opus high | merged | agent acb7ad7f9cf37a3c9 | wp/34-gun-retune (eaf6d5e) | 643/643 and 8/8 (brain re-ran); GUN_CONE 10 -> 30 deg, MINE_USE_SCALE 0.6 -> 0.55; gun share 0.36 -> 0.51, mines 2.83 -> 2.49, wrecks avg 0.42 -> 0.68; windowHairpins helper in trackTestKit; AI tracers may start outside the 7 deg aim assist (not seen in play) |
+| WP35 | Background music: 6 CC0 race tracks + Hyperton menu, music volume (CCR-11) | C5 | subagent | opus high | running | - | wp/35-music | |
 
 ## Helper agents (not WPs)
 | Task | When | Model | Effort |
