@@ -156,14 +156,17 @@ Pickup radius 2.2 m + half car width. Respawn after 8 s (tuning pass 1; was 12 s
 
 | skill | cornerSpeedFactor | lineNoise | reactionTicks | aggression | mineUse | turboUse | rubberBand |
 |---|---|---|---|---|---|---|---|
-| 0.0 | 0.78 | 1.6 | 14 | 0.15 | 0.15 | 0.30 | 0.06 |
-| 0.5 | 0.88 | 0.9 | 9 | 0.40 | 0.40 | 0.60 | 0.04 |
-| 1.0 | 0.97 | 0.3 | 5 | 0.75 | 0.70 | 0.90 | 0.00 |
-| 1.1 | 1.00 | 0.2 | 4 | 0.90 | 0.85 | 1.00 | 0.00 |
+| 0.0 | 0.88 | 1.2 | 11 | 0.15 | 0.15 | 0.30 | 0.06 |
+| 0.5 | 1.02 | 0.9 | 9 | 0.40 | 0.40 | 0.60 | 0.04 |
+| 0.75 | 1.12 | 0.6 | 7 | 0.575 | 0.55 | 0.75 | 0.02 |
+| 1.0 | 1.12 | 0.3 | 5 | 0.75 | 0.70 | 0.90 | 0.00 |
+| 1.1 | 1.14 | 0.2 | 4 | 0.90 | 0.85 | 1.00 | 0.00 |
 
-reactionTicks rounds to an integer. The boss runs plain `wraith` stats (WP12: the +6% maxSpeed bonus was removed, `BOSS_MAX_SPEED_MULT` 1, user decision "Beatable boss").
+reactionTicks rounds to an integer. cornerSpeedFactor multiplies the racing line's planned corner speed (64 m/s^2 per unit of grip), capped at the car's top speed; the line plans less than the car holds (WP37: a solo raven at 1.15 still hits no wall), so it runs above 1. The 0.75 row (WP37) sits on the old 0.5-1.0 line for every field but cornerSpeedFactor, lineNoise and reactionTicks, so the pace curve can be flat above 0.75.
 
-Rubber banding is mild and only in easy and medium races (user decision 2026-10-23: hard and boss never cheat). In `hard` and `boss` career races every AI profile gets `rubberBand: 0` after `profileForSkill` (WP09 applies it when building the RaceSetup). M1 quick race uses the table as is.
+WP37 pace target (user decision 2026-10-27, "Top AI matches you"): with P = a good human's lap = 0.90 x the pre-WP37 0.55 AI lap (Scrapyard 23.5 s), the AI laps about P x 1.10 at skill 0.1, P x 1.07 at 0.35, P x 1.03 at 0.55, P x 1.00 at 0.75 (`PLAYER_DRIVER_SKILL`), P x 0.98 at 1.0 and P x 0.97 at 1.1, in the same stock RAVEN. Met on the tight tracks within about 1%; on the open ones (Dust Bowl, Pine Hollow, Blast Pit) top speed caps every skill and the 0.75 AI stays 1-3.5% above P (docs/tuning-log.md WP37). The boss runs plain `wraith` stats (WP12: the +6% maxSpeed bonus was removed, `BOSS_MAX_SPEED_MULT` 1, user decision "Beatable boss").
+
+Rubber banding is mild and only in easy and medium races (user decision 2026-10-23: hard and boss never cheat). It scales corner speed targets only (WP37): where the target is top speed the AI is flat out. In `hard` and `boss` career races every AI profile gets `rubberBand: 0` after `profileForSkill` (WP09 applies it when building the RaceSetup). M1 quick race uses the table as is.
 
 M1 quick race AI skills: 0.35, 0.55, 0.75. Names VEX, RAZOR, MOTH.
 
@@ -246,7 +249,7 @@ User: "currently in tracks there are a lot of straight lines, in death rally the
 | `turnPer100m` | >= 110 |
 | `minRadius` | >= 12 m (cars 3.8-5.3 m long, roads 13-16 m wide) |
 | `validateTrack` | passes (min radius >= width, walls never overlap, props outside walls) |
-| `referenceLapTime` | 24-32 s, the 0.55 AI median clean lap of the 16-seed soak, rounded to 0.5 s |
+| `referenceLapTime` | 21-28 s (WP37; 24-32 s before the AI pace pass), the 0.55 AI median clean lap of the 16-seed soak, rounded to 0.5 s |
 
 Plus everything in "Track list" below (a hairpin, pickup mix, WP07 soak gates) except the straight >= 150 m and the length range: a tight track is about 850-1000 m. Measured on the pre-WP31 layouts (WP31 brief): near-straight 41-90%, corners 2-16, longest straight 192-1148 m, 36-81 deg per 100 m; no old track passes.
 
@@ -258,7 +261,7 @@ Tight track. 892 m, 22 checkpoints, min radius 14.7 m (shape metric) / 14.6 m (v
 
 ```ts
 id: 'scrapyard', name: 'Scrapyard', theme: 'scrapyard', shape: 'tight',
-width: 14, shoulder: 4, checkpointSpacing: 40, referenceLapTime: 26, // WP31 measured 26.09 s (old layout 27.5)
+width: 14, shoulder: 4, checkpointSpacing: 40, referenceLapTime: 24, // WP37 measured 24.23 s (WP31 26, old layout 27.5)
 centerline: roundedLoop(SCRAPYARD_CORNERS, { x: 11, y: 0 }), // 21 corners, see the track file
 pickups: [ // 12: cash 4, mines 3, turbo 3, repair 2; lateral 5.5 = off the AI line
   { kind: 'mines', s: 35, lateral: -5.5 }, { kind: 'cash', s: 110, lateral: -2 },
@@ -306,19 +309,19 @@ Themes are visual only: no surface or grip rules (user decision). Every track fo
 
 ### Tight layouts (WP32, merged 2026-10-27)
 
-All built with `roundedLoop` like Scrapyard; corner lists, pickups and prop rules live in each track file's header and body. Shape metric values (content.md "Track shape" rules), probe = `node scripts/balance/run.mjs` on main after the merge (64 races per track).
+All built with `roundedLoop` like Scrapyard; corner lists, pickups and prop rules live in each track file's header and body. Shape metric values (content.md "Track shape" rules), probe = `node scripts/balance/run.mjs` on main after the merge (64 races per track); ref lap re-measured by WP37 (the other probe columns are the WP32 numbers).
 
-| track | length m | width / shoulder | near-straight | corners | longest straight (start) m | deg/100 m | min radius m | hairpins | ref lap s | pickups | wrecks | walls | mines | gun share |
+| track | length m | width / shoulder | near-straight | corners | longest straight (start) m | deg/100 m | min radius m | hairpins | ref lap s (WP37) | pickups | wrecks | walls | mines | gun share |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| dustBowl | 898 | 15 / 4 | 22.5% | 18 | 68 | 149 | 15.7 | 1 | 25 | 12 | 0.36 | 1.64 | 2.95 | 0.41 |
-| dockside | 881 | 13 / 4 | 23.5% | 18 | 69 | 181 | 14.6 | 1 | 26.5 | 12 | 0.41 | 2.09 | 2.69 | 0.30 |
-| frostbite | 857 | 13 / 5 | 22.6% | 18 | 75 | 173 | 15.0 | 3 | 25 | 12 | 0.27 | 2.45 | 2.81 | 0.30 |
-| neonMile | 906 | 14 / 4 | 20.8% | 17 | 53 | 173 | 15.6 | 1 | 26 | 12 | 0.45 | 1.92 | 2.88 | 0.27 |
-| redrock | 922 | 16 / 4 | 23.5% | 18 | 58 | 137 | 19.1 | 1 | 25 | 12 | 0.41 | 2.73 | 3.17 | 0.37 |
-| junkyardSprint | 836 | 14 / 4 | 22.6% | 16 | 56 | 161 | 14.6 | 2 | 24 | 11 | 0.30 | 2.97 | 2.98 | 0.37 |
-| pineHollow | 944 | 14 / 4 | 24.4% | 20 | 55 | 138 | 19.6 | 1 | 25 | 12 | 0.66 | 2.78 | 2.69 | 0.41 |
-| rainDistrict | 899 | 14 / 4 | 19.7% | 21 | 61 | 172 | 16.3 | 1 | 25.5 | 12 | 0.44 | 2.52 | 2.80 | 0.37 |
-| blastPit | 1046 | 16 / 5 | 20.7% | 23 | 54 | 149 | 16.4 | 1 | 28.5 | 13 | 0.48 | 2.66 | 2.88 | 0.38 |
+| dustBowl | 898 | 15 / 4 | 22.5% | 18 | 68 | 149 | 15.7 | 1 | 23.5 | 12 | 0.36 | 1.64 | 2.95 | 0.41 |
+| dockside | 881 | 13 / 4 | 23.5% | 18 | 69 | 181 | 14.6 | 1 | 24.5 | 12 | 0.41 | 2.09 | 2.69 | 0.30 |
+| frostbite | 857 | 13 / 5 | 22.6% | 18 | 75 | 173 | 15.0 | 3 | 23.5 | 12 | 0.27 | 2.45 | 2.81 | 0.30 |
+| neonMile | 906 | 14 / 4 | 20.8% | 17 | 53 | 173 | 15.6 | 1 | 24.5 | 12 | 0.45 | 1.92 | 2.88 | 0.27 |
+| redrock | 922 | 16 / 4 | 23.5% | 18 | 58 | 137 | 19.1 | 1 | 23 | 12 | 0.41 | 2.73 | 3.17 | 0.37 |
+| junkyardSprint | 836 | 14 / 4 | 22.6% | 16 | 56 | 161 | 14.6 | 2 | 22 | 11 | 0.30 | 2.97 | 2.98 | 0.37 |
+| pineHollow | 944 | 14 / 4 | 24.4% | 20 | 55 | 138 | 19.6 | 1 | 24 | 12 | 0.66 | 2.78 | 2.69 | 0.41 |
+| rainDistrict | 899 | 14 / 4 | 19.7% | 21 | 61 | 172 | 16.3 | 1 | 24 | 12 | 0.44 | 2.52 | 2.80 | 0.37 |
+| blastPit | 1046 | 16 / 5 | 20.7% | 23 | 54 | 149 | 16.4 | 1 | 27 | 13 | 0.48 | 2.66 | 2.88 | 0.38 |
 
 Landmarks kept: Dockside's sea (theme `water` point (160, 256), normal (0, 1); 79 m of outer wall within 3 m of it) and more light poles than Scrapyard; Neon Mile more light poles than Scrapyard, Rain District more than Neon Mile; `REDROCK_CRANE_S` 416 and `BLAST_PIT_CRANE_S` 833 at their hairpin apexes. Pickups: every kind at least twice, cash the most common, a mix on and off the AI line (off-line = opposite side of the racing line, about lateral `width / 2 - 1.5`).
 

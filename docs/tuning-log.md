@@ -528,3 +528,104 @@ The career rows are the careerSim model (no physics), so these knobs do not move
 - Widening the cone from the line curvature at the car's own s did worse than a flat cone: on the short legs between bends the curvature there is 0 while the target is already in the next bend.
 - Neon Mile had one race with a wreck shove over 10 s (12.2 s longest; 0 on main), report only.
 - WP34 also moved the 10 m window hairpin measure copied into six track tests into `windowHairpins` in `trackTestKit.ts` (test code only, same numbers on all 10 tracks).
+
+## 2026-10-27 - AI pace: the top AI matches a good human (WP37)
+
+User: "I would love the ai to be a little bit more challenging, with the same car, they feel kind of slow", then "Top AI matches you" (mid AI about 3% slower, weakest about 7%). Their best lap: 23-24 s on Scrapyard, quick race, RAVEN. Target P = 0.90 x the pre-WP37 0.55 AI median clean lap per track (Scrapyard 23.46 s).
+
+### Root cause
+
+- `cornerSpeedFactor` 0.78-1.0 was only part of it. The racing line plans corners at `LAT_ACCEL_PER_GRIP` 64 x grip (50 m/s^2 for a raven, measured on constant circles), and that is well under what the car holds on the tight-track line: a solo 1.1 AI at factor 1.15 still hit no wall (max lateral 6.1 of 7 m). At factor 1.0 the 1.1 AI lapped Scrapyard in 23.72 s, within 0.1% of the physics-limited ideal of its own speed profile (23.70 s, accel taper included), so factor 1.0 could never reach P x 0.97 (22.76 s). The fix is factors above 1, capped at top speed: the car's grip, power and top speed are unchanged.
+- Smaller: the proportional throttle (err / 4) held every AI about 1 m/s under top speed on straights (0.08 s a lap at Scrapyard).
+- The soak's 16 seeds ran nearly the same race: the rng only drives weapons and turbo, so seeds 1 and 3 matched to the tick for 26 s on Redrock. One start-line incident decided a track's spread and wreck numbers, and every candidate reshuffled them (Pine Hollow spread swung -0.16 to 1.39 between neighbours).
+
+### Changed values
+
+| Where | Value | Before | After | Why |
+|---|---|---|---|---|
+| `src/content/ai.ts` | cornerSpeedFactor at 0 / 0.5 / 0.75 / 1.0 / 1.1 | 0.78 / 0.88 / (0.925) / 0.97 / 1.0 | 0.88 / 1.02 / 1.12 / 1.12 / 1.14 | pace table below; a new 0.75 anchor (all other fields on the old 0.5-1.0 line) keeps the curve flat above 0.75 |
+| `src/content/ai.ts` | lineNoise, reactionTicks at skill 0 | 1.6, 14 | 1.2, 11 | skill 0 lapped at 1.24-1.46 x P in the grid (few clean laps: wall hits from the 14-tick delay) |
+| `src/sim/ai.ts` | speed target | `vLine * factor` | `min(vLine * factor, vMax)` | factors above 1 never go past top speed |
+| `src/sim/ai.ts` | throttle at a top-speed target | err / 4 | 1 | flat out on straights |
+| `src/sim/ai.ts` | rubber band | every target | corner targets only | with the flat-out throttle the band slowed leaders more on straights; now it never acts there (weaker, never stronger) |
+| `src/sim/ai.ts` | line noise phase | `car * 1.7` | `car * 1.7` + a per-race offset hashed from seed and car | each soak seed is a different race, so 16 seeds average real variation |
+| `src/sim/ai.ts` | `AGGRESSION_SCALE` | 0.25 | 0.3 | faster laps cut the gunfire per race: rainDistrict wrecks 0.13 at 0.25, 0.31 at 0.3 |
+
+Not changed: car stats, weapons content, `MINE_USE_SCALE`, `GUN_CONE`, the racing line (`racingLine.ts`), careerSim and the economy. `src/game/raceSession.test.ts` (WP19 instant results) moved its quick-race seed 43 -> 44: with seed 43 every AI now finishes within 90 ticks of the autoplay player, so the test had nothing to skip.
+
+### Pace (lap / P, same stock raven)
+
+Solo = one car, no traffic, no rubber band (4 seeds x 2 flying laps). Soak = the soak grid (autoplay 0.55, AI 0.35/0.55/0.75), median clean lap, 16 seeds, start 0. Targets: 0.1 about 1.10, 0.35 1.07 +-1%, 0.55 1.03 +-1%, 0.75 1.00 +-1%, 1.0 about 0.98, 1.1 about 0.97.
+
+| Track (P s) | 0.1 solo | 0.35 solo / soak | 0.55 solo / soak | 0.75 solo / soak | 1.0 solo | 1.1 solo |
+|---|---|---|---|---|---|---|
+| scrapyard (23.46) | 1.335 -> 1.137 | 1.171 -> 1.074 / 1.162 -> 1.061 | 1.111 -> 1.034 / 1.111 -> 1.033 | 1.070 -> 0.991 / 1.104 -> 0.994 | 1.033 -> 0.977 | 1.015 -> 0.967 |
+| neonMile (23.37) | 1.330 -> 1.124 | 1.174 -> 1.079 / 1.142 -> 1.074 | 1.106 -> 1.041 / 1.111 -> 1.041 | 1.066 -> 0.988 / 1.071 -> 0.993 | 1.029 -> 0.973 | 1.011 -> 0.964 |
+| dustBowl (22.45) | 1.319 -> 1.138 | 1.157 -> 1.076 / 1.145 -> 1.096 | 1.113 -> 1.044 / 1.111 -> 1.043 | 1.080 -> 1.011 / 1.069 -> 1.014 | 1.050 -> 1.001 | 1.035 -> 0.993 |
+| frostbite (22.70) | 1.328 -> 1.130 | 1.157 -> 1.072 / 1.146 -> 1.065 | 1.101 -> 1.038 / 1.111 -> 1.036 | 1.065 -> 0.998 / 1.069 -> 0.999 | 1.029 -> 0.982 | 1.012 -> 0.971 |
+| dockside (23.72) | 1.342 -> 1.134 | 1.182 -> 1.068 / 1.164 -> 1.061 | 1.111 -> 1.025 / 1.111 -> 1.026 | 1.066 -> 0.975 / 1.072 -> 0.973 | 1.023 -> 0.959 | 1.001 -> 0.947 |
+| redrock (22.36) | 1.330 -> 1.147 | 1.183 -> 1.077 / 1.170 -> 1.068 | 1.106 -> 1.031 / 1.111 -> 1.038 | 1.071 -> 1.001 / 1.097 -> 1.015 | 1.043 -> 0.994 | 1.028 -> 0.987 |
+| junkyardSprint (21.49) | 1.332 -> 1.128 | 1.181 -> 1.068 / 1.154 -> 1.060 | 1.111 -> 1.032 / 1.111 -> 1.031 | 1.073 -> 0.998 / 1.091 -> 1.000 | 1.036 -> 0.986 | 1.018 -> 0.978 |
+| pineHollow (22.73) | 1.249 -> 1.120 | 1.149 -> 1.079 / 1.142 -> 1.075 | 1.111 -> 1.055 / 1.111 -> 1.057 | 1.090 -> 1.033 / 1.095 -> 1.033 | 1.067 -> 1.029 | 1.056 -> 1.025 |
+| rainDistrict (22.98) | 1.311 -> 1.134 | 1.161 -> 1.085 / 1.150 -> 1.081 | 1.108 -> 1.042 / 1.111 -> 1.037 | 1.072 -> 0.998 / 1.090 -> 0.993 | 1.039 -> 0.986 | 1.023 -> 0.978 |
+| blastPit (25.58) | 1.307 -> 1.130 | 1.159 -> 1.078 / 1.151 -> 1.073 | 1.108 -> 1.047 / 1.111 -> 1.053 | 1.080 -> 1.015 / 1.070 -> 1.019 | 1.049 -> 1.002 | 1.033 -> 0.994 |
+
+On the tight tracks the table is met within about 1%. Off target: Dust Bowl, Pine Hollow and Blast Pit (open bends: top speed caps every skill, the 0.75 stays 1-3.5% above P and the field is closer), Dockside (square steps: corner speed counts most, the 0.75 is 2.5% under P), skill 0.1 (1.12-1.15, kept slow so 0.35 stays at 1.07 on the same 0-0.5 segment). Soak medians are noisy where clean laps are few (n 4-34).
+
+### Probe trail (solo lap / P on Scrapyard, Neon Mile, Dust Bowl, Frostbite; run.mjs result)
+
+| Candidate | 0.35 | 0.55 | 0.75 | 1.1 | Result |
+|---|---|---|---|---|---|
+| main | 1.157-1.174 | 1.101-1.113 | 1.065-1.080 | 1.011-1.035 | 8/8, 1.1 cannot reach 0.97 |
+| flat-out throttle only | | | | Scrapyard 23.80 -> 23.72 s | 0.08 s a lap |
+| 1.1 solo at factor 1.04 / 1.07 / 1.10 / 1.15 | | | | Scrapyard 23.35 / 23.12 / 22.92 / 22.63 s, 0 walls | the line plans under the car's limit |
+| 0.95/1.02/1.10/1.14 (grid) | 1.074-1.084 | 1.03-1.06 | 1.004-1.020 | 0.963-0.993 | 0.1 at 1.24-1.34 |
+| 0.98/1.04/1.11/1.15, skill 0 noise 1.2, react 11 | 1.054-1.064 | 1.032-1.040 | 1.000-1.020 | 0.961-0.992 | 0.35 too fast |
+| 0.90/1.03/1.12/1.15 | 1.064-1.075 | 1.034-1.042 | 1.000-1.020 | 0.961-0.992 | |
+| 0.93/1.04/1.12/1.14 | 1.058-1.069 | 1.031-1.040 | 0.999-1.018 | 0.963-0.993 | 5/8: spread pineHollow -0.16, dustBowl 0.44; wrecks junkyardSprint 0.17 |
+| same, rubber band on corners only | | | | | spread pineHollow -0.05, redrock 0.63; wrecks neonMile 0.13 |
+| same, AI mines off (diagnostic) | | | | | spread >= 1.0 on the 4 worst tracks: the faster AI eats mines while it sits behind a slower car |
+| same + mine dodge / held-up pass / aggression 0.95 at 1.0 / mineUse 0.2 at 0.5 / band off | | | | | each fixed some tracks and broke others (redrock 0.45-0.48, pineHollow 0.23-0.45) |
+| same + per-race noise phase (+ dodge) | | | | | 16 seeds pass; 48 seeds pineHollow 0.74 (no dodge 0.45) |
+| 0.88/1.00/1.16/1.17 + phase | 1.076-1.086 | 1.042-1.051 | 0.999-1.018 | 0.957-0.989 | pineHollow 0.84 (48 seeds); 0.55 above 1.04 |
+| 5 anchors 0.88/1.02/1.12/1.12/1.14 + phase, no flat-out throttle | | | | | pineHollow 0.64 (16), 0.38 (48); junkyardSprint wrecks 0.09 |
+| same with flat-out throttle and corner-only band | 1.072-1.079 | 1.034-1.044 | 0.988-1.011 | 0.964-0.993 | 7/8: rainDistrict wrecks 0.13 |
+| **same, `AGGRESSION_SCALE` 0.3** | same | same | same | same | 8/8 at 16 and 48 seeds (spread worst 0.97 / 0.86, wrecks 0.31 / 0.31) |
+
+The mine dodge and held-up pass were experiments only, not shipped.
+
+### Before / after (`node scripts/balance/run.mjs`, 10 tracks x 16 seeds x 4 starts)
+
+| Track | Wrecks | Wall impacts | Mine hits | Gun share | Spread | 0.55 median, start 0 (s) | referenceLapTime |
+|---|---|---|---|---|---|---|---|
+| scrapyard | 0.48 -> 0.53 | 1.34 -> 4.08 | 1.95 -> 2.34 | 0.55 -> 0.48 | 2.17 -> 1.98 | 26.07 -> 24.23 | 26 -> 24 |
+| dustBowl | 0.63 -> 0.78 | 1.38 -> 3.17 | 2.55 -> 2.09 | 0.54 -> 0.55 | 1.20 -> 1.27 | 24.95 -> 23.42 | 25 -> 23.5 |
+| dockside | 0.72 -> 0.58 | 1.89 -> 4.19 | 2.70 -> 1.89 | 0.44 -> 0.48 | 1.52 -> 1.89 | 26.36 -> 24.35 | 26.5 -> 24.5 |
+| frostbite | 0.72 -> 0.48 | 2.47 -> 2.80 | 2.86 -> 2.19 | 0.44 -> 0.55 | 0.94 -> 1.44 | 25.22 -> 23.51 | 25 -> 23.5 |
+| neonMile | 0.78 -> 0.55 | 2.23 -> 3.72 | 2.83 -> 2.30 | 0.41 -> 0.41 | 2.02 -> 1.67 | 25.97 -> 24.33 | 26 -> 24.5 |
+| redrock | 0.59 -> 0.70 | 2.92 -> 3.64 | 2.73 -> 1.80 | 0.50 -> 0.59 | 1.77 -> 1.69 | 24.84 -> 23.20 | 25 -> 23 |
+| junkyardSprint | 0.42 -> 0.31 | 2.52 -> 3.86 | 2.45 -> 1.92 | 0.58 -> 0.55 | 2.30 -> 1.66 | 23.88 -> 22.15 | 24 -> 22 |
+| pineHollow | 1.11 -> 1.23 | 2.63 -> 2.16 | 2.09 -> 0.89 | 0.54 -> 0.67 | 0.92 -> 0.97 | 25.25 -> 24.02 | 25 -> 24 |
+| rainDistrict | 0.55 -> 0.31 | 2.39 -> 3.50 | 2.36 -> 1.47 | 0.59 -> 0.55 | 1.44 -> 1.33 | 25.53 -> 23.83 | 25.5 -> 24 |
+| blastPit | 0.83 -> 0.91 | 2.73 -> 3.44 | 2.39 -> 1.88 | 0.53 -> 0.56 | 1.59 -> 1.33 | 28.42 -> 26.93 | 28.5 -> 27 |
+
+| Metric | Before | After | Target |
+|---|---|---|---|
+| Wrecks per AI race | 0.42-1.11 (avg 0.68) | 0.31-1.23 (avg 0.64) | 0.2-2.0 |
+| Gun damage share | 0.51 | 0.54 | 0.45-0.65 |
+| Mine hits per race | 2.49 | 1.88 | 0.8-3 |
+| Spread, worst track | 0.92 (pineHollow) | 0.97 (pineHollow); 0.86 at 48 seeds | >= 0.8 |
+| Lap time, worst track (start 0) | 0.25 s (pineHollow) | 0.23 s (scrapyard) | +-1 s |
+| Career greedy, seeds 1-16 | 15/16 (21-33, one 38) | 15/16 (same) | >= 14/16 |
+| Career safe | never | never | 25-50 or never |
+| Greedy cash by race 5, worst seed | 10250 | 10250 | >= 1000 |
+| Timeouts | 0 | 0 | 0 (also 0 with `--loadout rival`) |
+
+The tight-track `referenceLapTime` rule moves from 24-32 s to 21-28 s (measured 22-27 s, 1 s margin each side).
+
+### Notes
+
+- Career rows are the careerSim model (no physics), identical before and after. The model already plays the player as skill 0.75 (`PLAYER_DRIVER_SKILL`), and after WP37 the 0.75 AI laps at a good human's pace, so the model's assumption now holds; the economy was not touched.
+- Wall impacts rose on every track but Pine Hollow (1.3-2.9 -> 2.2-4.2 per race, Dockside 4.19 the highest, under the 4.5 flag; Scrapyard 4.37 at 48 seeds). Solo laps hit no wall at any skill: the hits are traffic.
+- The wraith and viper (level 5) at skills 0.95 and 1.1 lap solo with no wall hits on 6 tracks.
+- Pine Hollow stays the weakest spread track (0.86 at 48 seeds): in its open bends the 0.35 is only 4.5% slower than the 0.75 (6-9.5% on the other tracks).

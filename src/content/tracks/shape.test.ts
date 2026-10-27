@@ -11,7 +11,7 @@ const TIGHT = {
   minCorners: 10,
   minTurnPer100m: 110, // degrees
   minRadius: 12, // m
-  referenceLapTime: [24, 32], // s
+  referenceLapTime: [21, 28], // s (WP37: 22-27 measured; was 24-32 before the AI pace pass)
 } as const;
 
 /** A track opts in with `shape: 'tight'` on its exported TrackDef (WP31: Scrapyard first, the rest in WP32). */

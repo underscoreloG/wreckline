@@ -50,7 +50,7 @@ const BASE: TrackDef & { shape: 'tight' } = {
   width: 14,
   shoulder: 4,
   checkpointSpacing: 40,
-  referenceLapTime: 24, // WP32c: 0.55 AI median clean lap 23.90 s over the 16 soak seeds (old layout 23)
+  referenceLapTime: 22, // WP37: 0.55 AI median clean lap 22.15 s over the 16 soak seeds (WP32: 24)
   centerline: roundedLoop(JUNKYARD_SPRINT_CORNERS, { x: 52, y: 82 }),
   pickups: [
     { kind: 'cash', s: 40, lateral: 5.5 },

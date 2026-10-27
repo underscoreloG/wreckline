@@ -1,11 +1,13 @@
 import type { AiProfile } from '../shared/contracts';
 
-// content.md section 8. profileForSkill interpolates linearly between these rows.
+// content.md section 8. profileForSkill interpolates linearly between these rows. cornerSpeedFactor multiplies the racing
+// line's planned corner speed, which is below what the car holds (WP37: above 1 from skill 0.5 up, capped at top speed).
 export const AI_ANCHORS: readonly AiProfile[] = [
-  { skill: 0.0, cornerSpeedFactor: 0.78, lineNoise: 1.6, reactionTicks: 14, aggression: 0.15, mineUse: 0.15, turboUse: 0.3, rubberBand: 0.06 },
-  { skill: 0.5, cornerSpeedFactor: 0.88, lineNoise: 0.9, reactionTicks: 9, aggression: 0.4, mineUse: 0.4, turboUse: 0.6, rubberBand: 0.04 },
-  { skill: 1.0, cornerSpeedFactor: 0.97, lineNoise: 0.3, reactionTicks: 5, aggression: 0.75, mineUse: 0.7, turboUse: 0.9, rubberBand: 0.0 },
-  { skill: 1.1, cornerSpeedFactor: 1.0, lineNoise: 0.2, reactionTicks: 4, aggression: 0.9, mineUse: 0.85, turboUse: 1.0, rubberBand: 0.0 },
+  { skill: 0.0, cornerSpeedFactor: 0.88, lineNoise: 1.2, reactionTicks: 11, aggression: 0.15, mineUse: 0.15, turboUse: 0.3, rubberBand: 0.06 },
+  { skill: 0.5, cornerSpeedFactor: 1.02, lineNoise: 0.9, reactionTicks: 9, aggression: 0.4, mineUse: 0.4, turboUse: 0.6, rubberBand: 0.04 },
+  { skill: 0.75, cornerSpeedFactor: 1.12, lineNoise: 0.6, reactionTicks: 7, aggression: 0.575, mineUse: 0.55, turboUse: 0.75, rubberBand: 0.02 },
+  { skill: 1.0, cornerSpeedFactor: 1.12, lineNoise: 0.3, reactionTicks: 5, aggression: 0.75, mineUse: 0.7, turboUse: 0.9, rubberBand: 0.0 },
+  { skill: 1.1, cornerSpeedFactor: 1.14, lineNoise: 0.2, reactionTicks: 4, aggression: 0.9, mineUse: 0.85, turboUse: 1.0, rubberBand: 0.0 },
 ];
 
 export const AI_SKILL_MIN = 0;

@@ -76,7 +76,7 @@ afterAll(() => {
 
 describe('instant results (WP19)', () => {
   it('player finishes ahead of an AI: skip and wait give a deep-equal result, results 90 ticks after the finish, nothing rendered during the skip', async () => {
-    const setup = buildQuickRaceSetup({ seed: 43, laps: 1, aiCount: 3, autoplay: true });
+    const setup = buildQuickRaceSetup({ seed: 44, laps: 1, aiCount: 3, autoplay: true }); // WP37: 43 -> 44, the faster AIs all finished within 90 ticks of the player
     const audio = spyAudio();
     const a = await makeSession(setup, undefined, audio);
     const { doneTick, resultsTick } = runToResults(a);
