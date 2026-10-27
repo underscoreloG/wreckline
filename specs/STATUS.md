@@ -1,7 +1,7 @@
 # Wreckline - status
 Phase: 4 for M2 (wave C1 merged; waiting on the user's art and sound steps)   Size: L   Milestone: M1   Updated: 2026-10-26
 Integration pattern: merges of a running wave go into `integ/<wave>` so main stays put while workers run; main fast-forwards after the last merge.
-Next action: WP31 (twisty tracks pilot) dispatched 2026-10-26; user plays the pilot Scrapyard, then WP32. Open: listening notes, engine sources, README shots show roof plates, GC + M2.
+Next action: WP32a/b/c (9 tracks tight) and WP33 (AI wreck at the wall) dispatched 2026-10-27; merge WP33 first, then the three track branches; then the all-track balance run (mine and gun rows at risk), content.md s12 track blocks and tuning log from the reports, release. Open: listening notes, engine sources, README shots show roof plates, GC + M2.
 Remote: origin = git@github.com:underscoreloG/wreckline.git (public since 2026-10-25; Pages source = GitHub Actions, set by the user; site will be https://underscorelog.github.io/wreckline/ - not yet deployed).
 Ledger edits stay uncommitted on main while a worker runs (workers check that main did not move).
 
@@ -64,7 +64,11 @@ Fun gate question: "After 3 quick races: is the drive-shoot-wreck loop fun enoug
 | WP28 | Recorded engines for BLAZE, ICEBERG, TITAN | C3 | subagent | opus high | merged | agent aef3cd42207047fe9 | wp/28-recorded-engines (8fe8a8d) | 567/567; 13 CC0 loops 504 kB, manifest with loop points, rpm from firing frequency; Mercedes bench replaced by per-car recorded/synth switch; CCR importSfx keeps "## Engines" applied by brain; not heard by anyone yet |
 | WP29 | Car unlocks by beating, all career tracks, quick race car (CCR-10) | C4 | subagent | opus high | merged | agent a49fb57bd0b9f34b6 | wp/29-unlocks (f308176) | 587/587; greedy champion 15/16 in 21-38 (median 27 -> 25); quit or unfinished race beats nothing (fix round 1); owned car row shown OWNED; quick race AI stays on ravens; shots in ../wreckline-wt/wp29-shots |
 | WP30 | Driver marker instead of roof plate | C4 | subagent | opus high | merged | agent a85893ee2d181384a | wp/30-body-tint (f361fc1) | 591/591 on main; user changed full tint to "very light glow", then rim or underglow; user picked rim (default), `?carMark=rim|underglow|none`; draw calls 79.9 -> 72.0 avg (rim); boss colour CCR-b applied by brain (trim #FF3355 as entrant colour); player does not stand out more than rivals: user keeps rim for everybody, no player marker (2026-10-26) |
-| WP31 | Death Rally tight tracks: shape rules, test decoupling, Scrapyard pilot | C5 | subagent | opus high | todo | - | wp/31-twisty-pilot | |
+| WP31 | Death Rally tight tracks: shape rules, test decoupling, Scrapyard pilot | C5 | subagent | opus high | merged | agent aed59bdccda03cb5d | wp/31-twisty-pilot (66a8d70) | 618/618 on main; Scrapyard 892 m, near-straight 23.9%, 20 corners, longest straight 69 m (start), 170 deg/100 m, ref lap 26 s, shoulder 4; tests decoupled (fixtures.ts, one test file per track); user drove it: "Scrapyard feels right" (2026-10-27); AI wall-wreck CCR -> WP33 |
+| WP32a | Tight redraw: dustBowl, dockside, frostbite | C5 | subagent | opus high | running | - | wp/32a-tight-tracks | |
+| WP32b | Tight redraw: neonMile, rainDistrict, redrock | C5 | subagent | opus high | running | - | wp/32b-tight-tracks | |
+| WP32c | Tight redraw: junkyardSprint, pineHollow, blastPit | C5 | subagent | opus high | running | - | wp/32c-tight-tracks | |
+| WP33 | AI glued to a wreck at the wall reverses away from it (WP31 CCR) | C5 | subagent | opus high | running | - | wp/33-ai-wreck-wall | |
 
 ## Helper agents (not WPs)
 | Task | When | Model | Effort |
