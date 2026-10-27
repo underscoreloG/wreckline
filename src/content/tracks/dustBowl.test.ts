@@ -1,42 +1,16 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { TrackDef } from '../../shared/contracts';
-import { angleWrap } from '../../shared/math';
-import { buildTrackGeometry, validateTrack } from '../../shared/trackGeometry';
+import { validateTrack } from '../../shared/trackGeometry';
 import { initPhysics } from '../../sim/index';
 import { DUST_BOWL, DUST_BOWL_CORNERS, DUST_BOWL_PROP_RULES, DUST_BOWL_SCATTER } from './dustBowl';
 import { getTrack } from './index';
-import { trackContentTests } from './trackTestKit';
+import { trackContentTests, windowHairpins } from './trackTestKit';
 
 beforeAll(async () => {
   await initPhysics();
 });
 
 const count = (def: TrackDef, k: string) => def.props.filter((p) => p.kind === k).length;
-
-/** Turns (deg) where the 10 m curvature of the shape metric stays above 1/25, as in scrapyard.test.ts (a hairpin is >= 150). */
-function tightTurns(def: TrackDef): number[] {
-  const g = buildTrackGeometry(def);
-  const n = g.samples.length;
-  const ds = g.length / n;
-  const w = Math.round(10 / ds);
-  const h = g.samples.map((smp) => Math.atan2(smp.tangent.y, smp.tangent.x));
-  const turnBetween = (a: number, b: number): number => {
-    let t = 0;
-    for (let i = a; i < b; i++) t += angleWrap(h[(i + 1) % n] - h[i % n]);
-    return t;
-  };
-  const turns: number[] = [];
-  let from = -1;
-  for (let i = 0; i <= n; i++) {
-    const k = Math.abs(angleWrap(h[(i + w) % n] - h[i % n])) / (w * ds);
-    if (k > 1 / 25 && from < 0) from = i;
-    else if (k <= 1 / 25 && from >= 0) {
-      turns.push((Math.abs(turnBetween(from, i - 1 + w)) * 180) / Math.PI);
-      from = -1;
-    }
-  }
-  return turns;
-}
 
 describe('dustBowl', () => {
   it('validates ok: length inside the WP32 budget (850-990 m), the same id, name, theme and width', () => {
@@ -52,7 +26,7 @@ describe('dustBowl', () => {
   });
 
   it('the most open tight track: one hairpin, the other bends mostly wider (r 26-34) with a few 22-24s', () => {
-    expect(tightTurns(DUST_BOWL).filter((t) => t >= 150)).toHaveLength(1);
+    expect(windowHairpins(DUST_BOWL)).toHaveLength(1);
     const wide = DUST_BOWL_CORNERS.filter((c) => c.r >= 26).length;
     expect(wide).toBeGreaterThanOrEqual(DUST_BOWL_CORNERS.length / 2);
     expect(DUST_BOWL_CORNERS.some((c) => c.r <= 24)).toBe(true);

@@ -6,9 +6,10 @@ import type { AiDriver, SimCar, SimWorld } from './internal';
 import { buildRacingLine, lineCurvature, lineLimit, type RacingLine } from './racingLine';
 
 // AI-side tuning factors (WP12 tunes these, never src/content), multiplied onto the profile values.
-/** Measured over 16 soak seeds: at 1 the pack shoots the leader (usually the player) to a wreck within ~15 s, 2.1 wrecks per race; 0.2 gives ~0.75. WP12: 0.25 with MINE_USE_SCALE 0.6 (docs/tuning-log.md). */
+/** Measured over 16 soak seeds: at 1 the pack shoots the leader (usually the player) to a wreck within ~15 s, 2.1 wrecks per race; 0.2 gives ~0.75. WP12: 0.25 with MINE_USE_SCALE 0.6, WP34: 0.55 (docs/tuning-log.md). */
 export const AGGRESSION_SCALE = 0.25;
-export const MINE_USE_SCALE = 0.6;
+/** WP34: 0.6 -> 0.55 with the wider GUN_CONE: mine hits 2.64 -> 2.49 per race and a wider AI finish spread margin (pineHollow 0.88 -> 0.92). */
+export const MINE_USE_SCALE = 0.55;
 export const TURBO_USE_SCALE = 1;
 
 const DEG = Math.PI / 180;
@@ -74,7 +75,8 @@ const TURN_DONE = 60 * DEG;
 const TURN_MAX_TIME = 2.5; // s
 // 7. gun
 const GUN_RANGE = 40; // m
-const GUN_CONE = 10 * DEG;
+/** WP34: 10 -> 30 deg. On the tight tracks a target ahead sits off the nose in the constant bends, so 10 deg rarely lined up (gun share 0.36); hits still need the 7 deg aim assist. */
+const GUN_CONE = 30 * DEG;
 const GUN_HEAT_STOP = 0.85;
 const RECKLESS_SKILL = 0.3; // below this the AI ignores heat
 // 8. mines

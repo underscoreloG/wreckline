@@ -1,12 +1,11 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { TrackDef } from '../../shared/contracts';
-import { angleWrap } from '../../shared/math';
-import { buildTrackGeometry, validateTrack } from '../../shared/trackGeometry';
+import { validateTrack } from '../../shared/trackGeometry';
 import { initPhysics } from '../../sim/index';
 import { getTrack } from './index';
 import { NEON_MILE, NEON_MILE_PROP_RULES, NEON_MILE_SCATTER } from './neonMile';
 import { SCRAPYARD } from './scrapyard';
-import { trackContentTests } from './trackTestKit';
+import { trackContentTests, windowHairpins } from './trackTestKit';
 
 beforeAll(async () => {
   await initPhysics();
@@ -30,29 +29,7 @@ describe('neonMile', () => {
   it('has one hairpin, the U-turn round the last block: >= 150 deg while the 10 m curvature of the shape metric stays above 1/25', () => {
     // As on Scrapyard: the per-sample curvature dips at the hairpin entry (the spline after a short leg), which
     // splits the WP11 per-sample measure; the shape metric's 10 m window reads the corner as one.
-    const g = buildTrackGeometry(NEON_MILE);
-    const n = g.samples.length;
-    const ds = g.length / n;
-    const w = Math.round(10 / ds);
-    const h = g.samples.map((smp) => Math.atan2(smp.tangent.y, smp.tangent.x));
-    // Signed heading change from sample a to b (b > a, may run past n).
-    const turnBetween = (a: number, b: number): number => {
-      let t = 0;
-      for (let i = a; i < b; i++) t += angleWrap(h[(i + 1) % n] - h[i % n]);
-      return t;
-    };
-    const turns: number[] = [];
-    let from = -1;
-    for (let i = 0; i <= n; i++) {
-      const k = Math.abs(angleWrap(h[(i + w) % n] - h[i % n])) / (w * ds);
-      if (k > 1 / 25 && from < 0) from = i;
-      else if (k <= 1 / 25 && from >= 0) {
-        // The forward window: the run ends w samples before the corner does.
-        turns.push((Math.abs(turnBetween(from, i - 1 + w)) * 180) / Math.PI);
-        from = -1;
-      }
-    }
-    expect(turns.filter((t) => t >= 150)).toHaveLength(1);
+    expect(windowHairpins(NEON_MILE)).toHaveLength(1);
   });
 
   it('pickups: cash 4, mines 3, turbo 3, repair 2, about half of them off the AI line band', () => {
