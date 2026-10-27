@@ -689,3 +689,49 @@ Easy, mean lap / `referenceLapTime` per slot: 0.35 1.053, 0.55 1.035, 0.75 1.002
 - Career on easy: the first rivals (skill 0.1-0.2) all clamp to 0, so they drive alike; their stats still differ.
 - Career on hard: rivals 0.75-0.96 drive at 1.12-1.14, close to the boss's 1.15.
 - careerSim (`CareerSimOptions.difficulty`) shifts the rivals' driver strength only, like the game. `DRIVER_CURVE` itself predates WP37 and was not recalibrated (1.1 measured +0.227 today against the curve's 0.86 - 0.55 = +0.31).
+
+## 2026-10-27 - Reversed tracks (WP39, CCR-14)
+
+User: reversed layouts in "Quick race, trial and career" (genre research: track repetition is a common single-player complaint). Every track gets a reversed layout `<id>~r` built at load (content.md section 12, "Reversed layouts"); the forward tracks are untouched (their run.mjs rows are identical to WP38 line for line).
+
+### Changed values
+
+| Where | Value | Why |
+|---|---|---|
+| `src/content/tracks/reverse.ts` | `GRID_DEPTH` 40 m | the reversed line sits 40 m before the forward start straight's end, so the 8-car grid (back slot 36 m behind the line) stands on the straight |
+| `src/content/tracks/reverse.ts` | `REVERSED_START_S` scrapyard -10, frostbite -22 (rule -7, -18) | Scrapyard: finish spread 0.797 at -7 (run.mjs, target >= 0.8); probes at -10 / -13 / -16 / -20 gave 1.33 / 1.09 / 0.98 / 1.59, -10 is the smallest move. Frostbite: soak median 23.75 s at -18, on the 0.5 s rounding edge; -20 / -22 / -25 (snapped to the point at -26.7) gave 23.79 / 23.80 / 23.80 s, walls 5.81 / 3.38 / 4.63 |
+| `src/content/tracks/reverse.ts` | `REVERSED_REFERENCE_LAP_TIMES` | the 16-seed soak median of each reversed layout (table below) |
+| `src/meta/career.ts` | `offerReversed`: `(racesRun + TIER_TRACK_INDEX[tier]) % 3 === 2` | one offer per round reversed, never all three |
+
+### Reversed layouts (`node scripts/balance/run.mjs`, 20 tracks x 16 seeds x 4 starts)
+
+| Track | Wrecks | Wall impacts | Mine hits | Gun share | Spread | 0.55 median, start 0 (s) | referenceLapTime |
+|---|---|---|---|---|---|---|---|
+| scrapyard~r | 0.72 | 4.55 | 2.55 | 0.50 | 1.33 | 24.43 | 24.5 |
+| dustBowl~r | 0.75 | 3.58 | 2.39 | 0.55 | 1.36 | 23.52 | 23.5 |
+| dockside~r | 0.64 | 4.89 | 2.52 | 0.47 | 1.11 | 24.32 | 24.5 |
+| frostbite~r | 0.66 | 3.58 | 2.47 | 0.52 | 1.44 | 23.80 | 24 |
+| neonMile~r | 0.95 | 4.53 | 3.09 | 0.44 | 1.42 | 24.38 | 24.5 |
+| redrock~r | 0.69 | 4.28 | 1.81 | 0.54 | 1.30 | 23.35 | 23.5 |
+| junkyardSprint~r | 0.36 | 3.25 | 1.95 | 0.56 | 1.14 | 22.08 | 22 |
+| pineHollow~r | 1.03 | 2.11 | 1.09 | 0.66 | 0.86 | 24.02 | 24 |
+| rainDistrict~r | 0.94 | 4.00 | 2.58 | 0.49 | 1.08 | 24.00 | 24 |
+| blastPit~r | 0.55 | 3.36 | 1.81 | 0.53 | 1.23 | 27.07 | 27 |
+
+| Metric (all 20 tracks) | WP38 (10 tracks) | WP39 (20 tracks) | Target |
+|---|---|---|---|
+| Wrecks per AI race | 0.31-1.23 (avg 0.64) | 0.31-1.23 (avg 0.68) | 0.2-2.0 |
+| Gun damage share | 0.54 | 0.53 | 0.45-0.65 |
+| Mine hits per race | 1.88 | 2.05 | 0.8-3 |
+| Spread, worst track | 0.97 (pineHollow) | 0.86 (pineHollow~r) | >= 0.8 |
+| Lap time, worst track (start 0) | 0.23 s (scrapyard) | 0.23 s (scrapyard) | +-1 s |
+| Career rows | 8/8 | same (careerSim does not race the layouts) | |
+| Timeouts | 0 | 0 | 0 |
+
+`run.mjs` now lists the reversed rows after the 10 base tracks by default (`--tracks a~r` picks one); 8/8 inside target, 63 s.
+
+### Notes
+
+- Wall impacts run higher reversed (2.11-4.89 per race, avg 3.81, vs 2.16-4.19, avg 3.46, forward; Dockside~r 4.89 above the 4.5 flag, Scrapyard~r 4.55 and Neon Mile~r 4.53 just above): report-only, not tuned here.
+- Neon Mile~r has 8 m of straight after the line (the forward line sits at T1's turn-in, so the reversed grid fills the straight behind it); its wrecks 0.95 and mine hits 3.09 are the highest reversed numbers but inside target.
+- Dressing: stands are now checked as the straight box they are (a stand next to a bend clipped the wall on Dust Bowl~r), and every barrier segment at its middle too (a tyre stack overlapped a prop on Junkyard Sprint~r). Forward tracks: Pine Hollow loses one of its two stands, Blast Pit gains one; the other 8 dressings are identical.

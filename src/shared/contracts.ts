@@ -134,7 +134,7 @@ export interface PropPlacement {
 export type TrackTheme = 'scrapyard' | 'desert' | 'docks' | 'snow' | 'city' | 'quarry'; // CCR-6 adds the last three
 
 export interface TrackDef {
-  id: string;
+  id: string; // a TRACKS key, or '<key>~r' for its reversed layout built at load (CCR-14)
   name: string;
   theme: TrackTheme;
   /** Closed loop, listed in race direction, first point = start/finish line. Centripetal Catmull-Rom. */
@@ -503,7 +503,8 @@ export interface StoryScene {
 export interface RaceOffer {
   id: string;
   tier: RaceTier;
-  trackId: string;
+  trackId: string; // the base track (a TRACKS key); `reversed` picks the direction
+  reversed: boolean; // raced on the reversed layout '<trackId>~r' (CCR-14)
   laps: number;
   rivals: string[]; // driverIds, 3 rivals
   prizes: number[]; // cash by finishing position, index 0 = 1st
@@ -530,6 +531,7 @@ export interface Settings {
   quickTrackId: string | null; // last track picked for quick race; null = first track (CCR-6). `?race=1` ignores it
   quickCarId: string | null; // last car picked for quick race; null or unknown id = raven (CCR-10). `?race=1` ignores it
   difficulty: Difficulty; // shifts every AI driver's skill (content.md section 8), default 'normal'; saved settings without it migrate to 'normal' (CCR-13)
+  quickReversed: boolean; // quick race REVERSE toggle, default false; saved settings without it migrate to false (CCR-14). `?race=1` ignores it
 }
 
 /** CCR-13: AI difficulty, the same rewards at every level. */

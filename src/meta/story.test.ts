@@ -23,6 +23,7 @@ const offer = (trackId: string, rivals: string[], tier: RaceOffer['tier'] = 'med
   id: `0-${tier}`,
   tier,
   trackId,
+  reversed: false,
   laps: 3,
   rivals,
   prizes: [1000, 500, 250, 0],
@@ -120,6 +121,11 @@ describe('track scenes (CCR-12)', () => {
     const scene = storySceneFor(save, plain);
     const track = TRACK_LINES.dockside;
     expect(scene).toEqual({ id: 'dockside', image: 'dockside', lines: [track[4 % 3], STAGE_LINES[0][4 % 3], track[5 % 3]] });
+  });
+
+  it('a reversed offer (CCR-14) shows its base track scene', () => {
+    const save = base({ racesRun: 4 });
+    expect(storySceneFor(save, { ...plain, reversed: true })).toEqual(storySceneFor(save, plain));
   });
 
   it('track and stage lines rotate with racesRun', () => {

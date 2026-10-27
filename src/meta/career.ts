@@ -16,7 +16,7 @@ import {
 import { PLAYER_LIVERY } from '../content/liveries';
 import { COUNTDOWN_SECONDS } from '../content/race';
 import { BOSS, initialRivalPoints, RIVALS, rivalSpikesLevel, rivalUpgradeLevel } from '../content/rivals';
-import { getTrack, TRACKS } from '../content/tracks';
+import { TRACKS, trackVariant } from '../content/tracks';
 import { simulateOtherRivals } from './offSim';
 
 export const PLAYER_DRIVER_ID = 'player';
@@ -105,12 +105,19 @@ function pickRandom<T>(pool: readonly T[], n: number, rng: Rng): T[] {
   return a.slice(0, n);
 }
 
+/** Rounds per reversed offer (CCR-14): one offer per round, rotating hard (or boss), medium, easy from round 0. */
+const REVERSED_ROTATION = 3;
+
+/** CCR-14: whether this round's offer of `tier` races the reversed layout. Deterministic, never all three. */
+export const offerReversed = (racesRun: number, tier: RaceTier): boolean => (racesRun + TIER_TRACK_INDEX[tier]) % REVERSED_ROTATION === REVERSED_ROTATION - 1;
+
 function makeOffer(save: SaveGame, tier: RaceTier, rivals: string[], trackIds: readonly string[]): RaceOffer {
   const t = CAREER_TIERS[tier];
   return {
     id: `${save.racesRun}-${tier}`,
     tier,
     trackId: trackIds[(save.racesRun * OFFER_TRACK_STEP + TIER_TRACK_INDEX[tier]) % trackIds.length],
+    reversed: offerReversed(save.racesRun, tier),
     laps: t.laps,
     rivals,
     prizes: [...t.prizes],
@@ -247,7 +254,7 @@ export function buildCareerRaceSetup(save: SaveGame, offer: RaceOffer, seed: num
   }
   return {
     seed: seed >>> 0,
-    track: getTrack(offer.trackId),
+    track: trackVariant(offer.trackId, offer.reversed),
     laps: offer.laps,
     entrants: [player, ...rivals],
     countdownSeconds: COUNTDOWN_SECONDS,

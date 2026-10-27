@@ -35,7 +35,10 @@ export function RaceSelect({ state }: { state: UiState }) {
                   <span className="offer-tier display">{TIER_LABEL[o.tier]}</span>
                   <span className="muted display">{o.laps} laps</span>
                 </span>
-                <span className="offer-track display">{track.name}</span>
+                <span className="offer-track display">
+                  {track.name}
+                  {o.reversed && <span className="offer-rev">REV</span>}
+                </span>
                 <span className="offer-outline">
                   <TrackOutline points={trackPath(o.trackId)} />
                 </span>

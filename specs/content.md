@@ -242,7 +242,7 @@ User: "currently in tracks there are a lot of straight lines, in death rally the
 | `turnPer100m` | total \|heading change\| in degrees per 100 m |
 | `minRadius` | 1 / max k measured over a 4 m window |
 
-**Rules** for a tight track (checked by `src/content/tracks/shape.test.ts` for every TRACKS entry exported with `shape: 'tight'`):
+**Rules** for a tight track (checked by `src/content/tracks/shape.test.ts` for every TRACKS entry exported with `shape: 'tight'`, and for every reversed layout, WP39):
 
 | rule | value |
 |---|---|
@@ -329,3 +329,31 @@ All built with `roundedLoop` like Scrapyard; corner lists, pickups and prop rule
 Landmarks kept: Dockside's sea (theme `water` point (160, 256), normal (0, 1); 79 m of outer wall within 3 m of it) and more light poles than Scrapyard; Neon Mile more light poles than Scrapyard, Rain District more than Neon Mile; `REDROCK_CRANE_S` 416 and `BLAST_PIT_CRANE_S` 833 at their hairpin apexes. Pickups: every kind at least twice, cash the most common, a mix on and off the AI line (off-line = opposite side of the racing line, about lateral `width / 2 - 1.5`).
 
 The pre-WP32 constraints (WP11/WP22/WP23: length 1100-1500 m, a straight >= 150 m) no longer apply; a pre-WP31 Rain District lives on as `RAIN_DISTRICT_FIXTURE` for the AI tests.
+
+### Reversed layouts (WP39, CCR-14)
+
+Every track also runs the other way: `REVERSED_TRACKS` in `src/content/tracks/index.ts`, id `<id>~r`, name "<Name> Reverse", built at load by `reverseTrack` (`src/content/tracks/reverse.ts`) from the forward def, never hand-drawn. `getTrack` resolves both ids, `trackVariant(id, reversed)` picks one; TRACKS (pickers, unlocks, offer rotation) keeps the 10 base tracks.
+
+- **Centerline**: the forward points in the opposite order, from a new first point (the reversed line). Same road: length equal within 0.01 m, the road within 5 cm of the forward one, heading opposite everywhere (`reverse.test.ts`).
+- **Start**: the forward start straight leads into T1, so the reversed line moves back along that straight to `GRID_DEPTH` (40 m: the back slot 36 m behind the line, half a car, a margin) before its end in the new direction; the grid fills the straight and the cars get the rest of it before the reversed T1. The point is inserted on the forward spline unless a centerline point lies within 2 m. `REVERSED_START_S` overrides the rule per track.
+- **Pickups** keep their spot on the road: s mirrored around the new line, lateral flipped (right is now left). **Props** are world positions and stay. Checkpoints, grid, kerbs and the dressing (start gantry, grandstands, banners) follow the new line like any track.
+- **referenceLapTime**: `REVERSED_REFERENCE_LAP_TIMES` in `reverse.ts`, the 0.55 AI median clean lap of the 16-seed soak rounded to 0.5 s, like every track. Each reversed layout passes the same shape rules, `validateTrack` and WP07 soak gates as its forward track (`shape.test.ts`, `reverse.test.ts`, `reverseSoak.test.ts`).
+
+| reversed | line at forward s | straight after the line m | shape (near-straight, corners, longest straight m, deg/100 m, min radius m) | ref lap s | soak 0.55 median s | soak wrecks | soak walls |
+|---|---|---|---|---|---|---|---|
+| scrapyard~r | -10 (rule -7, see below) | 23 | 23.9%, 20, 69, 170, 14.7 | 24.5 | 24.43 | 0.94 | 5.19 |
+| dustBowl~r | -8 | 24 | 22.5%, 18, 68, 149, 15.7 | 23.5 | 23.52 | 0.81 | 4.50 |
+| dockside~r | -7 | 26 | 23.5%, 18, 69, 181, 14.6 | 24.5 | 24.32 | 0.56 | 6.31 |
+| frostbite~r | -22 (rule -18, see below) | 27 | 22.8%, 18, 75, 173, 15.0 | 24 | 23.80 | 0.75 | 3.38 |
+| neonMile~r | -44 (the forward line sits at T1's turn-in) | 8 | 20.8%, 17, 53, 173, 15.6 | 24.5 | 24.38 | 1.00 | 4.63 |
+| redrock~r | -12 | 15 | 23.5%, 18, 58, 137, 19.1 | 23.5 | 23.35 | 0.81 | 5.38 |
+| junkyardSprint~r | -14 | 12 | 22.6%, 16, 56, 161, 14.6 | 22 | 22.08 | 0.38 | 3.94 |
+| pineHollow~r | -14 | 11 | 24.4%, 20, 55, 138, 19.6 | 24 | 24.02 | 1.00 | 2.94 |
+| rainDistrict~r | -11 | 18 | 19.7%, 21, 61, 172, 16.3 | 24 | 24.00 | 1.00 | 4.44 |
+| blastPit~r | -12 | 12 | 20.7%, 23, 54, 149, 16.4 | 27 | 27.07 | 1.19 | 4.44 |
+
+Overrides: Scrapyard -10 (the rule's -7 left run.mjs's 0.75 vs 0.35 finish spread at 0.797, -10 gives 1.33); Frostbite -22 (the rule's -18 gave a 23.75 s median, on the rounding edge; -22 gives 23.80 s and fewer wall hits). Wall impacts above the 4.5 flag (report-only): 4 reversed layouts in the soak (Scrapyard 5.19, Dockside 6.31, Neon Mile 4.63, Redrock 5.38), 3 in run.mjs (Dockside 4.89 the highest).
+
+**Career** (`offerReversed` in `src/meta/career.ts`): the offer of tier index t (easy 0, medium 1, hard / boss 2, `TIER_TRACK_INDEX`) races reversed when `(racesRun + t) % 3 === 2`: exactly one offer per round, rotating hard (or boss), medium, easy from the first round. `RaceOffer.trackId` stays the base id, so story track scenes keep the base track's image and lines; the race setup carries the reversed TrackDef. Offers are rebuilt from the save, so no save migration.
+
+**Quick race**: a REVERSE row under TRACK on the pre-race screen, remembered in `Settings.quickReversed` (default false). `?race=1&track=<id>~r` races a reversed layout directly.

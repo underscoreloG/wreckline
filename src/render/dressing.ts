@@ -187,7 +187,8 @@ export function planDressing(track: TrackGeometry, d: ThemeDressing): DressingPl
   };
   /** Long pieces: circles of radius r every metre along local x. */
   const alongSeg = (x: number, y: number, rot: number, len: number, f: (px: number, py: number) => boolean): boolean => {
-    const k = Math.max(1, Math.ceil(len));
+    // At least the two ends and the middle: a short tyre stack checked at its ends only can sit on a prop (WP39).
+    const k = Math.max(2, Math.ceil(len));
     for (let i = 0; i <= k; i++) {
       const t = -len / 2 + (len * i) / k;
       if (!f(x + Math.cos(rot) * t, y + Math.sin(rot) * t)) return false;
@@ -342,27 +343,30 @@ export function planDressing(track: TrackGeometry, d: ThemeDressing): DressingPl
   const stands: Placed[] = [];
   const crowd: Placed[] = [];
   const flags: Placed[] = [];
-  const standFits = (s: number, side: number, gap: number): boolean => {
-    for (let a = -STAND.len / 2; a <= STAND.len / 2; a += 2) {
-      for (const z of [0, STAND.depth]) {
-        const p = at(s + a, side * (minLat + gap + z));
-        if (!clear(p.x, p.y, 1.2)) return false;
-      }
-    }
-    return true;
-  };
   const local = (pl: Placed, lx: number, lz: number): Vec2 => {
     const c = Math.cos(pl.rot);
     const sn = Math.sin(pl.rot);
     // local +x = (cos, sin), local +z = (-sin, cos) in sim axes (heading convention).
     return { x: pl.x + c * lx - sn * lz, y: pl.y + sn * lx + c * lz };
   };
+  // The stand is a straight box: check its own edges, since next to a bend (a reversed track's start, WP39) the
+  // road curves away under one end.
+  const standFits = (st: Placed): boolean => {
+    for (let a = -STAND.len / 2; a <= STAND.len / 2; a += 2) {
+      for (const z of [-STAND.depth / 2, STAND.depth / 2]) {
+        const p = local(st, a, z);
+        if (!clear(p.x, p.y, 1.2)) return false;
+      }
+    }
+    return true;
+  };
   for (const [s, gap] of [track.length - 30, track.length - 55, 40, 90].flatMap((s) => [STAND.gap, STAND.gap * 2.5].map((g) => [s, g]))) {
     if (stands.length >= 2) break;
     for (const side of [-1, 1]) {
-      if (stands.length >= 2 || !standFits(s, side, gap)) continue;
+      if (stands.length >= 2) continue;
       const c = at(s, side * (minLat + gap + STAND.depth / 2));
       const st: Placed = { x: c.x, y: c.y, h: 0, rot: sideRot(s, side), scale: 1, tint: 0 };
+      if (!standFits(st)) continue;
       stands.push(st);
       for (let lx = -STAND.len / 2; lx <= STAND.len / 2; lx += 2) {
         const q = local(st, lx, 0);

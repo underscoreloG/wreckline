@@ -1,5 +1,5 @@
 // WP12 balance probes: `node scripts/balance/run.mjs` prints the health-metric table and exits 1 if a row misses its target.
-// Options: --seeds N (16), --starts N (4 grid rotations), --tracks a,b, --loadout soak|rival, --skip-races, --skip-career,
+// Options: --seeds N (16), --starts N (4 grid rotations), --tracks a,b (default: the 10 tracks, then their reversed layouts a~r), --loadout soak|rival, --skip-races, --skip-career,
 // --driver S (careerSim player driver skill), --calibrate (careerSim playerSkill calibration instead of the table), --out DIR (default: a temp dir),
 // --difficulty easy|normal|hard (CCR-13: every AI and the careerSim rivals drive shifted; also prints the per-skill lap table; targets are tuned for normal).
 import { spawn } from 'node:child_process';
@@ -22,8 +22,14 @@ const difficulty = arg('difficulty', null);
 if (difficulty !== null && !['easy', 'normal', 'hard'].includes(difficulty)) throw new Error(`--difficulty ${difficulty}: easy, normal or hard`);
 const diffEnv = difficulty === null ? {} : { BALANCE_DIFFICULTY: difficulty };
 const out = arg('out', mkdtempSync(join(tmpdir(), 'wreckline-balance-')));
-// Registry order, read from the track index so the probe never pins the list.
-const allTracks = [...readFileSync(join(root, 'src/content/tracks/index.ts'), 'utf8').matchAll(/^\s+(\w+): [A-Z_]+,$/gm)].map((m) => m[1]);
+// Registry order, read from the track index so the probe never pins the list; then each reversed layout (WP39, '<id>~r').
+const baseTracks = [...readFileSync(join(root, 'src/content/tracks/index.ts'), 'utf8').matchAll(/^\s+(\w+): [A-Z_]+,$/gm)].map((m) => m[1]);
+const allTracks = [...baseTracks, ...baseTracks.map((t) => `${t}~r`)];
+const reverseSrc = readFileSync(join(root, 'src/content/tracks/reverse.ts'), 'utf8');
+const refOf = (t) =>
+  Number(
+    (t.endsWith('~r') ? reverseSrc.match(new RegExp(`^\\s+${t.slice(0, -2)}: ([\\d.]+),$`, 'm')) : readFileSync(join(root, `src/content/tracks/${t}.ts`), 'utf8').match(/referenceLapTime: ([\d.]+)/))?.[1] ?? NaN,
+  );
 const tracks = arg('tracks', allTracks.join(',')).split(',');
 
 function probe(file, env) {
@@ -83,7 +89,7 @@ if (!flag('skip-races')) {
     const median = medianOf(laps);
     // Same start 0 grid, every car by its PROBE_SKILLS skill (shown with --difficulty).
     const bySkill = (skill) => medianOf(races.filter((r) => r.start === 0).flatMap((r) => r.cleanLaps.filter((c) => c.skill === skill).map((c) => c.lap)));
-    const ref = Number(readFileSync(join(root, `src/content/tracks/${t}.ts`), 'utf8').match(/referenceLapTime: ([\d.]+)/)?.[1] ?? NaN);
+    const ref = refOf(t);
     return {
       t,
       n: races.length,

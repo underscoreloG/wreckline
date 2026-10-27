@@ -10,7 +10,7 @@ const memory = (init: Record<string, string> = {}): SettingsStorage & { data: Re
 describe('settings', () => {
   it('defaults when nothing is stored or storage is unavailable', () => {
     expect(loadSettings(memory())).toEqual(DEFAULT_SETTINGS);
-    expect(loadSettings(null)).toEqual({ version: 1, masterVolume: 0.8, sfxVolume: 0.9, musicVolume: 0.5, quality: 'high', cameraShake: true, showFps: false, quickTrackId: null, quickCarId: null, difficulty: 'normal' });
+    expect(loadSettings(null)).toEqual({ version: 1, masterVolume: 0.8, sfxVolume: 0.9, musicVolume: 0.5, quality: 'high', cameraShake: true, showFps: false, quickTrackId: null, quickCarId: null, difficulty: 'normal', quickReversed: false });
   });
 
   it('round-trips through save and load', () => {
@@ -23,7 +23,7 @@ describe('settings', () => {
 
   it('a settings object saved before CCR-11 gets the default music volume and keeps the rest', () => {
     const old = { version: 1, masterVolume: 0.4, sfxVolume: 0.6, quality: 'low', cameraShake: false, showFps: true, quickTrackId: 'harbor', quickCarId: null };
-    expect(loadSettings(memory({ [SETTINGS_KEY]: JSON.stringify(old) }))).toEqual({ ...old, musicVolume: 0.5, difficulty: 'normal' });
+    expect(loadSettings(memory({ [SETTINGS_KEY]: JSON.stringify(old) }))).toEqual({ ...old, musicVolume: 0.5, difficulty: 'normal', quickReversed: false });
     expect(loadSettings(memory({ [SETTINGS_KEY]: JSON.stringify({ ...old, musicVolume: 0 }) })).musicVolume).toBe(0);
     expect(loadSettings(memory({ [SETTINGS_KEY]: JSON.stringify({ ...old, musicVolume: 'loud' }) })).musicVolume).toBe(0.5);
   });
@@ -33,6 +33,13 @@ describe('settings', () => {
     expect(loadSettings(memory({ [SETTINGS_KEY]: JSON.stringify(old) }))).toEqual({ ...old, difficulty: 'normal' });
     for (const d of ['easy', 'hard'] as const) expect(loadSettings(memory({ [SETTINGS_KEY]: JSON.stringify({ ...old, difficulty: d }) })).difficulty).toBe(d);
     expect(loadSettings(memory({ [SETTINGS_KEY]: JSON.stringify({ ...old, difficulty: 'insane' }) })).difficulty).toBe('normal');
+  });
+
+  it('a settings object saved before CCR-14 gets quickReversed false; a stored toggle round-trips, a bad one falls back', () => {
+    const { quickReversed: _, ...old } = DEFAULT_SETTINGS;
+    expect(loadSettings(memory({ [SETTINGS_KEY]: JSON.stringify(old) }))).toEqual(DEFAULT_SETTINGS);
+    expect(loadSettings(memory({ [SETTINGS_KEY]: JSON.stringify({ ...old, quickReversed: true }) })).quickReversed).toBe(true);
+    expect(loadSettings(memory({ [SETTINGS_KEY]: JSON.stringify({ ...old, quickReversed: 'yes' }) })).quickReversed).toBe(false);
   });
 
   it('tolerates corrupt JSON and wrong-typed fields', () => {
