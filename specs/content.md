@@ -152,7 +152,7 @@ Pickup radius 2.2 m + half car width. Respawn after 8 s (tuning pass 1; was 12 s
 
 ## 8. AI profiles (`src/content/ai.ts`)
 
-`profileForSkill(skill)` linearly interpolates between these anchors (clamp skill to [0, 1.1]):
+`profileForSkill(skill)` linearly interpolates between these anchors (clamp skill to [0, 1.25]; above 1.1 only hard reaches, CCR-13):
 
 | skill | cornerSpeedFactor | lineNoise | reactionTicks | aggression | mineUse | turboUse | rubberBand |
 |---|---|---|---|---|---|---|---|
@@ -161,6 +161,7 @@ Pickup radius 2.2 m + half car width. Respawn after 8 s (tuning pass 1; was 12 s
 | 0.75 | 1.12 | 0.6 | 7 | 0.575 | 0.55 | 0.75 | 0.02 |
 | 1.0 | 1.12 | 0.3 | 5 | 0.75 | 0.70 | 0.90 | 0.00 |
 | 1.1 | 1.14 | 0.2 | 4 | 0.90 | 0.85 | 1.00 | 0.00 |
+| 1.25 (hard only) | 1.26 | 0.1 | 3 | 0.90 | 0.85 | 1.00 | 0.00 |
 
 reactionTicks rounds to an integer. cornerSpeedFactor multiplies the racing line's planned corner speed (64 m/s^2 per unit of grip), capped at the car's top speed; the line plans less than the car holds (WP37: a solo raven at 1.15 still hits no wall), so it runs above 1. The 0.75 row (WP37) sits on the old 0.5-1.0 line for every field but cornerSpeedFactor, lineNoise and reactionTicks, so the pace curve can be flat above 0.75.
 
@@ -170,7 +171,7 @@ Rubber banding is mild and only in easy and medium races (user decision 2026-10-
 
 M1 quick race AI skills: 0.35, 0.55, 0.75. Names VEX, RAZOR, MOTH.
 
-**Difficulty (user decision 2026-10-27, CCR-13, "Everywhere, same rewards"):** `Settings.difficulty` easy / normal / hard (default normal) shifts every AI entrant's skill by `DIFFICULTY_SKILL_OFFSET` (easy -0.2, normal 0, hard +0.15), clamped to [0, 1.1], before `profileForSkill`: `aiProfile(skill, difficulty)` in `src/content/ai.ts`, used by quick race, career rivals and THE WARDEN, and any later mode that builds AI entrants. Normal is the table above unchanged. The boss drives at 1.1 on hard and 0.9 on easy. Only the driving changes: rival upgrade levels and spikes, ladder points, prizes, points and prices stay on the rival's own skill; the hard/boss rubber band rule above is unchanged (easy and medium races keep the shifted profile's band). Set in Settings, applied from the next race (a quick race restart included); the pre-race screen shows it. The `?autoplay=1` player driver is not shifted. Measured in docs/tuning-log.md (WP38).
+**Difficulty (user decision 2026-10-27, CCR-13, "Everywhere, same rewards"):** `Settings.difficulty` easy / normal / hard (default normal) changes every AI entrant's skill before `profileForSkill`: `skillForDifficulty` and `aiProfile(skill, difficulty)` in `src/content/ai.ts`, used by quick race, career rivals and THE WARDEN, and any later mode that builds AI entrants. Easy and normal add `DIFFICULTY_SKILL_OFFSET` (easy -0.2, normal 0), clamped to [0, 1.1]; normal is the table above unchanged. Hard (user decision 2026-10-27: "Hard should give a clearly faster leader (extra skill range above 1.1 only Hard reaches)") maps the skill through `HARD_SKILL_CURVE`, linear between 0 -> 0.15, 0.55 -> 0.7, 0.75 -> 1.12, 1.1 -> 1.15: +0.15 at the bottom, steeper above 0.55 so the 0.75 quick race AI laps about 2.5% faster than a good human (P = the normal 0.75 lap) while the 0.35 stays slower than P. The boss drives at 1.15 on hard (about 3% faster than P in a raven; in its wraith 2% faster than on normal) and 0.9 on easy. The 1.25 row is the measured top: solo ravens and wraiths at cornerSpeedFactor up to 1.40 hit no wall, and the gain stops at about 1.26 where top speed caps; on the open tracks (Dust Bowl, Redrock, Pine Hollow, Blast Pit) top speed caps sooner, so hard gains less there. Only the driving changes: rival upgrade levels and spikes, ladder points, prizes, points and prices stay on the rival's own skill; the hard/boss rubber band rule above is unchanged (easy and medium races keep the shifted profile's band). Set in Settings, applied from the next race (a quick race restart included); the pre-race screen shows it. The `?autoplay=1` player driver is not shifted. Measured in docs/tuning-log.md (WP38).
 
 ## 9. Liveries (M1 and rival colors)
 

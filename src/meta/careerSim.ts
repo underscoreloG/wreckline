@@ -64,6 +64,7 @@ export const DRIVER_CURVE: readonly (readonly [number, number])[] = [
   [0.75, 0.79],
   [0.95, 0.8],
   [1.1, 0.86],
+  [1.25, 0.88], // hard only (CCR-13): calibrate 2026-10-27, 0.75 at +0.246 and 1.25 at +0.334 vs the 0.55 field, added to the 0.75 point
 ];
 export const CAR_VALUE: Readonly<Record<string, number>> = { raven: 0, outlaw: -0.12, iceberg: -0.28, scorch: 0.43, titan: 0.22, blaze: 0.89, viper: 1.08, wraith: 1.38 };
 export const LEVEL_VALUE: Readonly<Record<UpgradeKind, number>> = { engine: 0.14, tires: 0.041, armor: 0.02, gun: 0.008, fuel: 0.025, spikes: 0 };

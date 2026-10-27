@@ -632,45 +632,60 @@ The tight-track `referenceLapTime` rule moves from 24-32 s to 21-28 s (measured 
 
 ## 2026-10-27 - Difficulty Easy / Normal / Hard (WP38, CCR-13)
 
-User: "top3 and 7 as a new mode in the menu", difficulty choice "Everywhere, same rewards"; "It needs to be competitive without making it too hard and make grinds for hours". Every AI entrant's skill is shifted before `profileForSkill`, clamped to [0, 1.1]; rewards, rival stats and ladder points are unchanged.
+User: "top3 and 7 as a new mode in the menu", difficulty choice "Everywhere, same rewards"; "It needs to be competitive without making it too hard and make grinds for hours". Round 2: "Send WP38 back: Hard should give a clearly faster leader (extra skill range above 1.1 only Hard reaches), Normal unchanged." Every AI entrant's skill changes before `profileForSkill`; rewards, rival stats and ladder points are unchanged. P below = the normal 0.75 AI lap (a good human's pace, WP37).
 
 ### Changed values
 
 | Where | Value | Before | After | Why |
 |---|---|---|---|---|
-| `src/content/ai.ts` | `DIFFICULTY_SKILL_OFFSET` easy / normal / hard | - | -0.2 / 0 / +0.15 | WP38 brief; normal is the WP37 tuning exactly |
+| `src/content/ai.ts` | `DIFFICULTY_SKILL_OFFSET` easy / normal | - | -0.2 / 0, clamp [0, 1.1] | WP38 brief; normal is the WP37 tuning exactly |
+| `src/content/ai.ts` | `HARD_SKILL_CURVE` | (round 1: +0.15, clamp 1.1) | 0 -> 0.15, 0.55 -> 0.7, 0.75 -> 1.12, 1.1 -> 1.15 | round 1 bunched the field (the pace curve is flat above 0.75: the 0.75 slot at 0.9 gained 0.4%, spread 0.13 on Pine Hollow). A steeper stretch above 0.55 lifts the leader; trail below |
+| `src/content/ai.ts` | anchor row 1.25 (hard only), `HARD_SKILL_MAX` | - | cornerSpeedFactor 1.26, lineNoise 0.1, reactionTicks 3, aggression / mineUse / turboUse / rubberBand as 1.1 | solo sweep below: no wall hit up to 1.40, gain stops at about 1.26 (top speed). Weapons unchanged so only pace moves |
+| `src/meta/careerSim.ts` | `DRIVER_CURVE` point | - | [1.25, 0.88] | calibrate probe: 0.75 at +0.246, 1.1 at +0.227, 1.25 at +0.334 (256 races each, the 0.75 point matches WP12's +0.24); 0.79 + 0.088. Only hard reaches it |
 | `src/game/settings.ts` | `Settings.difficulty` default | - | 'normal' | saved settings without it migrate to 'normal' |
 
-### Normal = main
+### Solo sweep (one raven, no traffic, 4 seeds x 2 flying laps, 10 tracks; lap / P solo)
 
-`node scripts/balance/run.mjs` on the branch: 8/8, the table identical to main line for line, and the raw probe JSON (12 files) identical apart from the new `cleanLaps` field.
+| Profile | Scrapyard | Neon Mile | Dust Bowl | Frostbite | Mean 10 tracks | Wall hits |
+|---|---|---|---|---|---|---|
+| skill 1.1 (normal boss) | 0.976 | 0.976 | 0.982 | 0.974 | 0.979 | 0 |
+| factor 1.18, noise 0.1, react 3 | 0.962 | 0.962 | 0.974 | 0.962 | 0.969 | 0 |
+| factor 1.26 (the 1.25 row) | 0.951 | 0.954 | 0.967 | 0.954 | 0.961 | 0 |
+| factor 1.30 / 1.34 / 1.40 | 0.946 / 0.946 / 0.943 | 0.951 / 0.949 / 0.948 | 0.965 | 0.951 / 0.949 / 0.948 | 0.959 / 0.958 / 0.958 | 0 |
 
-### Easy and hard (`run.mjs --difficulty easy|normal|hard`, 10 tracks x 16 seeds x 4 starts, report only)
+Top speed caps the gain from about 1.26; the open tracks cap sooner (1.25 row: Redrock 0.975, Pine Hollow 0.982, Dust Bowl 0.967, Blast Pit 0.962 vs 0.943-0.959 on the tight ones). The boss wraith (level 2) at 1.1 / 1.15 / 1.25 hit no wall either; against a 0.75 driver in the same wraith it laps 0.961 / 0.941 / 0.905 on the four tracks above (top speed rarely caps a wraith), so 1.25 would make THE WARDEN about 6% faster than on normal: hard gives the boss +0.05 only.
 
-Median clean lap / `referenceLapTime` by quick race skill before the shift, start 0 grid, mean over the 10 tracks:
+### Hard slots (`run.mjs --difficulty hard`, start 0 grid, median clean lap / P per track)
 
-| Skill | Easy (drives at) | Normal | Hard (drives at) |
-|---|---|---|---|
-| 0.35 | 1.053 (0.15) | 1.031 | 0.997 (0.5) |
-| 0.55 | 1.035 (0.35) | 1.000 | 0.967 (0.7) |
-| 0.75 | 1.002 (0.55) | 0.965 | 0.961 (0.9) |
+| Slot (drives at) | Scrapyard | Neon Mile | Dust Bowl | Frostbite | Mean 10 tracks | Solo, mean 10 tracks |
+|---|---|---|---|---|---|---|
+| 0.35 (0.5) | 1.035 | 1.040 | - (no clean lap) | 1.030 | 1.035 (9 tracks) | 1.046 |
+| 0.55 (0.7) | 1.000 | 0.999 | 0.999 | 1.001 | 1.002 | 1.004 |
+| 0.75 (1.12) | 0.970 | 0.967 | 0.987 | 0.970 | 0.976 | 0.976 |
+| THE WARDEN, raven solo (1.15) | 0.967 | 0.967 | 0.977 | 0.967 | | 0.973 |
 
-| Metric | Easy | Normal | Hard | Target (normal) |
+Trail for the 0.75 point: 1.15 gave 0.965 / 0.962 / 0.974 / 0.966 on the four tracks (3.3%), 1.12 gives 2.7%. Pine Hollow (0.993) and Dust Bowl (0.987) are the open tracks where top speed caps the leader.
+
+### All difficulties (`run.mjs`, 10 tracks x 16 seeds x 4 starts)
+
+`node scripts/balance/run.mjs` (normal): 8/8, the table identical to main line for line, the raw probe JSON (12 files) identical apart from the new `cleanLaps` field. Easy is unchanged from round 1.
+
+| Metric | Easy | Normal | Hard (round 2) | Target (normal) |
 |---|---|---|---|---|
-| Wrecks per AI race | 0.36-1.02 (avg 0.50) | 0.31-1.23 (avg 0.64) | 0.45-1.56 (avg 0.90) | 0.2-2.0 |
-| Gun damage share | 0.52 | 0.54 | 0.62 | 0.45-0.65 |
-| Mine hits per race | 1.86 | 1.88 | 1.75 | 0.8-3 |
-| Spread 0.75 vs 0.35, worst track | 0.58 (pineHollow) | 0.97 (pineHollow) | 0.13 (pineHollow) | >= 0.8 |
-| Lap delta vs reference (the 0.55 slot, shifted) | 1.15 s | 0.23 s | 1.32 s | <= 1 s |
-| Career greedy champion in 18-35 | 15/16, races 17-33, median 24 | 15/16, 21-38, median 25 | 16/16, 24-34, median 29 | >= 14/16 |
+| Wrecks per AI race | 0.36-1.02 (avg 0.50) | 0.31-1.23 (avg 0.64) | 0.39-1.38 (avg 0.82) | 0.2-2.0 |
+| Wall impacts per race (avg of tracks) | 3.66 | 3.46 | 3.27 | - |
+| Gun damage share | 0.52 | 0.54 | 0.59 | 0.45-0.65 |
+| Mine hits per race | 1.86 | 1.88 | 1.64 | 0.8-3 |
+| Spread 0.75 vs 0.35, worst track | 0.58 (pineHollow) | 0.97 (pineHollow) | 0.23 (pineHollow); the other 9 tracks 1.13-1.97 (round 1: 0.13, 0.64, 0.77 ...) | >= 0.8 |
+| Career greedy champion in 18-35 | 15/16, races 17-33, median 24 | 15/16, 21-38, median 25 | 15/16, 22-37, median 29 | >= 14/16 |
 | Career safe | never | never | never | 25-50 or never |
 | Greedy cash by race 5 | 10300 | 10250 | 9600 | >= 1000 |
 
-The lap delta and spread targets are normal-only gates: the lap row measures the shifted 0.55 slot, so it moves by design.
+Easy, mean lap / `referenceLapTime` per slot: 0.35 1.053, 0.55 1.035, 0.75 1.002 (normal 1.031 / 1.000 / 0.965): every slot 2-4% slower.
 
 ### Notes
 
-- Hard mostly closes the field up rather than raising the top: the WP37 curve is flat above 0.75 (cornerSpeedFactor 1.12 at 0.75 and 1.0), so the 0.75 slot at 0.9 laps only 0.4% faster than on normal, while the 0.35 and 0.55 slots gain 3.4% and 3.3%. Spread per track on hard 0.13-1.30 (Pine Hollow 0.13, Dust Bowl 0.64, Blast Pit 0.77).
-- Easy slows every slot 2-4%; the 0.75 slot lands at a good human's pace (1.002 x reference, about P x 1.03).
+- Pine Hollow stays the weak spread track on hard (0.23): its open bends let top speed cap every skill.
 - Career on easy: the first rivals (skill 0.1-0.2) all clamp to 0, so they drive alike; their stats still differ.
-- Career greedy row moves as expected but by little: easy one race shorter (median 24), hard four longer (median 29). careerSim (`CareerSimOptions.difficulty`) shifts the rivals' driver strength only, like the game.
+- Career on hard: rivals 0.75-0.96 drive at 1.12-1.14, close to the boss's 1.15.
+- careerSim (`CareerSimOptions.difficulty`) shifts the rivals' driver strength only, like the game. `DRIVER_CURVE` itself predates WP37 and was not recalibrated (1.1 measured +0.227 today against the curve's 0.86 - 0.55 = +0.31).

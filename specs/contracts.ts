@@ -206,7 +206,7 @@ export interface TrackValidation {
 // ---------------------------------------------------------------- AI
 
 export interface AiProfile {
-  skill: number; // 0..1.1 (1.1 = boss); derived values below come from content.md table
+  skill: number; // 0..1.1 (1.1 = boss), up to 1.25 on hard only (CCR-13); derived values below come from content.md table
   cornerSpeedFactor: number; // fraction of the grip-limited corner speed it dares to carry
   lineNoise: number; // m, lateral wobble amplitude around the racing line
   reactionTicks: number; // input delay

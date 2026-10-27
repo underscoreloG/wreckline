@@ -269,6 +269,8 @@ describe('difficulty (CCR-13)', () => {
       }
       const boss = buildCareerRaceSetup(save, offerOf(save, tier), 1, 'easy').entrants.find((e) => e.driverId === 'boss');
       if (boss) expect(boss.ai!.skill).toBeCloseTo(0.9, 9);
+      const hardBoss = buildCareerRaceSetup(save, offerOf(save, tier), 1, 'hard').entrants.find((e) => e.driverId === 'boss');
+      if (hardBoss) expect(hardBoss.ai!.skill).toBeCloseTo(1.15, 9);
     }
   });
 });
