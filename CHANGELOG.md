@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.0 - Story and music (2026-10-27)
+
+- Career has a story now: THE WARDEN took your family's Red Lantern Garage, and MAZ, the old family mechanic, sends you up the ladder to win it back. Six story scenes at rank milestones (VEX, RAZOR, DUCHESS, BANSHEE, THE WARDEN, the ending) and a scene for every track before each career race, with lines that change as you climb and taunts from the rivals in your race. SPACE goes on, ESC skips.
+- Background music: six CC0 race tracks (one per race) and a menu track, mixed well under the engines and guns. New Music volume slider in Settings.
+- New painted key art behind the title menu.
+
 ## 0.9.1 - More tracks in career (2026-10-27)
 
 - Career offers three new tracks every round instead of moving on by one, so all 10 tracks come round within four races.
