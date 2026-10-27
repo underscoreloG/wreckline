@@ -7,7 +7,7 @@ import { PLAYER_LIVERY } from '../liveries';
 import { COUNTDOWN_SECONDS } from '../race';
 import { RIVALS } from '../rivals';
 import { arenaOrFirst, arenaTrack } from './index';
-import { ARENA_AI_NAMES, ARENA_AI_SKILLS, ARENA_LOADOUT } from './rules';
+import { ARENA_AI_NAMES, ARENA_AI_SKILLS, ARENA_GUN_DPS, ARENA_LOADOUT, ARENA_MAX_HP } from './rules';
 
 export interface ArenaSetupOptions {
   seed: number;
@@ -23,7 +23,8 @@ const STOCK = { engine: 0, tires: 0, armor: 0, gun: 0, fuel: 0, spikes: 0 };
 
 /**
  * WP41 (CCR-16): last car standing. The player (entrant 0) in a stock `carId` and 7 AI drivers (skills 0.35-0.85) in
- * stock cars: 7 of the 8 models, shuffled per seed so no skill always drives the same car. One spawn point each,
+ * stock cars: 7 of the 8 models, shuffled per seed so no skill always drives the same car, all with the arena's even hp
+ * and gun. One spawn point each,
  * the quick race loadout, no laps.
  */
 export function buildArenaSetup(opts: ArenaSetupOptions): RaceSetup {
@@ -38,7 +39,8 @@ export function buildArenaSetup(opts: ArenaSetupOptions): RaceSetup {
 
   const entrant = (id: number, driverId: string, name: string, color: string, carId: string, ai: EntrantSetup['ai']): EntrantSetup => {
     const car = getCar(carId);
-    const stats = computeStats(car, STOCK);
+    // Even stats: the same hp and gun for every car (rules.ts); driving stats and mass stay the car's.
+    const stats = { ...computeStats(car, STOCK), maxHp: ARENA_MAX_HP, gunDps: ARENA_GUN_DPS };
     return { id, driverId, name, color, carDefId: car.id, stats, mesh: { ...car.mesh }, hp: stats.maxHp, mines: ARENA_LOADOUT.mines, turbo: ARENA_LOADOUT.turbo, ai };
   };
 

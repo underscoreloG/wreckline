@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { getArena } from '../content/arenas';
+import { getCar } from '../content/cars';
 import {
   ARENA_DECAY_PER_SECOND,
   ARENA_PICKUP_RESPAWN_SECONDS,
@@ -143,6 +144,37 @@ describe('arena sim rules (WP41, CCR-16)', () => {
     expect(car.wrecked).toBe(true);
     const ev = world.out.find((e): e is Extract<SimEvent, { type: 'carWrecked' }> => e.type === 'carWrecked');
     expect(ev?.car).toBe(2);
+    sim.dispose();
+  });
+
+  it('even stats: a light and a heavy car take the same damage from their crash', () => {
+    const base = buildArenaSetup({ seed: 3, arenaId: 'quarryBowl' });
+    // Car 1 an outlaw (850 kg), car 2 a titan (1900 kg); the rest parked far apart.
+    const setup: RaceSetup = {
+      ...base,
+      entrants: base.entrants.map((e) => {
+        const model = e.id === 1 ? getCar('outlaw') : e.id === 2 ? getCar('titan') : null;
+        return { ...e, ai: null, ...(model ? { carDefId: model.id, mesh: { ...model.mesh }, stats: { ...e.stats, mass: model.base.mass } } : {}) };
+      }),
+    };
+    const { sim, world } = createSimWithWorld(setup);
+    while (world.phase !== 'racing') sim.step(new Map());
+    const put = (id: number, x: number, h: number): void => {
+      const b = world.cars[id]!.body;
+      b.setTranslation({ x, y: -20 }, true);
+      b.setRotation(h, true);
+      b.setLinvel({ x: Math.cos(h) * 14, y: 0 }, true);
+      b.setAngvel(0, true);
+    };
+    put(1, -12, 0);
+    put(2, 12, Math.PI);
+    const hit = new Map<number, number>();
+    const go = { throttle: 1, brake: 0, steer: 0, handbrake: false, fire: false, dropMine: false, turbo: false };
+    for (let t = 0; t < 120 && hit.size < 2; t++) {
+      for (const e of sim.step(new Map([[1, go], [2, go]]))) if (e.type === 'carDamaged' && e.source === 'collision') hit.set(e.car, e.amount);
+    }
+    expect(hit.get(1)).toBeGreaterThan(5);
+    expect(hit.get(2)).toBeCloseTo(hit.get(1)!, 9);
     sim.dispose();
   });
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ArenaDef } from '../../shared/contracts';
 import { buildTrackGeometry } from '../../shared/trackGeometry';
 import { ARENAS, arenaOrFirst, arenaTrack, DEFAULT_ARENA_ID } from './index';
-import { ARENA_AI_SKILLS } from './rules';
+import { ARENA_AI_SKILLS, ARENA_GUN_DPS, ARENA_MAX_HP } from './rules';
 import { buildArenaSetup } from './setup';
 import { validateArena } from './validate';
 
@@ -56,6 +56,12 @@ describe('arena defs (WP41)', () => {
     const models = s.entrants.slice(1).map((e) => e.carDefId);
     expect(new Set(models).size).toBe(7);
     expect(new Set(s.entrants.map((e) => e.color)).size).toBe(8);
+    // Even stats: the same hp and gun, the car's own driving stats and mass.
+    for (const e of s.entrants) {
+      expect([e.stats.maxHp, e.hp, e.stats.gunDps]).toEqual([ARENA_MAX_HP, ARENA_MAX_HP, ARENA_GUN_DPS]);
+    }
+    expect(s.entrants[0]?.stats.mass).toBe(1900);
+    expect(s.entrants[0]?.stats.maxSpeed).toBeCloseTo(40.3, 6);
     const other = buildArenaSetup({ seed: 8, arenaId: 'quarryBowl' }).entrants.slice(1).map((e) => e.carDefId);
     expect(other).not.toEqual(models);
     expect(buildArenaSetup({ seed: 1, autoplay: true }).entrants[0]?.ai).not.toBeNull();

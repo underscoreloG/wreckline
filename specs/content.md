@@ -372,6 +372,8 @@ Overrides: Scrapyard -10 (the rule's -7 left run.mjs's 0.75 vs 0.35 finish sprea
 
 **Field** (`setup.ts`, `rules.ts`): 8 cars, the player (entrant 0) and 7 AI: VEX, RAZOR, MOTH, JINX, OXIDE, VOLT, HALO at skills 0.35, 0.43, 0.52, 0.6, 0.68, 0.77, 0.85 through `aiProfile(skill, difficulty)`, in stock cars: 7 of the 8 models, shuffled per seed. Quick race loadout (3 mines, 4 s of rocket fuel). Spawn i for entrant i, 3 s countdown.
 
+**Even stats** (user decision 2026-10-27, "Even stats then": "pick a car for how it drives, not because it is a tank"): in an arena every car has `ARENA_MAX_HP` 140 hp and `ARENA_GUN_DPS` 26 hp/s (`rules.ts`, set on the entrants by `buildArenaSetup`), about the 8 models' means (135 hp, 26.5 hp/s), so the field keeps round 1's total hp and fire rate. Speed, acceleration, grip, turn rate, size and mass stay the car's: mass still pushes. Mines, wreck blasts and wall hits deal fixed damage already (a wall's velocity change does not depend on mass). Car-to-car hits: both cars take the damage of the pair's mean velocity change, with no mass factor (`combat.carVsCar`, arena only); that mean is (1 + restitution) / 2 x the closing speed whatever the masses, and equals each car's own change between two cars of the same mass, so an arena crash hurts like a race crash between equals. The setup screen shows each car's speed and acceleration, not its race hp.
+
 **Rules** (`src/sim/arena.ts`, in race.updateCountdown's and race.updateProgress's slots of `Sim.step`):
 
 | rule | value |

@@ -1,6 +1,6 @@
 import '../arena.css';
 import { ARENAS } from '../../content/arenas';
-import { ARENA_CARS, ARENA_SUDDEN_DEATH_AT } from '../../content/arenas/rules';
+import { ARENA_CARS, ARENA_MAX_HP, ARENA_SUDDEN_DEATH_AT } from '../../content/arenas/rules';
 import { carOrStarter, CARS } from '../../content/cars';
 import type { UiState } from '../../shared/contracts';
 import { Button } from '../components/Button';
@@ -61,6 +61,7 @@ export function ArenaSetup({ state }: { state: UiState }) {
             </div>
             <ul className="arena-rules">
               <li>{ARENA_CARS} cars, one survivor. A wreck is out.</li>
+              <li>Even stats: every car has {ARENA_MAX_HP} hp and the same gun. Pick a car for how it drives.</li>
               <li>Guns, mines, rocket fuel and repairs. Pickups come back after 10 s.</li>
               <li>
                 <span className="arena-sd">Sudden death</span> after {minutes}:00: every car loses hp, walls hit twice as hard, no more repairs.
@@ -93,7 +94,7 @@ export function ArenaSetup({ state }: { state: UiState }) {
               <span className="prerace-row-value">
                 <span className="display">{car.name}</span>{' '}
                 <span className="muted num">
-                  {car.base.maxHp} hp · {Math.round(car.base.maxSpeed * 3.6)} km/h
+                  {Math.round(car.base.maxSpeed * 3.6)} km/h · {car.base.accel.toFixed(1)} m/s²
                 </span>
               </span>
               <Keycap label="→" />

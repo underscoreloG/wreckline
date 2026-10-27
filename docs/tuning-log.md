@@ -769,5 +769,27 @@ Damage per fight (16 seeds): gun 314-351, mine 257-284, ram 410-438, wreck blast
 
 ### Notes
 
-- Car choice decides most fights: the titan (190 hp) and wraith (220 hp) won 39 of the 48 soak fights and 119 of 144 over 48 seeds; the raven won 2 of its 270 starts, the outlaw none of 135. Collision damage favours mass and the gun numbers are per car, so the heavy cars win the same fights they lose on the track. Not tuned here (it is a rule or stat choice, not AI): options are an arena hp pool shared by every car, heavier cars only in a class of their own, or the wraith out of the AI draw.
+- Car choice decided most fights in round 1: the titan (190 hp) and wraith (220 hp) won 119 of 144 over 48 seeds, the raven 2 of its 270 starts, the outlaw none of 135. Fixed in round 2 (even stats, below).
 - The sudden death drain wrecked 1-2 cars in 16 fights per arena; most fights end before 120 s, the longest at 160 s (48 seeds).
+
+### Round 2: even stats (user decision 2026-10-27, "Even stats then")
+
+Every arena car gets `ARENA_MAX_HP` 140 and `ARENA_GUN_DPS` 26 (the models' means, 135 hp and 26.5 hp/s); car-to-car hits use the pair's mean velocity change with no mass factor (arena only, `combat.carVsCar`). Racing untouched: run.mjs identical to main again. 48 seeds per arena, the player slot on autoplay (always a raven).
+
+| Arena | Median fight s (before -> after) | 90th percentile s | Longest s | By 180 s | Stuck |
+|---|---|---|---|---|---|
+| Scrap Pit | 80.1 -> 74.0 | 122.6 -> 122.9 | 136.7 -> 140.9 | 48/48 | 0 |
+| Quarry Bowl | 79.3 -> 72.5 | 137.1 -> 127.9 | 160.3 -> 145.3 | 48/48 | 0 |
+| Dock Lot | 75.5 -> 72.0 | 128.4 -> 102.8 | 139.7 -> 140.0 | 48/48 | 0 |
+
+| Wrecks by cause, 144 fights | gun | mine | ram | wreck blast | wall | sudden death drain |
+|---|---|---|---|---|---|---|
+| Before | 259 | 183 | 358 | 67 | 138 | 7 |
+| After | 259 | 225 | 317 | 104 | 103 | 8 |
+
+| Wins by model, 144 fights (starts) | raven | outlaw | iceberg | scorch | blaze | titan | viper | wraith |
+|---|---|---|---|---|---|---|---|---|
+| Before | 2 (270) | 0 (135) | 10 (123) | 8 (114) | 3 (135) | 54 (123) | 2 (126) | 65 (126) |
+| After | 31 (270) | 27 (135) | 21 (123) | 14 (114) | 13 (135) | 14 (123) | 17 (126) | 7 (126) |
+
+Every model wins, none above 22% of the fights (the raven's 31 come from 270 starts: the player slot is always one); per start the outlaw (20%) and iceberg (17%) do best, the wraith least (5.6%, not analysed further). The autoplay player wins 14 of 144 (round 1: 0) and draws 1.06x the average car's hunters (round 1: 0.81x). Skill still tells: the 0.85 AI wins 28, the 0.35 AI 9.
